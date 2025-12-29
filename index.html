@@ -4005,8 +4005,8 @@ if (!localStorage.getItem('drixel_admin_setup')) {
     const adminUser = {
         id: 'admin_001',
         name: 'Admin User',
-        email: 'admin@drixelsa.co.za',
-        password: '@Anelisa2025',
+        email: 'admin@drixel.co.za',
+        password: '@Aneliisa2025',
         role: 'admin',
         createdAt: new Date().toISOString()
     };
@@ -4774,7 +4774,7 @@ document.addEventListener('touchmove', function(e) {
         // Swipe down more than 100px with 3 fingers
         if (swipeDistance > 100) {
             const currentUser = JSON.parse(localStorage.getItem('drixel_current_user')) || null;
-            if (currentUser && currentUser.email === 'admin@drixelsa.co.za') {
+            if (currentUser && currentUser.email === 'admin@drixel.co.za') {
                 e.preventDefault();
                 showMobileAdmin();
             }
