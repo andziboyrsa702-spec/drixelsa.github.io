@@ -4774,7 +4774,7 @@ document.addEventListener('touchmove', function(e) {
         // Swipe down more than 100px with 3 fingers
         if (swipeDistance > 100) {
             const currentUser = JSON.parse(localStorage.getItem('drixel_current_user')) || null;
-            if (currentUser && currentUser.email === 'admin@drixel.co.za') {
+            if (currentUser && currentUser.email === 'admin@drixelsa.co.za') {
                 e.preventDefault();
                 showMobileAdmin();
             }
