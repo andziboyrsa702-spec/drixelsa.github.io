@@ -4005,14 +4005,14 @@ if (!localStorage.getItem('drixel_admin_setup')) {
     const adminUser = {
         id: 'admin_001',
         name: 'Admin User',
-        email: 'admin@drixel.co.za',
-        password: 'Admin123',
+        email: 'admin@drixelsa.co.za',
+        password: '@Anelisa2025',
         role: 'admin',
         createdAt: new Date().toISOString()
     };
     
     let users = JSON.parse(localStorage.getItem('drixel_users')) || [];
-    if (!users.find(u => u.email === 'admin@drixel.co.za')) {
+    if (!users.find(u => u.email === 'admin@drixelsa.co.za')) {
         users.push(adminUser);
         localStorage.setItem('drixel_users', JSON.stringify(users));
     }
