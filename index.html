@@ -3567,479 +3567,166 @@
             }
         }
 
-        // ===== SIMPLIFIED AUTHENTICATION SYSTEM =====
+        // ===== SERIOUS AUTHENTICATION SYSTEM =====
+
+// ===== AUTH TAB FUNCTION (MISSING) =====
+function showAuthTab(tab) {
+    console.log('🔄 Switching auth tab to:', tab);
+    
+    // Update tab buttons
+    document.querySelectorAll('.auth-tab').forEach(t => {
+        t.classList.remove('active');
+    });
+    
+    // Hide all forms
+    document.querySelectorAll('.auth-form').forEach(f => {
+        f.classList.remove('active');
+        f.style.display = 'none';
+    });
+    
+    // Activate selected tab
+    if (tab === 'login') {
+        document.querySelector('.auth-tab:first-child').classList.add('active');
+        document.getElementById('loginForm').classList.add('active');
+        document.getElementById('loginForm').style.display = 'block';
+    } else if (tab === 'register') {
+        document.querySelector('.auth-tab:last-child').classList.add('active');
+        document.getElementById('registerForm').classList.add('active');
+        document.getElementById('registerForm').style.display = 'block';
+    }
+    
+    // Clear error/success messages
+    const errorMessages = document.querySelectorAll('.error-message');
+    const successMessages = document.querySelectorAll('.success-message');
+    
+    errorMessages.forEach(msg => {
+        msg.style.display = 'none';
+        msg.textContent = '';
+    });
+    
+    successMessages.forEach(msg => {
+        msg.style.display = 'none';
+        msg.textContent = '';
+    });
+}
+
+// Store user data in localStorage with proper structure
 const USERS_STORAGE_KEY = 'drixel_users';
-const CURRENT_USER_KEY = 'drixel_current_user';
-
-// Initialize users storage
-function initializeUsersStorage() {
-    if (!localStorage.getItem(USERS_STORAGE_KEY)) {
-        const initialUsers = [
-            {
-                id: 'admin_001',
-                name: 'Admin User',
-                email: 'admin@drixel.co.za',
-                password: 'Drixel2025!',
-                phone: '+27610160195',
-                address: '123 Street, Johannesburg',
-                city: 'Johannesburg',
-                province: 'Gauteng',
-                postalCode: '2000',
-                role: 'admin',
-                createdAt: new Date().toISOString(),
-                lastLogin: new Date().toISOString(),
-                orders: [],
-                subscribed: true,
-                verified: true
-            }
-        ];
-        localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(initialUsers));
-    }
-}
-
-// Get current user
-function getCurrentUser() {
-    const user = JSON.parse(localStorage.getItem(CURRENT_USER_KEY));
-    console.log('📱 Current user from storage:', user);
-    return user;
-}
-
-// Set current user
-function setCurrentUser(user) {
-    if (user) {
-        const userData = {
-            id: user.id,
-            name: user.name,
-            email: user.email,
-            role: user.role || 'customer',
-            subscribed: user.subscribed || false
-        };
-        localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(userData));
-        window.currentUser = userData; // Update global variable
-        console.log('✅ User set in storage:', userData);
-        return userData;
-    }
-    return null;
-}
-
-// Clear current user
-function clearCurrentUser() {
-    localStorage.removeItem(CURRENT_USER_KEY);
-    window.currentUser = null;
-    console.log('✅ User cleared from storage');
-}
-
-// Get all users
-function getAllUsers() {
-    return JSON.parse(localStorage.getItem(USERS_STORAGE_KEY)) || [];
-}
-
-// Save all users
-function saveAllUsers(users) {
-    localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
-}
-
-// Validate email
-function validateEmail(email) {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
-}
-
-// Validate password
-function validatePassword(password) {
-    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[a-zA-Z\d]{8,}$/;
-    return passwordRegex.test(password);
-}
-
-// Login function - FIXED
-function login() {
-    const email = document.getElementById('loginEmail').value.trim();
-    const password = document.getElementById('loginPassword').value;
-    const subscribed = document.getElementById('loginSubscription')?.checked || false;
+// ... rest of your code continues ...
+      
+      // ===== AUTH TAB FUNCTION (MISSING) =====
+function showAuthTab(tab) {
+    console.log('🔄 Switching auth tab to:', tab);
     
-    const errorElement = document.getElementById('loginError');
-    if (errorElement) errorElement.style.display = 'none';
-    
-    if (!email || !password) {
-        showError('loginError', 'Please enter both email and password.');
-        return;
-    }
-    
-    if (!validateEmail(email)) {
-        showError('loginError', 'Please enter a valid email address.');
-        return;
-    }
-    
-    const users = getAllUsers();
-    const user = users.find(u => u.email.toLowerCase() === email.toLowerCase());
-    
-    if (!user) {
-        showError('loginError', 'No account found with this email. Please register first.');
-        return;
-    }
-    
-    if (user.password !== password) {
-        showError('loginError', 'Incorrect password. Please try again.');
-        return;
-    }
-    
-    // Update subscription if changed
-    if (user.subscribed !== subscribed) {
-        user.subscribed = subscribed;
-        saveAllUsers(users);
-    }
-    
-    // Update last login
-    user.lastLogin = new Date().toISOString();
-    saveAllUsers(users);
-    
-    // Set current user in storage AND global variable
-    const currentUser = setCurrentUser(user);
-    
-    // Update UI
-    updateAuthUI();
-    
-    // Show success message
-    showSuccess('loginSuccess', 'Login successful! Welcome back ' + user.name + '!');
-    
-    // Redirect to home after delay
-    setTimeout(() => {
-        showPage('home');
-    }, 1500);
-}
-
-// Register function - FIXED
-function register() {
-    const name = document.getElementById('registerName').value.trim();
-    const email = document.getElementById('registerEmail').value.trim();
-    const password = document.getElementById('registerPassword').value;
-    const confirmPassword = document.getElementById('registerConfirmPassword').value;
-    const phone = document.getElementById('registerPhone')?.value.trim() || '';
-    const subscribed = document.getElementById('registerSubscription')?.checked || false;
-    
-    const errorElement = document.getElementById('registerError');
-    if (errorElement) errorElement.style.display = 'none';
-    
-    if (!name || !email || !password || !confirmPassword) {
-        showError('registerError', 'Please fill in all required fields.');
-        return;
-    }
-    
-    if (name.length < 2) {
-        showError('registerError', 'Name must be at least 2 characters long.');
-        return;
-    }
-    
-    if (!validateEmail(email)) {
-        showError('registerError', 'Please enter a valid email address.');
-        return;
-    }
-    
-    if (!validatePassword(password)) {
-        showError('registerError', 'Password must be at least 8 characters with uppercase, lowercase, and a number.');
-        return;
-    }
-    
-    if (password !== confirmPassword) {
-        showError('registerError', 'Passwords do not match.');
-        return;
-    }
-    
-    const users = getAllUsers();
-    if (users.find(u => u.email.toLowerCase() === email.toLowerCase())) {
-        showError('registerError', 'An account with this email already exists. Please login instead.');
-        return;
-    }
-    
-    const newUser = {
-        id: 'user_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
-        name: name,
-        email: email,
-        password: password,
-        phone: phone || null,
-        address: null,
-        city: null,
-        province: null,
-        postalCode: null,
-        role: 'customer',
-        createdAt: new Date().toISOString(),
-        lastLogin: new Date().toISOString(),
-        orders: [],
-        subscribed: subscribed,
-        verified: false,
-        cart: []
-    };
-    
-    users.push(newUser);
-    saveAllUsers(users);
-    
-    // Set current user in storage AND global variable
-    const currentUser = setCurrentUser(newUser);
-    
-    // Update UI
-    updateAuthUI();
-    
-    // Show success message
-    showSuccess('registerSuccess', 'Registration successful! Welcome to Drixel, ' + name + '!');
-    
-    // Redirect to home after delay
-    setTimeout(() => {
-        showPage('home');
-    }, 2000);
-}
-
-// Logout function
-function logout() {
-    clearCurrentUser();
-    updateAuthUI();
-    alert('You have been logged out successfully.');
-    showPage('home');
-}
-
-// Helper functions
-function showError(elementId, message) {
-    const element = document.getElementById(elementId);
-    if (element) {
-        element.textContent = message;
-        element.style.display = 'block';
-        element.style.color = 'var(--danger)';
-    } else {
-        alert(message);
-    }
-}
-
-function showSuccess(elementId, message) {
-    const element = document.getElementById(elementId);
-    if (element) {
-        element.textContent = message;
-        element.style.display = 'block';
-        element.style.color = 'var(--success-green)';
-    } else {
-        alert(message);
-    }
-}
-
-// Update auth UI
-function updateAuthUI() {
-    const authLink = document.getElementById('authLink');
-    if (!authLink) return;
-    
-    const currentUser = getCurrentUser();
-    
-    if (currentUser) {
-        authLink.innerHTML = '<i class="fas fa-user-check"></i>';
-        authLink.setAttribute('onclick', 'logout(); return false;');
-        authLink.title = 'Logout (' + currentUser.name + ')';
-        console.log('✅ UI Updated: User is logged in as', currentUser.name);
-    } else {
-        authLink.innerHTML = '<i class="fas fa-user"></i>';
-        authLink.setAttribute('onclick', 'showPage("auth"); return false;');
-        authLink.title = 'Login / Register';
-        console.log('✅ UI Updated: No user logged in');
-    }
-}
-
-// FIXED: Check auth and navigate function
-function checkAuthAndNavigate(page) {
-    console.log('🔐 Checking auth for page:', page);
-    console.log('👤 Current user state:', window.currentUser);
-    console.log('📦 LocalStorage user:', getCurrentUser());
-    
-    // Always allow these pages without login
-    const publicPages = ['home', 'about', 'contact', 'terms', 'privacy', 'refund', 'shipping', 'yoco-direct'];
-    
-    if (publicPages.includes(page)) {
-        console.log('✅ Public page, allowing access');
-        showPage(page);
-        return true;
-    }
-    
-    // For shop/cart/checkout pages, check if user exists
-    const currentUser = getCurrentUser() || window.currentUser;
-    
-    if (!currentUser) {
-        console.log('❌ No user found, redirecting to login');
-        alert('Please login or create an account to access this feature. You need an account to shop with us.');
-        showPage('auth');
-        return false;
-    }
-    
-    console.log('✅ User authenticated:', currentUser.name);
-    showPage(page);
-    return true;
-}
-
-// FIXED: Add to cart function
-function addToCart(productId, fromProductPage = false) {
-    console.log('🛒 Attempting to add to cart, user state:', window.currentUser);
-    
-    // Check if user is logged in
-    const currentUser = getCurrentUser() || window.currentUser;
-    
-    if (!currentUser) {
-        console.log('❌ User not logged in for addToCart');
-        alert('Please login or create an account to add items to your cart. You need an account to shop with us.');
-        showPage('auth');
-        return;
-    }
-    
-    console.log('✅ User is logged in:', currentUser.name);
-    
-    const product = PRODUCTS_DATA.find(p => p.id === productId);
-    if (!product) return;
-    
-    // Get selected size and color
-    const productKey = `product_${productId}`;
-    const selections = productSelections[productKey] || {
-        size: product.sizes[0],
-        color: product.colors[0]
-    };
-    
-    // Validate selection
-    if (!selections.size || !selections.color) {
-        alert('Please select both size and color before adding to cart.');
-        return;
-    }
-    
-    let quantity = 1;
-    if (fromProductPage) {
-        const quantityInput = document.getElementById('productQuantity');
-        if (quantityInput) {
-            quantity = parseInt(quantityInput.value) || 1;
-        }
-    }
-    
-    // Check if item with same size and color exists in cart
-    const existingItemIndex = cart.findIndex(item => 
-        item.id === productId && 
-        item.size === selections.size && 
-        item.color === selections.color.name
-    );
-    
-    if (existingItemIndex !== -1) {
-        cart[existingItemIndex].quantity += quantity;
-    } else {
-        cart.push({
-            id: product.id,
-            name: product.name,
-            price: product.price,
-            image: product.image,
-            size: selections.size,
-            color: selections.color.name,
-            colorCode: selections.color.code,
-            quantity: quantity
-        });
-    }
-    
-    localStorage.setItem('drixel_cart', JSON.stringify(cart));
-    updateCartCount();
-    
-    alert(`${product.name} (${selections.size}, ${selections.color.name}) added to cart!`);
-    
-    if (fromProductPage && confirm('Go to cart?')) {
-        showPage('cart');
-    }
-}
-
-// Initialize auth system on page load
-function initializeAuthSystem() {
-    console.log('🔄 Initializing auth system...');
-    initializeUsersStorage();
-    
-    // Load current user from localStorage
-    const storedUser = getCurrentUser();
-    if (storedUser) {
-        window.currentUser = storedUser;
-        console.log('✅ Loaded user from storage:', storedUser.name);
-    } else {
-        window.currentUser = null;
-        console.log('✅ No user in storage');
-    }
-    
-    updateAuthUI();
-}
-
-// Initialize when page loads
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('🚀 DOM Loaded, initializing systems...');
-    initializeAuthSystem();
-    updateCartCount();
-    showPage('home');
-    
-    // Load featured products
-    loadFeaturedProducts();
-    
-    // Load all products for shop page
-    loadAllProducts();
-    
-    // Setup payment method toggle
-    setupPaymentMethodToggle();
-    
-    // Show cookie consent if not accepted
-    setTimeout(() => {
-        if (!cookiesAccepted) {
-            cookieConsent.classList.add('active');
-        }
-    }, 2000);
-    
-    // Mobile menu toggle
-    mobileMenuBtn.addEventListener('click', function() {
-        navLinksContainer.classList.toggle('active');
+    // Update tab buttons
+    document.querySelectorAll('.auth-tab').forEach(t => {
+        t.classList.remove('active');
     });
     
-    // Close mobile menu when clicking outside
-    document.addEventListener('click', function(event) {
-        if (!event.target.closest('.nav-links') && !event.target.closest('.mobile-menu-btn')) {
-            navLinksContainer.classList.remove('active');
-        }
+    // Hide all forms
+    document.querySelectorAll('.auth-form').forEach(f => {
+        f.classList.remove('active');
+        f.style.display = 'none';
     });
-});
-
-// ===== PAGE NAVIGATION =====
+    
+    // Activate selected tab
+    if (tab === 'login') {
+        document.querySelector('.auth-tab:first-child').classList.add('active');
+        document.getElementById('loginForm').classList.add('active');
+        document.getElementById('loginForm').style.display = 'block';
+    } else if (tab === 'register') {
+        document.querySelector('.auth-tab:last-child').classList.add('active');
+        document.getElementById('registerForm').classList.add('active');
+        document.getElementById('registerForm').style.display = 'block';
+    }
+    
+    // Clear error/success messages
+    const errorMessages = document.querySelectorAll('.error-message');
+    const successMessages = document.querySelectorAll('.success-message');
+    
+    errorMessages.forEach(msg => {
+        msg.style.display = 'none';
+        msg.textContent = '';
+    });
+    
+    successMessages.forEach(msg => {
+        msg.style.display = 'none';
+        msg.textContent = '';
+    });
+}
+      // ===== PAGE NAVIGATION =====
 function showPage(page) {
+    console.log('🌐 Showing page:', page);
+    
+    // Hide all pages
     document.querySelectorAll('.page').forEach(p => {
         p.classList.add('hidden');
     });
     
+    // Update active nav links
     const navLinks = document.querySelectorAll('.nav-links a');
     navLinks.forEach(link => {
         link.classList.remove('active');
     });
     
+    // Map page names to page IDs
     let pageId = page + 'Page';
     const pageMap = {
         'terms': 'termsPage',
         'privacy': 'privacyPage',
         'refund': 'refundPage',
         'shipping': 'shippingPage',
-        'yoco-direct': 'yocoDirectPage'
+        'yoco-direct': 'yocoDirectPage',
+        'auth': 'authPage',
+        'cart': 'cartPage',
+        'checkout': 'checkoutPage',
+        'product': 'productPage',
+        'shop': 'shopPage',
+        'home': 'homePage',
+        'about': 'aboutPage',
+        'contact': 'contactPage'
     };
     
+    // Use mapped page ID or default
     pageId = pageMap[page] || pageId;
     
+    // Show the target page
     const targetPage = document.getElementById(pageId);
     if (targetPage) {
         targetPage.classList.remove('hidden');
         
+        // Set active nav link (if it exists)
         document.querySelectorAll('.nav-links a').forEach(link => {
             if (link.textContent.toLowerCase() === page.toLowerCase()) {
                 link.classList.add('active');
             }
         });
         
+        // Load specific page content
         if (page === 'cart') {
             loadCartPage();
         } else if (page === 'checkout') {
             loadCheckoutPage();
         } else if (page === 'shop') {
             loadAllProducts();
+        } else if (page === 'home') {
+            loadFeaturedProducts();
         }
+    } else {
+        console.error('❌ Page not found:', pageId);
+        // Fallback to home page
+        document.getElementById('homePage').classList.remove('hidden');
     }
     
-    navLinksContainer.classList.remove('active');
+    // Close mobile menu
+    const navLinksContainer = document.getElementById('navLinks');
+    if (navLinksContainer) {
+        navLinksContainer.classList.remove('active');
+    }
+    
+    // Scroll to top
     window.scrollTo(0, 0);
 }
-
 
         // ===== CONTACT FORM =====
         function sendContactMessage() {
@@ -4914,4 +4601,3 @@ console.log('👑 Admin login: admin@drixelsa.co.za / @Anelisa2025');
     </script>
 </body>
 </html>
-
