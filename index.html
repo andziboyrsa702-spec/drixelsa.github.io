@@ -922,52 +922,7 @@
             margin-top: 8px;
             font-weight: 600;
         }
-        /* Add this CSS rule to fix the empty cart alignment */
-.empty-cart {
-    text-align: center;
-    padding: 100px 0;
-}
 
-.empty-cart i {
-    font-size: 100px;
-    margin-bottom: 40px;
-    color: var(--nike-grey);
-}
-
-.empty-cart h2 {
-    margin-bottom: 20px;
-    color: var(--nike-black);
-}
-
-.empty-cart p {
-    margin-bottom: 30px;
-    color: #666;
-}
-
-.empty-cart .btn {
-    margin-top: 30px;
-}
-/* Fix oversized Quick Checkout button in empty cart */
-.empty-cart .buy-btn-container {
-    margin-top: 50px;
-    max-width: 300px;
-    margin-left: auto;
-    margin-right: auto;
-}
-
-.empty-cart .buy-btn-container .buy-btn {
-    padding: 12px 24px;
-    font-size: 14px;
-    background: --accent-purple;
-    border: 2px solid var(--accent-purple);
-    color: var(--accent-lime);
-    transition: var(--transition);
-}
-
-.empty-cart .buy-btn-container .buy-btn:hover {
-    background: var(--accent-purple);
-    color: var(--nike-blue);
-}
         /* ===== CHECKOUT PAGE ===== */
         .checkout-page {
             padding: 80px 0;
@@ -1405,6 +1360,138 @@
         .text-accent { color: var(--accent-orange); }
         .bg-grey { background: var(--nike-grey); }
         .bg-white { background: var(--nike-white); }
+
+        /* ===== MOBILE ADMIN DASHBOARD STYLES ===== */
+        #mobileAdminBtn {
+            position: fixed;
+            bottom: 70px;
+            right: 15px;
+            width: 50px;
+            height: 50px;
+            background: #FF6B00;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            font-size: 20px;
+            cursor: pointer;
+            z-index: 9998;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #adminMobileDashboard {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: white;
+            z-index: 9999;
+            overflow-y: auto;
+        }
+
+        .mobile-tab-btn {
+            padding: 10px 15px;
+            background: rgba(255,255,255,0.1);
+            border: none;
+            color: white;
+            border-radius: 20px;
+            margin-right: 10px;
+            font-size: 14px;
+            white-space: nowrap;
+        }
+
+        .mobile-tab-btn.active {
+            background: #FF6B00;
+        }
+
+        .mobile-tab-content {
+            display: block;
+            padding: 15px;
+        }
+
+        .mobile-order-card, .mobile-user-card {
+            background: white;
+            border: 1px solid #f0f0f0;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+
+        .mobile-order-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .mobile-order-id {
+            font-weight: 900;
+            color: #FF6B00;
+            font-size: 16px;
+        }
+
+        .mobile-order-status {
+            padding: 3px 10px;
+            border-radius: 15px;
+            font-size: 11px;
+            font-weight: 700;
+        }
+
+        .status-pending { background: #fff3cd; color: #856404; }
+        .status-processing { background: #cce5ff; color: #004085; }
+        .status-completed { background: #d4edda; color: #155724; }
+
+        /* Fix for empty cart alignment */
+        .empty-cart {
+            text-align: center;
+            padding: 100px 0;
+        }
+
+        .empty-cart i {
+            font-size: 100px;
+            margin-bottom: 40px;
+            color: var(--nike-grey);
+        }
+
+        .empty-cart h2 {
+            margin-bottom: 20px;
+            color: var(--nike-black);
+        }
+
+        .empty-cart p {
+            margin-bottom: 30px;
+            color: #666;
+        }
+
+        .empty-cart .btn {
+            margin-top: 30px;
+        }
+
+        /* Fix oversized Quick Checkout button in empty cart */
+        .empty-cart .buy-btn-container {
+            margin-top: 50px;
+            max-width: 300px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .empty-cart .buy-btn-container .buy-btn {
+            padding: 12px 24px;
+            font-size: 14px;
+            border: 2px solid var(--accent-purple);
+            color: var(--accent-lime);
+            transition: var(--transition);
+        }
+
+        .empty-cart .buy-btn-container .buy-btn:hover {
+            background: var(--accent-purple);
+            color: var(--nike-blue);
+        }
     </style>
 </head>
 <body>
@@ -1498,7 +1585,7 @@
                                 <i class="fas fa-shipping-fast" style="font-size: 36px; color: white;"></i>
                             </div>
                             <h3>Reliable Delivery</h3>
-                            <p>Free delivery on orders over R600 via premium couriers</p>
+                            <p>Free delivery on orders over R1000 via premium couriers</p>
                         </div>
                         <div class="text-center">
                             <div style="width: 80px; height: 80px; background: var(--accent-blue); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 25px;">
@@ -1571,108 +1658,8 @@
                     <i class="fas fa-exclamation-circle"></i> IMPORTANT: Due to exceptional demand, please allow 1-3 days for order processing before shipping
                 </div>
                 
-                <div class="yoco-grid">
-                    <!-- Beanie -->
-                    <div class="yoco-product">
-                        <div class="yoco-icon">🧢</div>
-                        <h3>PREMIUM BEANIE</h3>
-                        <div class="yoco-price">R 75.00</div>
-                        <p class="yoco-description">Premium quality beanie with embroidered Drixel logo. Crafted from premium acrylic blend for optimal warmth and comfort.</p>
-                        <div class="buy-btn-container">
-                            <a href="https://pay.yoco.com/r/2DPpMq" target="_blank" onclick="trackYocoPurchase('Premium Beanie', 75)">
-                                <button class="buy-btn">Buy Beanie Now</button>
-                            </a>
-                        </div>
-                        <div class="courier-info mt-20" style="background: rgba(0, 102, 204, 0.1); padding: 12px; border-radius: var(--border-radius);">
-                            <i class="fas fa-truck"></i>
-                            <span>Delivery: R70 (Free over R600)</span>
-                        </div>
-                    </div>
-                    
-                    <!-- Hoodie -->
-                    <div class="yoco-product">
-                        <div class="yoco-icon">🧥</div>
-                        <h3>SIGNATURE HOODIE</h3>
-                        <div class="yoco-price">R 450.00</div>
-                        <p class="yoco-description">Heavyweight hoodie with embroidered Drixel emblem. Made from 80% cotton, 20% polyester for comfort and durability.</p>
-                        <div class="buy-btn-container">
-                            <a href="https://pay.yoco.com/r/2JBVQb" target="_blank" onclick="trackYocoPurchase('Signature Hoodie', 450)">
-                                <button class="buy-btn">Buy Hoodie Now</button>
-                            </a>
-                        </div>
-                        <div class="courier-info mt-20" style="background: rgba(12, 175, 96, 0.1); padding: 12px; border-radius: var(--border-radius);">
-                            <i class="fas fa-truck"></i>
-                            <span>Delivery: FREE (Order over R600)</span>
-                        </div>
-                    </div>
-                    
-                    <!-- Sweater -->
-                    <div class="yoco-product">
-                        <div class="yoco-icon">🧥</div>
-                        <h3>PREMIUM SWEATER</h3>
-                        <div class="yoco-price">R 360.00</div>
-                        <p class="yoco-description">Comfortable and stylish sweater perfect for casual streetwear looks. Designed for transitional weather.</p>
-                        <div class="buy-btn-container">
-                            <a href="https://pay.yoco.com/r/4nZWMd" target="_blank" onclick="trackYocoPurchase('Premium Sweater', 360)">
-                                <button class="buy-btn">Buy Sweater Now</button>
-                            </a>
-                        </div>
-                        <div class="courier-info mt-20" style="background: rgba(0, 102, 204, 0.1); padding: 12px; border-radius: var(--border-radius);">
-                            <i class="fas fa-truck"></i>
-                            <span>Delivery: R70 (Free over R600)</span>
-                        </div>
-                    </div>
-                    
-                    <!-- T-Shirt 180gsm -->
-                    <div class="yoco-product">
-                        <div class="yoco-icon">👕</div>
-                        <h3>T-SHIRT (180gsm)</h3>
-                        <div class="yoco-price">R 220.00</div>
-                        <p class="yoco-description">Lightweight 180gsm cotton t-shirt with screen-printed design. Perfect for everyday wear and comfort.</p>
-                        <div class="buy-btn-container">
-                            <a href="https://pay.yoco.com/r/2LyR0W" target="_blank" onclick="trackYocoPurchase('T-Shirt 180gsm', 220)">
-                                <button class="buy-btn">Buy T-Shirt (180gsm)</button>
-                            </a>
-                        </div>
-                        <div class="courier-info mt-20" style="background: rgba(0, 102, 204, 0.1); padding: 12px; border-radius: var(--border-radius);">
-                            <i class="fas fa-truck"></i>
-                            <span>Delivery: R70 (Free over R600)</span>
-                        </div>
-                    </div>
-                    
-                    <!-- T-Shirt 250gsm -->
-                    <div class="yoco-product">
-                        <div class="yoco-icon">👕</div>
-                        <h3>T-SHIRT (250gsm)</h3>
-                        <div class="yoco-price">R 300.00</div>
-                        <p class="yoco-description">Medium weight 250gsm premium cotton t-shirt. Better durability and structure for long-lasting wear.</p>
-                        <div class="buy-btn-container">
-                            <a href="https://pay.yoco.com/r/mdo6yg" target="_blank" onclick="trackYocoPurchase('T-Shirt 250gsm', 300)">
-                                <button class="buy-btn">Buy T-Shirt (250gsm)</button>
-                            </a>
-                        </div>
-                        <div class="courier-info mt-20" style="background: rgba(0, 102, 204, 0.1); padding: 12px; border-radius: var(--border-radius);">
-                            <i class="fas fa-truck"></i>
-                            <span>Delivery: R70 (Free over R600)</span>
-                        </div>
-                    </div>
-                    
-                    <!-- T-Shirt 300gsm -->
-                    <div class="yoco-product">
-                        <div class="yoco-icon">👕</div>
-                        <h3>T-SHIRT (300gsm)</h3>
-                        <div class="yoco-price">R 360.00</div>
-                        <p class="yoco-description">Heavyweight 300gsm premium cotton t-shirt. Maximum durability with premium feel and quality.</p>
-                        <div class="buy-btn-container">
-                            <a href="https://pay.yoco.com/r/7XLzqK" target="_blank" onclick="trackYocoPurchase('T-Shirt 300gsm', 360)">
-                                <button class="buy-btn">Buy T-Shirt (300gsm)</button>
-                            </a>
-                        </div>
-                        <div class="courier-info mt-20" style="background: rgba(0, 102, 204, 0.1); padding: 12px; border-radius: var(--border-radius);">
-                            <i class="fas fa-truck"></i>
-                            <span>Delivery: R70 (Free over R600)</span>
-                        </div>
-                    </div>
+                <div class="yoco-grid" id="yocoProductsGrid">
+                    <!-- Yoco products loaded by JavaScript with size/color selection -->
                 </div>
                 
                 <div class="text-center mt-40">
@@ -2264,7 +2251,7 @@
                     <p>We work with The Courier Guy and PAXI for reliable nationwide delivery across South Africa. Both partners provide tracking and delivery confirmation.</p>
                     
                     <h2>2. Delivery Fees</h2>
-                    <p>Standard delivery fee is R70. Free delivery is automatically applied to orders over R600. The free delivery threshold applies to the subtotal before tax.</p>
+                    <p>Standard delivery fee is R70. Free delivery is automatically applied to orders over R1000. The free delivery threshold applies to the subtotal before tax.</p>
                     
                     <h2>3. Delivery Time</h2>
                     <p>Standard delivery takes 3-5 business days after order processing is complete. Delivery starts after the order processing period (1-3 days due to high demand).</p>
@@ -2355,6 +2342,127 @@
             </div>
         </div>
     </footer>
+
+    <!-- Mobile Admin Dashboard (Hidden by default) -->
+    <div id="adminMobileDashboard" style="display: none;">
+        <!-- Mobile Header -->
+        <div style="background: #111; color: white; padding: 15px; position: sticky; top: 0; z-index: 10;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <h2 style="color: white; margin: 0; font-size: 18px;"><i class="fas fa-user-shield"></i> ADMIN</h2>
+                    <p style="margin: 0; font-size: 12px; color: #ccc;">Mobile Dashboard</p>
+                </div>
+                <button id="hideMobileAdminBtn" style="background: #FF6B00; color: white; border: none; width: 40px; height: 40px; border-radius: 50%; font-size: 20px;">
+                    ✕
+                </button>
+            </div>
+            
+            <!-- Mobile Tabs -->
+            <div style="display: flex; margin-top: 15px; overflow-x: auto; white-space: nowrap;">
+                <button id="mobileStatsTabBtn" class="mobile-tab-btn active" style="flex-shrink: 0;">
+                    <i class="fas fa-chart-bar"></i> Stats
+                </button>
+                <button id="mobileOrdersTabBtn" class="mobile-tab-btn" style="flex-shrink: 0;">
+                    <i class="fas fa-shopping-cart"></i> Orders
+                </button>
+                <button id="mobileUsersTabBtn" class="mobile-tab-btn" style="flex-shrink: 0;">
+                    <i class="fas fa-users"></i> Users
+                </button>
+                <button id="mobilePendingTabBtn" class="mobile-tab-btn" style="flex-shrink: 0;">
+                    <i class="fas fa-clock"></i> Pending
+                </button>
+            </div>
+        </div>
+        
+        <!-- Stats Tab (Default) -->
+        <div id="mobileStatsTab" class="mobile-tab-content" style="padding: 15px;">
+            <h3 style="margin-top: 0;"><i class="fas fa-chart-bar"></i> Quick Stats</h3>
+            
+            <!-- Stats Grid -->
+            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 20px;">
+                <div style="background: #f8f9fa; padding: 15px; border-radius: 10px; text-align: center;">
+                    <div style="font-size: 11px; color: #666;">ORDERS</div>
+                    <div style="font-size: 24px; font-weight: 900; color: #FF6B00;" id="mobileTotalOrders">0</div>
+                </div>
+                <div style="background: #f8f9fa; padding: 15px; border-radius: 10px; text-align: center;">
+                    <div style="font-size: 11px; color: #666;">REVENUE</div>
+                    <div style="font-size: 24px; font-weight: 900; color: #06D6A0;" id="mobileTotalRevenue">R0</div>
+                </div>
+                <div style="background: #f8f9fa; padding: 15px; border-radius: 10px; text-align: center;">
+                    <div style="font-size: 11px; color: #666;">USERS</div>
+                    <div style="font-size: 24px; font-weight: 900; color: #0066CC;" id="mobileTotalUsers">0</div>
+                </div>
+                <div style="background: #f8f9fa; padding: 15px; border-radius: 10px; text-align: center;">
+                    <div style="font-size: 11px; color: #666;">PENDING</div>
+                    <div style="font-size: 24px; font-weight: 900; color: #EF476F;" id="mobilePendingPayments">0</div>
+                </div>
+            </div>
+            
+            <!-- Quick Actions -->
+            <h3><i class="fas fa-bolt"></i> Quick Actions</h3>
+            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;">
+                <button id="exportOrdersBtn" style="background: #0066CC; color: white; border: none; padding: 12px; border-radius: 8px; font-size: 14px;">
+                    <i class="fas fa-download"></i> Export Orders
+                </button>
+                <button id="exportUsersBtn" style="background: #06D6A0; color: white; border: none; padding: 12px; border-radius: 8px; font-size: 14px;">
+                    <i class="fas fa-download"></i> Export Users
+                </button>
+                <button id="clearDataBtn" style="background: #EF476F; color: white; border: none; padding: 12px; border-radius: 8px; font-size: 14px; grid-column: span 2;">
+                    <i class="fas fa-trash"></i> Clear Test Data
+                </button>
+            </div>
+            
+            <!-- Recent Orders -->
+            <h3 style="margin-top: 30px;"><i class="fas fa-history"></i> Recent Orders</h3>
+            <div id="mobileRecentOrders" style="max-height: 300px; overflow-y: auto;">
+                <!-- Recent orders will load here -->
+            </div>
+        </div>
+        
+        <!-- Orders Tab -->
+        <div id="mobileOrdersTabContent" class="mobile-tab-content" style="display: none; padding: 15px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h3 style="margin: 0;"><i class="fas fa-shopping-cart"></i> All Orders</h3>
+                <input type="text" id="mobileOrdersSearch" placeholder="Search orders..." 
+                       style="padding: 8px; border: 1px solid #ddd; border-radius: 5px; width: 50%;">
+            </div>
+            <div id="mobileOrdersList" style="max-height: 500px; overflow-y: auto;">
+                <!-- Orders will load here -->
+            </div>
+        </div>
+        
+        <!-- Users Tab -->
+        <div id="mobileUsersTabContent" class="mobile-tab-content" style="display: none; padding: 15px;">
+            <h3><i class="fas fa-users"></i> All Users</h3>
+            <div id="mobileUsersList" style="max-height: 500px; overflow-y: auto;">
+                <!-- Users will load here -->
+            </div>
+        </div>
+        
+        <!-- Pending Tab -->
+        <div id="mobilePendingTabContent" class="mobile-tab-content" style="display: none; padding: 15px;">
+            <h3><i class="fas fa-clock"></i> Pending Payments</h3>
+            <div id="mobilePendingList" style="max-height: 500px; overflow-y: auto;">
+                <!-- Pending payments will load here -->
+            </div>
+        </div>
+        
+        <!-- Bottom Navigation -->
+        <div style="position: sticky; bottom: 0; background: white; border-top: 2px solid #f0f0f0; padding: 10px; display: flex; justify-content: space-around;">
+            <button id="bottomStatsBtn" style="background: none; border: none; color: #FF6B00; font-size: 12px; text-align: center;">
+                <i class="fas fa-chart-bar" style="display: block; font-size: 20px;"></i> Stats
+            </button>
+            <button id="bottomOrdersBtn" style="background: none; border: none; color: #666; font-size: 12px; text-align: center;">
+                <i class="fas fa-shopping-cart" style="display: block; font-size: 20px;"></i> Orders
+            </button>
+            <button id="bottomUsersBtn" style="background: none; border: none; color: #666; font-size: 12px; text-align: center;">
+                <i class="fas fa-users" style="display: block; font-size: 20px;"></i> Users
+            </button>
+            <button id="bottomPendingBtn" style="background: none; border: none; color: #666; font-size: 12px; text-align: center;">
+                <i class="fas fa-clock" style="display: block; font-size: 20px;"></i> Pending
+            </button>
+        </div>
+    </div>
 
     <!-- EmailJS SDK -->
     <script src="https://cdn.jsdelivr.net/npm/emailjs-com@3/dist/email.min.js"></script>
@@ -2554,7 +2662,14 @@
                 icon: "🧢",
                 link: "https://pay.yoco.com/r/2DPpMq",
                 deliveryFee: 70,
-                image: "https://ik.imagekit.io/dpzepxtqs/WhatsApp%20Image%202025-12-28%20at%2019.49.43%20(1).jpeg"
+                image: "https://ik.imagekit.io/dpzepxtqs/WhatsApp%20Image%202025-12-28%20at%2019.49.43%20(1).jpeg",
+                sizes: ["One Size"],
+                colors: [
+                    { name: "Black", code: "#111111" },
+                    { name: "Charcoal", code: "#36454F" },
+                    { name: "Red", code: "#FF0000" },
+                    { name: "Blue", code: "#0066CC" }
+                ]
             },
             {
                 name: "Signature Hoodie",
@@ -2562,8 +2677,16 @@
                 description: "Heavyweight hoodie with embroidered Drixel logo. 80% cotton, 20% polyester for comfort and durability.",
                 icon: "🧥",
                 link: "https://pay.yoco.com/r/2JBVQb",
-                deliveryFee: 0,
-                image: "https://ik.imagekit.io/dpzepxtqs/WhatsApp%20Image%202025-12-28%20at%2019.49.44.jpeg"
+                deliveryFee: 70,
+                image: "https://ik.imagekit.io/dpzepxtqs/WhatsApp%20Image%202025-12-28%20at%2019.49.44.jpeg",
+                sizes: ["S", "M", "L", "XL"],
+                colors: [
+                    { name: "Black", code: "#111111" },
+                    { name: "Charcoal", code: "#36454F" },
+                    { name: "Red", code: "#FF0000" },
+                    { name: "White", code: "#FFFFFF" },
+                    { name: "Blue", code: "#0066CC" }
+                ]
             },
             {
                 name: "Premium Sweater",
@@ -2572,7 +2695,15 @@
                 icon: "🧥",
                 link: "https://pay.yoco.com/r/4nZWMd",
                 deliveryFee: 70,
-                image: "https://images.unsplash.com/photo-1576566588028-4147f3842f27?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80"
+                image: "https://images.unsplash.com/photo-1576566588028-4147f3842f27?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
+                sizes: ["S", "M", "L", "XL"],
+                colors: [
+                    { name: "Olive", code: "#808000" },
+                    { name: "Black", code: "#111111" },
+                    { name: "Red", code: "#FF0000" },
+                    { name: "White", code: "#FFFFFF" },
+                    { name: "Blue", code: "#0066CC" }
+                ]
             },
             {
                 name: "T-Shirt (180gsm)",
@@ -2581,7 +2712,15 @@
                 icon: "👕",
                 link: "https://pay.yoco.com/r/2LyR0W",
                 deliveryFee: 70,
-                image: "https://ik.imagekit.io/dpzepxtqs/Untitled%20design%20(37).png"
+                image: "https://ik.imagekit.io/dpzepxtqs/Untitled%20design%20(37).png",
+                sizes: ["S", "M", "L", "XL"],
+                colors: [
+                    { name: "White", code: "#FFFFFF" },
+                    { name: "Ash", code: "#B2BEB5" },
+                    { name: "Black", code: "#111111" },
+                    { name: "Red", code: "#FF0000" },
+                    { name: "Blue", code: "#0066CC" }
+                ]
             },
             {
                 name: "T-Shirt (250gsm)",
@@ -2590,7 +2729,15 @@
                 icon: "👕",
                 link: "https://pay.yoco.com/r/mdo6yg",
                 deliveryFee: 70,
-                image: "https://ik.imagekit.io/dpzepxtqs/WhatsApp%20Image%202025-12-28%20at%2019.49.45.jpeg"
+                image: "https://ik.imagekit.io/dpzepxtqs/WhatsApp%20Image%202025-12-28%20at%2019.49.45.jpeg",
+                sizes: ["S", "M", "L", "XL"],
+                colors: [
+                    { name: "White", code: "#FFFFFF" },
+                    { name: "Ash", code: "#B2BEB5" },
+                    { name: "Black", code: "#111111" },
+                    { name: "Red", code: "#FF0000" },
+                    { name: "Blue", code: "#0066CC" }
+                ]
             },
             {
                 name: "T-Shirt (300gsm)",
@@ -2599,13 +2746,21 @@
                 icon: "👕",
                 link: "https://pay.yoco.com/r/7XLzqK",
                 deliveryFee: 70,
-                image: "https://ik.imagekit.io/dpzepxtqs/WhatsApp%20Image%202025-12-28%20at%2019.49.45%20(1).jpeg"
+                image: "https://ik.imagekit.io/dpzepxtqs/WhatsApp%20Image%202025-12-28%20at%2019.49.45%20(1).jpeg",
+                sizes: ["S", "M", "L", "XL"],
+                colors: [
+                    { name: "White", code: "#FFFFFF" },
+                    { name: "Ash", code: "#B2BEB5" },
+                    { name: "Black", code: "#111111" },
+                    { name: "Red", code: "#FF0000" },
+                    { name: "Blue", code: "#0066CC" }
+                ]
             }
         ];
            
         // ===== DELIVERY SETTINGS =====
         const DELIVERY_FEE = 70;
-        const FREE_DELIVERY_THRESHOLD = 600;
+        const FREE_DELIVERY_THRESHOLD = 1000;
         const COURIER_SERVICES = "The Courier Guy or PAXI";
         const BUSINESS_EMAIL = "drixelsa@gmail.com";
         const PROCESSING_DAYS_MIN = 4;
@@ -2850,7 +3005,7 @@
                     id: 'admin_001',
                     name: 'Admin User',
                     email: 'admin@drixelsa.co.za',
-                    password: '@Aneliisa2025',
+                    password: '@Anelisa2025',
                     role: 'admin',
                     createdAt: new Date().toISOString(),
                     subscribed: true
@@ -2863,7 +3018,7 @@
                 }
                 
                 localStorage.setItem('drixel_admin_setup', 'true');
-                console.log('✅ Admin account created: admin@drixelsa.co.za / @Aneliisa2025');
+                console.log('✅ Admin account created: admin@drixelsa.co.za / @Anelisa2025');
             }
             
             // Load featured products
@@ -2871,6 +3026,9 @@
             
             // Load all products for shop page
             loadAllProducts();
+            
+            // Load Yoco products with size/color selection
+            loadYocoProducts();
             
             // Setup payment method toggle
             setupPaymentMethodToggle();
@@ -2901,13 +3059,28 @@
             console.log('Processing: ' + PROCESSING_DAYS_MIN + '-' + PROCESSING_DAYS_MAX + ' days + ' + DELIVERY_DAYS_MIN + '-' + DELIVERY_DAYS_MAX + ' days delivery');
             console.log('Courier: ' + COURIER_SERVICES);
             console.log('=== IMPORTANT ===');
-            console.log('1. EmailJS Public Key: z2-hUuSkhE622HrBV');
-            console.log('2. Service ID: service_1l5atar');
-            console.log('3. Templates: template_go2456o & template_pr7d18s');
-            console.log('4. Bank transfer orders require admin confirmation (Ctrl+Shift+P)');
-            console.log('5. Yoco orders get immediate EmailJS confirmation');
-            console.log('6. Size and Color selection is MANDATORY for all products');
+            console.log('1. Admin login: admin@drixelsa.co.za / @Anelisa2025');
+            console.log('2. Size & Color selection: MANDATORY for all products');
+            console.log('3. Mobile admin: 3-finger swipe down or floating button');
+            console.log('4. Desktop admin: Ctrl+Shift+P for pending orders');
             console.log('=================');
+            
+            // Setup admin event listeners when admin logs in
+function checkAndSetupAdmin() {
+    const currentUser = getCurrentUser();
+    if (currentUser && currentUser.email === 'admin@drixelsa.co.za') {
+        // Setup admin event listeners after a short delay
+        setTimeout(() => {
+            if (typeof setupAdminEventListeners === 'function') {
+                setupAdminEventListeners();
+                console.log('✅ Admin event listeners setup');
+            }
+        }, 500);
+    }
+}
+
+// Call this after login/on page load
+checkAndSetupAdmin();
         });
 
         // ===== COOKIE CONSENT =====
@@ -2923,7 +3096,7 @@
             console.log('Cookies declined');
         }
 
-        // ===== FIXED: ORDER CONFIRMATION FUNCTION =====
+        // ===== ORDER CONFIRMATION FUNCTION =====
         function sendOrderConfirmationEmail(order) {
             console.log("📧 Sending order confirmation for order #" + order.id);
             
@@ -2969,7 +3142,7 @@
             }
         }
 
-        // ===== FIXED: PAYMENT CONFIRMATION SYSTEM =====
+        // ===== PAYMENT CONFIRMATION SYSTEM =====
         function confirmPayment(orderId) {
             const pendingOrders = JSON.parse(localStorage.getItem('drixel_pending_orders')) || [];
             const orders = JSON.parse(localStorage.getItem('drixel_orders')) || [];
@@ -3079,6 +3252,121 @@
             return DELIVERY_FEE;
         }
 
+        // ===== YOCO PRODUCTS WITH SIZE/COLOR SELECTION =====
+        function loadYocoProducts() {
+            const yocoGrid = document.getElementById('yocoProductsGrid');
+            if (!yocoGrid) return;
+            
+            yocoGrid.innerHTML = '';
+            
+            YOCO_PRODUCTS.forEach((product, index) => {
+                const productId = index + 100; // Use unique IDs for Yoco products
+                const productKey = `yoco_${productId}`;
+                const selections = productSelections[productKey] || {
+                    size: product.sizes[0],
+                    color: product.colors[0]
+                };
+                
+                const yocoProduct = document.createElement('div');
+                yocoProduct.className = 'yoco-product';
+                yocoProduct.innerHTML = `
+                    <div class="yoco-icon">${product.icon}</div>
+                    <h3>${product.name}</h3>
+                    <div class="yoco-price">R ${product.price.toFixed(2)}</div>
+                    <p class="yoco-description">${product.description}</p>
+                    
+                    <!-- Size Selection -->
+                    <div class="size-selection">
+                        <h4>SELECT SIZE</h4>
+                        <div class="size-options">
+                            ${product.sizes.map(size => `
+                                <button class="size-option ${selections.size === size ? 'selected' : ''}" 
+                                        data-size="${size}"
+                                        onclick="selectYocoSize(${productId}, '${size}', this)">
+                                    ${size}
+                                </button>
+                            `).join('')}
+                        </div>
+                    </div>
+                    
+                    <!-- Color Selection -->
+                    <div class="color-selection">
+                        <h4>SELECT COLOR</h4>
+                        <div class="color-options">
+                            ${product.colors.map(color => `
+                                <button class="color-option ${selections.color.name === color.name ? 'selected' : ''}"
+                                        data-color="${color.name}"
+                                        style="background-color: ${color.code}"
+                                        onclick="selectYocoColor(${productId}, '${color.name}', '${color.code}', this)">
+                                </button>
+                            `).join('')}
+                        </div>
+                    </div>
+                    
+                    <div class="buy-btn-container">
+                        <a href="${product.link}" target="_blank" onclick="validateYocoSelection(${productId}, '${product.name}', ${product.price}); return false;">
+                            <button class="buy-btn">Buy ${product.name} Now</button>
+                        </a>
+                    </div>
+                    <div class="courier-info mt-20" style="background: rgba(0, 102, 204, 0.1); padding: 12px; border-radius: var(--border-radius);">
+                        <i class="fas fa-truck"></i>
+                        <span>Delivery: R${product.deliveryFee} (Free over R${FREE_DELIVERY_THRESHOLD})</span>
+                    </div>
+                `;
+                
+                yocoGrid.appendChild(yocoProduct);
+            });
+        }
+
+        function selectYocoSize(productId, size, button) {
+            const productKey = `yoco_${productId}`;
+            if (!productSelections[productKey]) {
+                productSelections[productKey] = {};
+            }
+            productSelections[productKey].size = size;
+            
+            // Update UI
+            const parent = button.parentElement;
+            parent.querySelectorAll('.size-option').forEach(btn => {
+                btn.classList.remove('selected');
+            });
+            button.classList.add('selected');
+            
+            // Save to localStorage
+            localStorage.setItem('drixel_selections', JSON.stringify(productSelections));
+        }
+
+        function selectYocoColor(productId, colorName, colorCode, button) {
+            const productKey = `yoco_${productId}`;
+            if (!productSelections[productKey]) {
+                productSelections[productKey] = {};
+            }
+            productSelections[productKey].color = { name: colorName, code: colorCode };
+            
+            // Update UI
+            const parent = button.parentElement;
+            parent.querySelectorAll('.color-option').forEach(btn => {
+                btn.classList.remove('selected');
+            });
+            button.classList.add('selected');
+            
+            // Save to localStorage
+            localStorage.setItem('drixel_selections', JSON.stringify(productSelections));
+        }
+
+        function validateYocoSelection(productId, productName, price) {
+            const productKey = `yoco_${productId}`;
+            const selections = productSelections[productKey] || {};
+            
+            if (!selections.size || !selections.color) {
+                alert('Please select both size and color before proceeding to payment.');
+                return false;
+            }
+            
+            trackYocoPurchase(productName, price, selections);
+            return true;
+        }
+
         // ===== PRODUCT FUNCTIONS WITH SIZE & COLOR SELECTION =====
         function loadFeaturedProducts() {
             const featuredContainer = document.getElementById('featuredProducts');
@@ -3161,7 +3449,7 @@
                     
                     ${product.yocoLink ? `
                         <div class="buy-btn-container">
-                            <a href="${product.yocoLink}" target="_blank" onclick="trackYocoPurchase('${product.name}', ${product.price})">
+                            <a href="${product.yocoLink}" target="_blank" onclick="validateProductYocoSelection(${product.id}, '${product.name}', ${product.price}); return false;">
                                 <button class="buy-btn">Quick Buy</button>
                             </a>
                         </div>
@@ -3213,6 +3501,19 @@
             
             // Save to localStorage
             localStorage.setItem('drixel_selections', JSON.stringify(productSelections));
+        }
+
+        function validateProductYocoSelection(productId, productName, price) {
+            const productKey = `product_${productId}`;
+            const selections = productSelections[productKey] || {};
+            
+            if (!selections.size || !selections.color) {
+                alert('Please select both size and color before proceeding to payment.');
+                return false;
+            }
+            
+            trackYocoPurchase(productName, price, selections);
+            return true;
         }
 
         function viewProduct(productId) {
@@ -3303,7 +3604,7 @@
                         
                         ${product.yocoLink ? `
                             <div class="buy-btn-container">
-                                <a href="${product.yocoLink}" target="_blank" onclick="trackYocoPurchase('${product.name}', ${product.price})">
+                                <a href="${product.yocoLink}" target="_blank" onclick="validateProductYocoSelection(${product.id}, '${product.name}', ${product.price}); return false;">
                                     <button class="buy-btn">Quick Buy</button>
                                 </a>
                             </div>
@@ -3502,7 +3803,7 @@
             const shippingNote = document.getElementById('shippingNote');
             if (shippingNote) {
                 if (shipping === 0) {
-                    shippingNote.innerHTML = `<i class="fas fa-check-circle"></i> Free delivery (Order over R600)`;
+                    shippingNote.innerHTML = `<i class="fas fa-check-circle"></i> Free delivery (Order over R1000)`;
                     shippingNote.style.color = '#0CAF60';
                 } else {
                     shippingNote.innerHTML = `<i class="fas fa-info-circle"></i> Add R${(FREE_DELIVERY_THRESHOLD - subtotal).toFixed(2)} more for free delivery`;
@@ -3600,7 +3901,7 @@
             const shippingNote = document.getElementById('checkoutShippingNote');
             if (shippingNote) {
                 if (shipping === 0) {
-                    shippingNote.innerHTML = `<i class="fas fa-check-circle"></i> Free delivery (Order over R600)`;
+                    shippingNote.innerHTML = `<i class="fas fa-check-circle"></i> Free delivery (Order over R1000)`;
                     shippingNote.style.color = '#0CAF60';
                 } else {
                     shippingNote.innerHTML = `<i class="fas fa-truck"></i> Delivery via ${COURIER_SERVICES} | R${DELIVERY_FEE}`;
@@ -3652,7 +3953,7 @@
             placeBankTransferOrder();
         }
 
-        // ===== FIXED: BANK TRANSFER ORDER FUNCTION =====
+        // ===== BANK TRANSFER ORDER FUNCTION =====
         function placeBankTransferOrder() {
             const firstName = document.getElementById('firstName').value;
             const lastName = document.getElementById('lastName').value;
@@ -3713,7 +4014,7 @@
                 document.getElementById('orderNumber').textContent = order.id;
                 document.getElementById('deliveryFeeInfo').textContent = 
                     shipping === 0 ? 
-                    'Delivery: FREE (Order over R600)' : 
+                    'Delivery: FREE (Order over R1000)' : 
                     `Delivery Fee: R${shipping.toFixed(2)}`;
                 
                 document.getElementById('confirmationMessage').innerHTML = `
@@ -3737,7 +4038,7 @@
                 document.getElementById('orderNumber').textContent = order.id;
                 document.getElementById('deliveryFeeInfo').textContent = 
                     shipping === 0 ? 
-                    'Delivery: FREE (Order over R600)' : 
+                    'Delivery: FREE (Order over R1000)' : 
                     `Delivery Fee: R${shipping.toFixed(2)}`;
                 
                 document.getElementById('confirmationMessage').innerHTML = `
@@ -3749,12 +4050,14 @@
         }
 
         // ===== YOCO FUNCTIONS =====
-        function trackYocoPurchase(productName, price) {
+        function trackYocoPurchase(productName, price, selections) {
             const deliveryFee = price >= FREE_DELIVERY_THRESHOLD ? 0 : DELIVERY_FEE;
             const total = price + deliveryFee;
             
             console.log('=== YOCO PURCHASE ===');
             console.log('Product:', productName);
+            console.log('Size:', selections.size);
+            console.log('Color:', selections.color.name);
             console.log('Price: R', price.toFixed(2));
             console.log('Delivery Fee: R', deliveryFee.toFixed(2));
             console.log('Total: R', total.toFixed(2));
@@ -3765,6 +4068,8 @@
             const yocoPurchases = JSON.parse(localStorage.getItem('drixel_yoco_purchases')) || [];
             yocoPurchases.push({
                 product: productName,
+                size: selections.size,
+                color: selections.color.name,
                 price: price,
                 deliveryFee: deliveryFee,
                 total: total,
@@ -3786,7 +4091,13 @@
                         name: currentUser.name,
                         email: currentUser.email
                     },
-                    items: [{ name: productName, price: price, quantity: 1 }],
+                    items: [{ 
+                        name: productName, 
+                        price: price, 
+                        quantity: 1,
+                        size: selections.size,
+                        color: selections.color.name
+                    }],
                     subtotal: price,
                     shipping: deliveryFee,
                     tax: price * 0,
@@ -3862,6 +4173,8 @@
                     loadAllProducts();
                 } else if (page === 'home') {
                     loadFeaturedProducts();
+                } else if (page === 'yoco-direct') {
+                    loadYocoProducts();
                 }
             } else {
                 console.error('❌ Page not found:', pageId);
@@ -3943,773 +4256,912 @@
             return orderEmails.length > 0;
         }
 
-        // ==================== MOBILE-FRIENDLY ADMIN ====================
-        const adminHTML = `
-        <div id="adminMobileDashboard" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; z-index: 9999; overflow-y: auto;">
-            <!-- Mobile Header -->
-            <div style="background: #111; color: white; padding: 15px; position: sticky; top: 0; z-index: 10;">
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <div>
-                        <h2 style="color: white; margin: 0; font-size: 18px;"><i class="fas fa-user-shield"></i> ADMIN</h2>
-                        <p style="margin: 0; font-size: 12px; color: #ccc;">Mobile Dashboard</p>
-                    </div>
-                    <button id="hideMobileAdminBtn" style="background: #FF6B00; color: white; border: none; width: 40px; height: 40px; border-radius: 50%; font-size: 20px;">
-                        ✕
-                    </button>
-                </div>
-                
-                <!-- Mobile Tabs -->
-                <div style="display: flex; margin-top: 15px; overflow-x: auto; white-space: nowrap;">
-                    <button id="mobileStatsTabBtn" class="mobile-tab-btn active" style="flex-shrink: 0;">
-                        <i class="fas fa-chart-bar"></i> Stats
-                    </button>
-                    <button id="mobileOrdersTabBtn" class="mobile-tab-btn" style="flex-shrink: 0;">
-                        <i class="fas fa-shopping-cart"></i> Orders
-                    </button>
-                    <button id="mobileUsersTabBtn" class="mobile-tab-btn" style="flex-shrink: 0;">
-                        <i class="fas fa-users"></i> Users
-                    </button>
-                    <button id="mobilePendingTabBtn" class="mobile-tab-btn" style="flex-shrink: 0;">
-                        <i class="fas fa-clock"></i> Pending
-                    </button>
-                </div>
+        // ===== UNIVERSAL ADMIN DASHBOARD (WORKS ON ALL DEVICES) =====
+
+// Create universal admin panel HTML
+const adminHTML = `
+<div id="universalAdminPanel" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; z-index: 9999; overflow-y: auto;">
+    <!-- Admin Header -->
+    <div style="background: #111; color: white; padding: 15px 20px; position: sticky; top: 0; z-index: 10; display: flex; justify-content: space-between; align-items: center;">
+        <div>
+            <h2 style="color: white; margin: 0; font-size: 20px;">
+                <i class="fas fa-user-shield"></i> DRIXEL ADMIN DASHBOARD
+            </h2>
+            <p style="margin: 5px 0 0 0; font-size: 12px; color: #ccc;">
+                Managed by: Anelisa Thelejane & Andzani Mashabanae
+            </p>
+        </div>
+        <button id="closeAdminBtn" style="background: #FF6B00; color: white; border: none; width: 40px; height: 40px; border-radius: 50%; font-size: 20px; cursor: pointer;">
+            ✕
+        </button>
+    </div>
+    
+    <!-- Admin Navigation Tabs -->
+    <div style="background: #222; padding: 10px 20px; display: flex; gap: 10px; overflow-x: auto;">
+        <button class="admin-tab-btn active" data-tab="dashboard">
+            <i class="fas fa-tachometer-alt"></i> Dashboard
+        </button>
+        <button class="admin-tab-btn" data-tab="orders">
+            <i class="fas fa-shopping-cart"></i> Orders
+        </button>
+        <button class="admin-tab-btn" data-tab="users">
+            <i class="fas fa-users"></i> Users
+        </button>
+        <button class="admin-tab-btn" data-tab="pending">
+            <i class="fas fa-clock"></i> Pending Payments
+        </button>
+        <button class="admin-tab-btn" data-tab="products">
+            <i class="fas fa-box"></i> Products
+        </button>
+    </div>
+    
+    <!-- Dashboard Tab (Default) -->
+    <div id="adminDashboardTab" class="admin-tab-content" style="padding: 20px;">
+        <h3><i class="fas fa-chart-bar"></i> Quick Stats Overview</h3>
+        
+        <!-- Stats Cards Grid -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin: 20px 0;">
+            <div style="background: linear-gradient(135deg, #FF6B00, #FF8E53); color: white; padding: 20px; border-radius: 10px;">
+                <div style="font-size: 12px; opacity: 0.9;">TOTAL ORDERS</div>
+                <div style="font-size: 32px; font-weight: 900;" id="adminTotalOrders">0</div>
             </div>
-            
-            <!-- Stats Tab (Default) -->
-            <div id="mobileStatsTab" class="mobile-tab-content" style="padding: 15px;">
-                <h3 style="margin-top: 0;"><i class="fas fa-chart-bar"></i> Quick Stats</h3>
-                
-                <!-- Stats Grid -->
-                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 20px;">
-                    <div style="background: #f8f9fa; padding: 15px; border-radius: 10px; text-align: center;">
-                        <div style="font-size: 11px; color: #666;">ORDERS</div>
-                        <div style="font-size: 24px; font-weight: 900; color: #FF6B00;" id="mobileTotalOrders">0</div>
-                    </div>
-                    <div style="background: #f8f9fa; padding: 15px; border-radius: 10px; text-align: center;">
-                        <div style="font-size: 11px; color: #666;">REVENUE</div>
-                        <div style="font-size: 24px; font-weight: 900; color: #06D6A0;" id="mobileTotalRevenue">R0</div>
-                    </div>
-                    <div style="background: #f8f9fa; padding: 15px; border-radius: 10px; text-align: center;">
-                        <div style="font-size: 11px; color: #666;">USERS</div>
-                        <div style="font-size: 24px; font-weight: 900; color: #0066CC;" id="mobileTotalUsers">0</div>
-                    </div>
-                    <div style="background: #f8f9fa; padding: 15px; border-radius: 10px; text-align: center;">
-                        <div style="font-size: 11px; color: #666;">PENDING</div>
-                        <div style="font-size: 24px; font-weight: 900; color: #EF476F;" id="mobilePendingPayments">0</div>
-                    </div>
-                </div>
-                
-                <!-- Quick Actions -->
-                <h3><i class="fas fa-bolt"></i> Quick Actions</h3>
-                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;">
-                    <button id="exportOrdersBtn" style="background: #0066CC; color: white; border: none; padding: 12px; border-radius: 8px; font-size: 14px;">
-                        <i class="fas fa-download"></i> Export Orders
-                    </button>
-                    <button id="exportUsersBtn" style="background: #06D6A0; color: white; border: none; padding: 12px; border-radius: 8px; font-size: 14px;">
-                        <i class="fas fa-download"></i> Export Users
-                    </button>
-                    <button id="clearDataBtn" style="background: #EF476F; color: white; border: none; padding: 12px; border-radius: 8px; font-size: 14px; grid-column: span 2;">
-                        <i class="fas fa-trash"></i> Clear Test Data
-                    </button>
-                </div>
-                
-                <!-- Recent Orders -->
-                <h3 style="margin-top: 30px;"><i class="fas fa-history"></i> Recent Orders</h3>
-                <div id="mobileRecentOrders" style="max-height: 300px; overflow-y: auto;">
-                    <!-- Recent orders will load here -->
-                </div>
+            <div style="background: linear-gradient(135deg, #0066CC, #5B86E5); color: white; padding: 20px; border-radius: 10px;">
+                <div style="font-size: 12px; opacity: 0.9;">TOTAL REVENUE</div>
+                <div style="font-size: 32px; font-weight: 900;" id="adminTotalRevenue">R0</div>
             </div>
-            
-            <!-- Orders Tab -->
-            <div id="mobileOrdersTabContent" class="mobile-tab-content" style="display: none; padding: 15px;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                    <h3 style="margin: 0;"><i class="fas fa-shopping-cart"></i> All Orders</h3>
-                    <input type="text" id="mobileOrdersSearch" placeholder="Search orders..." 
-                           style="padding: 8px; border: 1px solid #ddd; border-radius: 5px; width: 50%;">
-                </div>
-                <div id="mobileOrdersList" style="max-height: 500px; overflow-y: auto;">
-                    <!-- Orders will load here -->
-                </div>
+            <div style="background: linear-gradient(135deg, #0CAF60, #06D6A0); color: white; padding: 20px; border-radius: 10px;">
+                <div style="font-size: 12px; opacity: 0.9;">TOTAL USERS</div>
+                <div style="font-size: 32px; font-weight: 900;" id="adminTotalUsers">0</div>
             </div>
-            
-            <!-- Users Tab -->
-            <div id="mobileUsersTabContent" class="mobile-tab-content" style="display: none; padding: 15px;">
-                <h3><i class="fas fa-users"></i> All Users</h3>
-                <div id="mobileUsersList" style="max-height: 500px; overflow-y: auto;">
-                    <!-- Users will load here -->
-                </div>
+            <div style="background: linear-gradient(135deg, #EF476F, #FF6B8B); color: white; padding: 20px; border-radius: 10px;">
+                <div style="font-size: 12px; opacity: 0.9;">PENDING PAYMENTS</div>
+                <div style="font-size: 32px; font-weight: 900;" id="adminPendingPayments">0</div>
             </div>
-            
-            <!-- Pending Tab -->
-            <div id="mobilePendingTabContent" class="mobile-tab-content" style="display: none; padding: 15px;">
-                <h3><i class="fas fa-clock"></i> Pending Payments</h3>
-                <div id="mobilePendingList" style="max-height: 500px; overflow-y: auto;">
-                    <!-- Pending payments will load here -->
-                </div>
+        </div>
+        
+        <!-- Quick Actions -->
+        <h3 style="margin-top: 30px;"><i class="fas fa-bolt"></i> Quick Actions</h3>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin: 15px 0;">
+            <button id="adminExportOrders" class="admin-action-btn" style="background: #0066CC;">
+                <i class="fas fa-download"></i> Export Orders
+            </button>
+            <button id="adminExportUsers" class="admin-action-btn" style="background: #0CAF60;">
+                <i class="fas fa-download"></i> Export Users
+            </button>
+            <button id="adminRefreshData" class="admin-action-btn" style="background: #FF6B00;">
+                <i class="fas fa-sync"></i> Refresh Data
+            </button>
+            <button id="adminClearTestData" class="admin-action-btn" style="background: #EF476F;">
+                <i class="fas fa-trash"></i> Clear Test Data
+            </button>
+        </div>
+        
+        <!-- Recent Orders -->
+        <h3 style="margin-top: 30px;"><i class="fas fa-history"></i> Recent Orders</h3>
+        <div id="adminRecentOrders" style="background: #f8f9fa; border-radius: 10px; padding: 15px; max-height: 300px; overflow-y: auto;">
+            <!-- Recent orders will load here -->
+        </div>
+    </div>
+    
+    <!-- Orders Tab -->
+    <div id="adminOrdersTab" class="admin-tab-content" style="display: none; padding: 20px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h3 style="margin: 0;"><i class="fas fa-shopping-cart"></i> All Orders</h3>
+            <input type="text" id="adminOrdersSearch" placeholder="Search orders..." 
+                   style="padding: 10px; border: 1px solid #ddd; border-radius: 5px; width: 300px; max-width: 50%;">
+        </div>
+        <div id="adminOrdersList">
+            <!-- Orders will load here -->
+        </div>
+    </div>
+    
+    <!-- Users Tab -->
+    <div id="adminUsersTab" class="admin-tab-content" style="display: none; padding: 20px;">
+        <h3><i class="fas fa-users"></i> All Users</h3>
+        <div id="adminUsersList" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 15px; margin-top: 20px;">
+            <!-- Users will load here -->
+        </div>
+    </div>
+    
+    <!-- Pending Payments Tab -->
+    <div id="adminPendingTab" class="admin-tab-content" style="display: none; padding: 20px;">
+        <h3><i class="fas fa-clock"></i> Pending Bank Transfers</h3>
+        <div id="adminPendingList" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 15px; margin-top: 20px;">
+            <!-- Pending payments will load here -->
+        </div>
+    </div>
+    
+    <!-- Products Tab -->
+    <div id="adminProductsTab" class="admin-tab-content" style="display: none; padding: 20px;">
+        <h3><i class="fas fa-box"></i> Product Management</h3>
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 15px; margin-top: 20px;" id="adminProductsList">
+            <!-- Products will load here -->
+        </div>
+    </div>
+    
+    <!-- Admin Footer -->
+    <div style="background: #f8f9fa; padding: 15px 20px; border-top: 1px solid #ddd; margin-top: 30px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: #666;">
+            <div>
+                <strong>Drixel SA Admin Panel</strong> • v1.0 • Last Updated: Today
             </div>
-            
-            <!-- Bottom Navigation -->
-            <div style="position: sticky; bottom: 0; background: white; border-top: 2px solid #f0f0f0; padding: 10px; display: flex; justify-content: space-around;">
-                <button id="bottomStatsBtn" style="background: none; border: none; color: #FF6B00; font-size: 12px; text-align: center;">
-                    <i class="fas fa-chart-bar" style="display: block; font-size: 20px;"></i> Stats
-                </button>
-                <button id="bottomOrdersBtn" style="background: none; border: none; color: #666; font-size: 12px; text-align: center;">
-                    <i class="fas fa-shopping-cart" style="display: block; font-size: 20px;"></i> Orders
-                </button>
-                <button id="bottomUsersBtn" style="background: none; border: none; color: #666; font-size: 12px; text-align: center;">
-                    <i class="fas fa-users" style="display: block; font-size: 20px;"></i> Users
-                </button>
-                <button id="bottomPendingBtn" style="background: none; border: none; color: #666; font-size: 12px; text-align: center;">
-                    <i class="fas fa-clock" style="display: block; font-size: 20px;"></i> Pending
+            <div>
+                Logged in as: <span id="adminCurrentUser">Loading...</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .admin-tab-btn {
+        padding: 10px 15px;
+        background: rgba(255,255,255,0.1);
+        border: none;
+        color: white;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 14px;
+        white-space: nowrap;
+        transition: background 0.3s;
+    }
+    
+    .admin-tab-btn:hover {
+        background: rgba(255,255,255,0.2);
+    }
+    
+    .admin-tab-btn.active {
+        background: #FF6B00;
+    }
+    
+    .admin-tab-content {
+        display: block;
+    }
+    
+    .admin-action-btn {
+        padding: 12px;
+        background: #0066CC;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 14px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        transition: transform 0.2s;
+    }
+    
+    .admin-action-btn:hover {
+        transform: translateY(-2px);
+    }
+    
+    .admin-order-card, .admin-user-card, .admin-pending-card, .admin-product-card {
+        background: white;
+        border: 1px solid #e0e0e0;
+        border-radius: 8px;
+        padding: 15px;
+        margin-bottom: 10px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    }
+    
+    @media (max-width: 768px) {
+        #adminOrdersSearch {
+            width: 100% !important;
+            max-width: 100% !important;
+        }
+        
+        .admin-tab-btn {
+            font-size: 12px;
+            padding: 8px 12px;
+        }
+        
+        .admin-action-btn {
+            font-size: 13px;
+            padding: 10px;
+        }
+    }
+</style>
+`;
+
+// Add admin panel to body
+document.body.insertAdjacentHTML('beforeend', adminHTML);
+
+// ===== ADMIN FUNCTIONS =====
+
+function showUniversalAdmin() {
+    const currentUser = getCurrentUser();
+    
+    if (!currentUser || currentUser.email !== 'admin@drixelsa.co.za') {
+        alert('Access denied. Admin access only for Anelisa Thelejane & Andzani Mashabanae.');
+        return;
+    }
+    
+    document.getElementById('universalAdminPanel').style.display = 'block';
+    document.getElementById('adminCurrentUser').textContent = currentUser.email;
+    loadAdminStats();
+    loadAdminRecentOrders();
+    loadAdminProducts();
+    console.log('✅ Admin panel opened by:', currentUser.email);
+}
+
+function hideUniversalAdmin() {
+    document.getElementById('universalAdminPanel').style.display = 'none';
+}
+
+function switchAdminTab(tabName) {
+    // Hide all tabs
+    document.querySelectorAll('.admin-tab-content').forEach(tab => {
+        tab.style.display = 'none';
+    });
+    
+    // Remove active class from all buttons
+    document.querySelectorAll('.admin-tab-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    
+    // Show selected tab
+    const tabContent = document.getElementById(`admin${tabName.charAt(0).toUpperCase() + tabName.slice(1)}Tab`);
+    if (tabContent) {
+        tabContent.style.display = 'block';
+    }
+    
+    // Add active class to clicked button
+    event.target.classList.add('active');
+    
+    // Load tab data
+    if (tabName === 'dashboard') {
+        loadAdminStats();
+        loadAdminRecentOrders();
+    } else if (tabName === 'orders') {
+        loadAdminOrders();
+    } else if (tabName === 'users') {
+        loadAdminUsers();
+    } else if (tabName === 'pending') {
+        loadAdminPending();
+    } else if (tabName === 'products') {
+        loadAdminProducts();
+    }
+}
+
+function loadAdminStats() {
+    const orders = JSON.parse(localStorage.getItem('drixel_orders')) || [];
+    const users = JSON.parse(localStorage.getItem(USERS_STORAGE_KEY)) || [];
+    const pendingOrders = orders.filter(order => order.paymentMethod === 'bank' && !order.paymentConfirmed);
+    
+    const totalRevenue = orders.reduce((sum, order) => sum + order.total, 0);
+    
+    document.getElementById('adminTotalOrders').textContent = orders.length;
+    document.getElementById('adminTotalRevenue').textContent = 'R' + totalRevenue.toFixed(2);
+    document.getElementById('adminTotalUsers').textContent = users.length;
+    document.getElementById('adminPendingPayments').textContent = pendingOrders.length;
+}
+
+function loadAdminRecentOrders() {
+    const orders = JSON.parse(localStorage.getItem('drixel_orders')) || [];
+    const recentOrders = orders.slice(-5).reverse();
+    const recentList = document.getElementById('adminRecentOrders');
+    
+    if (recentOrders.length === 0) {
+        recentList.innerHTML = '<p style="text-align: center; color: #666; padding: 40px;">No orders yet.</p>';
+        return;
+    }
+    
+    let html = '';
+    recentOrders.forEach(order => {
+        const orderDate = new Date(order.date).toLocaleDateString();
+        const statusColor = order.status === 'pending_payment' ? '#EF476F' : 
+                          order.status === 'processing' ? '#FF6B00' : '#0CAF60';
+        
+        html += `
+        <div class="admin-order-card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <div>
+                    <strong style="color: #111;">#${order.id.slice(-6)}</strong>
+                    <div style="font-size: 12px; color: #666;">${orderDate}</div>
+                </div>
+                <span style="background: ${statusColor}; color: white; padding: 3px 10px; border-radius: 15px; font-size: 11px;">
+                    ${order.status}
+                </span>
+            </div>
+            <div style="font-size: 14px;">
+                <div><strong>${order.customer.name}</strong></div>
+                <div style="color: #666;">${order.customer.email}</div>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px;">
+                <div style="font-size: 18px; font-weight: 900; color: #FF6B00;">
+                    R ${order.total.toFixed(2)}
+                </div>
+                <button onclick="viewAdminOrder('${order.id}')" style="background: #111; color: white; border: none; padding: 5px 10px; border-radius: 5px; font-size: 12px; cursor: pointer;">
+                    View Details
                 </button>
             </div>
         </div>
-
-        <style>
-            .mobile-tab-btn {
-                padding: 10px 15px;
-                background: rgba(255,255,255,0.1);
-                border: none;
-                color: white;
-                border-radius: 20px;
-                margin-right: 10px;
-                font-size: 14px;
-                white-space: nowrap;
-            }
-            .mobile-tab-btn.active {
-                background: #FF6B00;
-            }
-            .mobile-tab-content {
-                display: block;
-            }
-            .mobile-order-card, .mobile-user-card {
-                background: white;
-                border: 1px solid #f0f0f0;
-                border-radius: 10px;
-                padding: 15px;
-                margin-bottom: 10px;
-                box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-            }
-            .mobile-order-header {
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                margin-bottom: 10px;
-            }
-            .mobile-order-id {
-                font-weight: 900;
-                color: #FF6B00;
-                font-size: 16px;
-            }
-            .mobile-order-status {
-                padding: 3px 10px;
-                border-radius: 15px;
-                font-size: 11px;
-                font-weight: 700;
-            }
-            .status-pending { background: #fff3cd; color: #856404; }
-            .status-processing { background: #cce5ff; color: #004085; }
-            .status-completed { background: #d4edda; color: #155724; }
-        </style>
         `;
+    });
+    
+    recentList.innerHTML = html;
+}
 
-        // Add to page
-        document.body.insertAdjacentHTML('beforeend', adminHTML);
-
-        // Mobile admin functions
-        function showMobileAdmin() {
-            document.getElementById('adminMobileDashboard').style.display = 'block';
-            loadMobileStats();
-            loadMobileRecentOrders();
-        }
-
-        function hideMobileAdmin() {
-            document.getElementById('adminMobileDashboard').style.display = 'none';
-        }
-
-        function showMobileTab(tab) {
-            // Update top tab buttons
-            document.querySelectorAll('.mobile-tab-btn').forEach(btn => {
-                btn.classList.remove('active');
-            });
+function loadAdminOrders() {
+    const orders = JSON.parse(localStorage.getItem('drixel_orders')) || [];
+    const ordersList = document.getElementById('adminOrdersList');
+    
+    if (orders.length === 0) {
+        ordersList.innerHTML = '<p style="text-align: center; color: #666; padding: 40px;">No orders yet.</p>';
+        return;
+    }
+    
+    let html = '';
+    orders.sort((a, b) => new Date(b.date) - new Date(a.date)).forEach(order => {
+        const orderDate = new Date(order.date).toLocaleDateString();
+        const statusColor = order.status === 'pending_payment' ? '#EF476F' : 
+                          order.status === 'processing' ? '#FF6B00' : '#0CAF60';
+        
+        html += `
+        <div class="admin-order-card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <div>
+                    <strong style="color: #111; font-size: 16px;">#${order.id}</strong>
+                    <div style="font-size: 12px; color: #666;">${orderDate} • ${order.customer.name}</div>
+                </div>
+                <span style="background: ${statusColor}; color: white; padding: 4px 12px; border-radius: 15px; font-size: 12px;">
+                    ${order.status}
+                </span>
+            </div>
             
-            // Update bottom nav colors
-            document.querySelectorAll('#adminMobileDashboard [style*="bottom: 0"] button').forEach(btn => {
-                btn.style.color = '#666';
-            });
-            
-            // Show correct content
-            document.getElementById('mobileStatsTab').style.display = 'none';
-            document.getElementById('mobileOrdersTabContent').style.display = 'none';
-            document.getElementById('mobileUsersTabContent').style.display = 'none';
-            document.getElementById('mobilePendingTabContent').style.display = 'none';
-            
-            if (tab === 'stats') {
-                document.getElementById('mobileStatsTab').style.display = 'block';
-                document.getElementById('mobileStatsTabBtn').classList.add('active');
-                document.getElementById('bottomStatsBtn').style.color = '#FF6B00';
-                loadMobileStats();
-                loadMobileRecentOrders();
-            } else if (tab === 'orders') {
-                document.getElementById('mobileOrdersTabContent').style.display = 'block';
-                document.getElementById('mobileOrdersTabBtn').classList.add('active');
-                document.getElementById('bottomOrdersBtn').style.color = '#FF6B00';
-                loadMobileOrders();
-            } else if (tab === 'users') {
-                document.getElementById('mobileUsersTabContent').style.display = 'block';
-                document.getElementById('mobileUsersTabBtn').classList.add('active');
-                document.getElementById('bottomUsersBtn').style.color = '#FF6B00';
-                loadMobileUsers();
-            } else if (tab === 'pending') {
-                document.getElementById('mobilePendingTabContent').style.display = 'block';
-                document.getElementById('mobilePendingTabBtn').classList.add('active');
-                document.getElementById('bottomPendingBtn').style.color = '#FF6B00';
-                loadMobilePending();
-            }
-        }
-
-        function loadMobileStats() {
-            const orders = JSON.parse(localStorage.getItem('drixel_orders')) || [];
-            const users = JSON.parse(localStorage.getItem(USERS_STORAGE_KEY)) || [];
-            const pendingOrders = orders.filter(order => order.paymentMethod === 'bank' && !order.paymentConfirmed);
-            
-            const totalRevenue = orders.reduce((sum, order) => sum + order.total, 0);
-            
-            document.getElementById('mobileTotalOrders').textContent = orders.length;
-            document.getElementById('mobileTotalRevenue').textContent = 'R' + totalRevenue.toFixed(0);
-            document.getElementById('mobileTotalUsers').textContent = users.length;
-            document.getElementById('mobilePendingPayments').textContent = pendingOrders.length;
-        }
-
-        function loadMobileRecentOrders() {
-            const orders = JSON.parse(localStorage.getItem('drixel_orders')) || [];
-            const recentOrders = orders.slice(-5).reverse(); // Last 5 orders, newest first
-            const recentList = document.getElementById('mobileRecentOrders');
-            
-            if (recentOrders.length === 0) {
-                recentList.innerHTML = '<p style="text-align: center; color: #666; padding: 20px;">No orders yet.</p>';
-                return;
-            }
-            
-            let html = '';
-            recentOrders.forEach(order => {
-                const orderDate = new Date(order.date).toLocaleDateString();
-                const statusClass = order.status === 'pending_payment' ? 'status-pending' : 
-                                  order.status === 'processing' ? 'status-processing' : 'status-completed';
-                
-                html += `
-                <div class="mobile-order-card">
-                    <div class="mobile-order-header">
-                        <div class="mobile-order-id">#${order.id.slice(-6)}</div>
-                        <div class="mobile-order-status ${statusClass}">${order.status.slice(0,1).toUpperCase()}</div>
+            <div style="background: #f8f9fa; padding: 10px; border-radius: 5px; margin: 10px 0;">
+                ${order.items.map(item => `
+                    <div style="display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid #eee;">
+                        <div>${item.quantity} × ${item.name}</div>
+                        <div>R ${(item.price * item.quantity).toFixed(2)}</div>
                     </div>
-                    <div style="font-size: 14px;">
-                        <div><strong>${order.customer.name}</strong></div>
-                        <div style="color: #666; font-size: 12px;">${orderDate}</div>
+                `).join('')}
+            </div>
+            
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <div style="font-size: 20px; font-weight: 900; color: #FF6B00;">
+                        R ${order.total.toFixed(2)}
                     </div>
-                    <div style="display: flex; justify-content: space-between; margin-top: 10px; font-size: 16px; font-weight: 900; color: #111;">
-                        <div>R ${order.total.toFixed(2)}</div>
-                        <button onclick="viewMobileOrder('${order.id}')" style="background: #111; color: white; border: none; padding: 5px 10px; border-radius: 5px; font-size: 12px;">
-                            View
+                    <div style="font-size: 12px; color: #666;">
+                        ${order.paymentMethod} • ${order.paymentConfirmed ? '✓ Confirmed' : '⏳ Pending'}
+                    </div>
+                </div>
+                <div style="display: flex; gap: 5px;">
+                    ${order.paymentMethod === 'bank' && !order.paymentConfirmed ? `
+                        <button onclick="confirmAdminPayment('${order.id}')" style="background: #0CAF60; color: white; border: none; padding: 8px 12px; border-radius: 5px; font-size: 12px; cursor: pointer;">
+                            <i class="fas fa-check"></i> Confirm
                         </button>
+                    ` : ''}
+                    <button onclick="viewAdminOrder('${order.id}')" style="background: #0066CC; color: white; border: none; padding: 8px 12px; border-radius: 5px; font-size: 12px; cursor: pointer;">
+                        <i class="fas fa-eye"></i> View
+                    </button>
+                </div>
+            </div>
+        </div>
+        `;
+    });
+    
+    ordersList.innerHTML = html;
+}
+
+function loadAdminUsers() {
+    const users = JSON.parse(localStorage.getItem(USERS_STORAGE_KEY)) || [];
+    const usersList = document.getElementById('adminUsersList');
+    
+    if (users.length === 0) {
+        usersList.innerHTML = '<p style="text-align: center; color: #666; padding: 40px;">No users yet.</p>';
+        return;
+    }
+    
+    let html = '';
+    users.forEach(user => {
+        const createdAt = new Date(user.createdAt).toLocaleDateString();
+        const isAdmin = user.role === 'admin';
+        
+        html += `
+        <div class="admin-user-card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <div>
+                    <strong style="color: #111; font-size: 16px;">
+                        ${user.name}
+                        ${isAdmin ? '<span style="background: #FF6B00; color: white; padding: 2px 8px; border-radius: 10px; font-size: 10px; margin-left: 5px;">ADMIN</span>' : ''}
+                    </strong>
+                    <div style="font-size: 12px; color: #666;">${user.email}</div>
+                </div>
+                <div style="font-size: 11px; color: #666;">Joined: ${createdAt}</div>
+            </div>
+            
+            <div style="margin: 10px 0;">
+                <div style="font-size: 12px; color: #666;">
+                    ${user.phone || 'No phone provided'}
+                </div>
+                <div style="font-size: 12px; color: #666; margin-top: 5px;">
+                    ${user.subscribed ? '✓ Subscribed to emails' : '✗ Not subscribed'}
+                </div>
+            </div>
+            
+            <div style="display: flex; gap: 10px;">
+                <button onclick="viewAdminUser('${user.email}')" style="background: #111; color: white; border: none; padding: 8px 12px; border-radius: 5px; font-size: 12px; cursor: pointer; flex: 1;">
+                    <i class="fas fa-eye"></i> View Details
+                </button>
+                ${!isAdmin ? `
+                    <button onclick="deleteAdminUser('${user.id}')" style="background: #EF476F; color: white; border: none; padding: 8px 12px; border-radius: 5px; font-size: 12px; cursor: pointer; flex: 1;">
+                        <i class="fas fa-trash"></i> Delete
+                    </button>
+                ` : ''}
+            </div>
+        </div>
+        `;
+    });
+    
+    usersList.innerHTML = html;
+}
+
+function loadAdminPending() {
+    const orders = JSON.parse(localStorage.getItem('drixel_orders')) || [];
+    const pendingOrders = orders.filter(order => order.paymentMethod === 'bank' && !order.paymentConfirmed);
+    const pendingList = document.getElementById('adminPendingList');
+    
+    if (pendingOrders.length === 0) {
+        pendingList.innerHTML = '<p style="text-align: center; color: #0CAF60; padding: 40px;"><i class="fas fa-check-circle"></i> No pending payments</p>';
+        return;
+    }
+    
+    let html = '';
+    pendingOrders.forEach(order => {
+        html += `
+        <div class="admin-pending-card" style="border-left: 5px solid #EF476F;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <div>
+                    <strong style="color: #EF476F; font-size: 18px;">#${order.id}</strong>
+                    <div style="font-size: 14px; margin-top: 5px;">${order.customer.name}</div>
+                </div>
+                <div style="font-size: 24px; font-weight: 900; color: #111;">
+                    R ${order.total.toFixed(2)}
+                </div>
+            </div>
+            
+            <div style="background: #fff8f0; padding: 15px; border-radius: 5px; margin-bottom: 15px; border: 1px dashed #FF6B00;">
+                <div style="font-weight: 600; color: #FF6B00; margin-bottom: 10px;">
+                    <i class="fas fa-university"></i> BANK TRANSFER REQUIRED
+                </div>
+                <div style="font-size: 13px;">
+                    <div><strong>Bank:</strong> Nedbank</div>
+                    <div><strong>Account:</strong> 1332096999</div>
+                    <div><strong>Account Name:</strong> Drixel SA</div>
+                    <div><strong>Reference:</strong> ${order.id}</div>
+                    <div><strong>Amount:</strong> R ${order.total.toFixed(2)}</div>
+                </div>
+            </div>
+            
+            <div style="display: flex; gap: 10px;">
+                <button onclick="confirmAdminPayment('${order.id}')" style="background: #0CAF60; color: white; border: none; padding: 12px; border-radius: 5px; font-size: 14px; cursor: pointer; flex: 1;">
+                    <i class="fas fa-check-circle"></i> Confirm Payment
+                </button>
+                <button onclick="remindAdminCustomer('${order.customer.email}', '${order.id}')" style="background: #0066CC; color: white; border: none; padding: 12px; border-radius: 5px; font-size: 14px; cursor: pointer; flex: 1;">
+                    <i class="fas fa-envelope"></i> Send Reminder
+                </button>
+            </div>
+        </div>
+        `;
+    });
+    
+    pendingList.innerHTML = html;
+}
+
+function loadAdminProducts() {
+    const productsList = document.getElementById('adminProductsList');
+    
+    let html = '';
+    PRODUCTS_DATA.forEach(product => {
+        html += `
+        <div class="admin-product-card">
+            <div style="margin-bottom: 10px;">
+                <img src="${product.image}" alt="${product.name}" style="width: 100%; height: 150px; object-fit: cover; border-radius: 5px;">
+            </div>
+            <div>
+                <strong style="color: #111; font-size: 16px;">${product.name}</strong>
+                <div style="font-size: 18px; font-weight: 900; color: #FF6B00; margin: 5px 0;">
+                    R ${product.price.toFixed(2)}
+                </div>
+                <div style="font-size: 12px; color: #666; margin: 5px 0;">
+                    ${product.description.substring(0, 80)}...
+                </div>
+                <div style="display: flex; gap: 5px; margin-top: 10px;">
+                    <span style="background: #e0f7fa; color: #006064; padding: 2px 8px; border-radius: 10px; font-size: 11px;">
+                        ${product.category}
+                    </span>
+                    <span style="background: #f3e5f5; color: #4a148c; padding: 2px 8px; border-radius: 10px; font-size: 11px;">
+                        ${product.sizes.length} sizes
+                    </span>
+                    <span style="background: #e8f5e8; color: #1b5e20; padding: 2px 8px; border-radius: 10px; font-size: 11px;">
+                        ${product.colors.length} colors
+                    </span>
+                </div>
+            </div>
+        </div>
+        `;
+    });
+    
+    productsList.innerHTML = html;
+}
+
+function viewAdminOrder(orderId) {
+    const orders = JSON.parse(localStorage.getItem('drixel_orders')) || [];
+    const order = orders.find(o => o.id === orderId);
+    
+    if (order) {
+        const itemsList = order.items.map(item => 
+            `• ${item.quantity} × ${item.name} (${item.size}, ${item.color}): R ${(item.price * item.quantity).toFixed(2)}`
+        ).join('\n');
+        
+        const details = `
+Order #${order.id}
+------------------------
+Date: ${new Date(order.date).toLocaleString()}
+Customer: ${order.customer.name}
+Email: ${order.customer.email}
+Phone: ${order.customer.phone || 'Not provided'}
+Address: ${order.customer.address}
+------------------------
+Items:
+${itemsList}
+------------------------
+Subtotal: R ${order.subtotal.toFixed(2)}
+Shipping: ${order.shipping === 0 ? 'FREE' : `R ${order.shipping.toFixed(2)}`}
+Tax: R ${order.tax.toFixed(2)}
+TOTAL: R ${order.total.toFixed(2)}
+------------------------
+Status: ${order.status}
+Payment: ${order.paymentMethod} ${order.paymentConfirmed ? '(Confirmed)' : '(Pending)'}
+Courier: ${order.courier}
+        `;
+        
+        alert(details);
+    }
+}
+
+function confirmAdminPayment(orderId) {
+    if (confirm(`Confirm payment received for order #${orderId}?`)) {
+        const success = confirmPayment(orderId);
+        if (success) {
+            loadAdminStats();
+            loadAdminRecentOrders();
+            loadAdminOrders();
+            loadAdminPending();
+        }
+    }
+}
+
+function remindAdminCustomer(email, orderId) {
+    if (confirm(`Send payment reminder to ${email} for order #${orderId}?`)) {
+        alert(`📧 Payment reminder sent to: ${email}\n\nCustomer will receive an email reminder about their pending payment.`);
+        // In a real system, you would send an email here
+    }
+}
+
+function viewAdminUser(email) {
+    const orders = JSON.parse(localStorage.getItem('drixel_orders')) || [];
+    const userOrders = orders.filter(order => order.customer.email === email);
+    
+    let message = `User: ${email}\n`;
+    message += `Total Orders: ${userOrders.length}\n`;
+    message += `Total Spent: R ${userOrders.reduce((sum, order) => sum + order.total, 0).toFixed(2)}\n\n`;
+    
+    if (userOrders.length > 0) {
+        message += `Recent Orders:\n`;
+        userOrders.slice(0, 3).forEach((order, index) => {
+            message += `${index + 1}. #${order.id.slice(-6)} - R ${order.total.toFixed(2)} (${order.status})\n`;
+        });
+    } else {
+        message += `No orders yet.`;
+    }
+    
+    alert(message);
+}
+
+function deleteAdminUser(userId) {
+    if (confirm('Are you sure you want to delete this user? This will also delete all their orders.')) {
+        const users = JSON.parse(localStorage.getItem(USERS_STORAGE_KEY)) || [];
+        const orders = JSON.parse(localStorage.getItem('drixel_orders')) || [];
+        
+        const userToDelete = users.find(user => user.id === userId);
+        
+        if (userToDelete && userToDelete.role !== 'admin') {
+            // Remove user
+            const updatedUsers = users.filter(user => user.id !== userId);
+            localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(updatedUsers));
+            
+            // Remove user's orders
+            const updatedOrders = orders.filter(order => order.customer.email !== userToDelete.email);
+            localStorage.setItem('drixel_orders', JSON.stringify(updatedOrders));
+            
+            alert('✅ User and their orders deleted successfully!');
+            loadAdminStats();
+            loadAdminUsers();
+            loadAdminOrders();
+            loadAdminRecentOrders();
+        } else {
+            alert('❌ Cannot delete admin user.');
+        }
+    }
+}
+
+function exportAdminData(type) {
+    if (type === 'orders') {
+        const orders = JSON.parse(localStorage.getItem('drixel_orders')) || [];
+        if (orders.length === 0) {
+            alert('No orders to export.');
+            return;
+        }
+        
+        let csv = 'Order ID,Date,Customer,Email,Phone,Total,Status,Payment Method,Confirmed\n';
+        orders.forEach(order => {
+            csv += `"${order.id}","${new Date(order.date).toLocaleString()}","${order.customer.name}","${order.customer.email}","${order.customer.phone || ''}","R ${order.total.toFixed(2)}","${order.status}","${order.paymentMethod}","${order.paymentConfirmed ? 'Yes' : 'No'}"\n`;
+        });
+        
+        downloadCSV(csv, `drixel_orders_${new Date().toISOString().split('T')[0]}.csv`);
+        alert(`✅ Exported ${orders.length} orders to CSV`);
+        
+    } else if (type === 'users') {
+        const users = JSON.parse(localStorage.getItem(USERS_STORAGE_KEY)) || [];
+        if (users.length === 0) {
+            alert('No users to export.');
+            return;
+        }
+        
+        let csv = 'Name,Email,Phone,Role,Created,Subscribed\n';
+        users.forEach(user => {
+            csv += `"${user.name}","${user.email}","${user.phone || ''}","${user.role}","${new Date(user.createdAt).toLocaleDateString()}","${user.subscribed ? 'Yes' : 'No'}"\n`;
+        });
+        
+        downloadCSV(csv, `drixel_users_${new Date().toISOString().split('T')[0]}.csv`);
+        alert(`✅ Exported ${users.length} users to CSV`);
+    }
+}
+
+function downloadCSV(csv, filename) {
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+}
+
+function clearAdminTestData() {
+    if (confirm('⚠️ WARNING: Delete ALL test data?\n\nThis will clear ALL orders and users except the admin account.\n\nThis action cannot be undone!')) {
+        const users = JSON.parse(localStorage.getItem(USERS_STORAGE_KEY)) || [];
+        const adminUser = users.find(u => u.role === 'admin');
+        
+        localStorage.clear();
+        
+        if (adminUser) {
+            localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify([adminUser]));
+            setCurrentUser(adminUser);
+        }
+        
+        localStorage.setItem('drixel_admin_setup', 'true');
+        localStorage.setItem('drixel_cart', JSON.stringify([]));
+        localStorage.setItem('drixel_orders', JSON.stringify([]));
+        
+        alert('✅ All test data cleared! Admin account preserved.');
+        loadAdminStats();
+        loadAdminUsers();
+        loadAdminOrders();
+        loadAdminRecentOrders();
+        loadAdminProducts();
+    }
+}
+
+// ===== SETUP ADMIN EVENT LISTENERS =====
+function setupAdminEventListeners() {
+    // Close button
+    document.getElementById('closeAdminBtn').addEventListener('click', hideUniversalAdmin);
+    
+    // Tab buttons
+    document.querySelectorAll('.admin-tab-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const tab = this.getAttribute('data-tab');
+            switchAdminTab(tab);
+        });
+    });
+    
+    // Action buttons
+    document.getElementById('adminExportOrders').addEventListener('click', () => exportAdminData('orders'));
+    document.getElementById('adminExportUsers').addEventListener('click', () => exportAdminData('users'));
+    document.getElementById('adminRefreshData').addEventListener('click', function() {
+        loadAdminStats();
+        loadAdminRecentOrders();
+        loadAdminOrders();
+        loadAdminUsers();
+        loadAdminPending();
+        loadAdminProducts();
+        alert('✅ Data refreshed!');
+    });
+    document.getElementById('adminClearTestData').addEventListener('click', clearAdminTestData);
+    
+    // Search input
+    const searchInput = document.getElementById('adminOrdersSearch');
+    if (searchInput) {
+        searchInput.addEventListener('input', function(e) {
+            searchAdminOrders(e.target.value);
+        });
+    }
+}
+
+function searchAdminOrders(query) {
+    const orders = JSON.parse(localStorage.getItem('drixel_orders')) || [];
+    const ordersList = document.getElementById('adminOrdersList');
+    
+    if (!query.trim()) {
+        loadAdminOrders();
+        return;
+    }
+    
+    const filtered = orders.filter(order => 
+        order.id.toLowerCase().includes(query.toLowerCase()) ||
+        order.customer.name.toLowerCase().includes(query.toLowerCase()) ||
+        order.customer.email.toLowerCase().includes(query.toLowerCase()) ||
+        order.customer.phone?.toLowerCase().includes(query.toLowerCase())
+    );
+    
+    if (filtered.length === 0) {
+        ordersList.innerHTML = '<p style="text-align: center; color: #666; padding: 40px;">No orders found.</p>';
+        return;
+    }
+    
+    let html = '';
+    filtered.forEach(order => {
+        const orderDate = new Date(order.date).toLocaleDateString();
+        const statusColor = order.status === 'pending_payment' ? '#EF476F' : 
+                          order.status === 'processing' ? '#FF6B00' : '#0CAF60';
+        
+        html += `
+        <div class="admin-order-card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <div>
+                    <strong style="color: #111; font-size: 16px;">#${order.id}</strong>
+                    <div style="font-size: 12px; color: #666;">${orderDate} • ${order.customer.name}</div>
+                </div>
+                <span style="background: ${statusColor}; color: white; padding: 4px 12px; border-radius: 15px; font-size: 12px;">
+                    ${order.status}
+                </span>
+            </div>
+            
+            <div style="background: #f8f9fa; padding: 10px; border-radius: 5px; margin: 10px 0;">
+                ${order.items.map(item => `
+                    <div style="display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid #eee;">
+                        <div>${item.quantity} × ${item.name}</div>
+                        <div>R ${(item.price * item.quantity).toFixed(2)}</div>
+                    </div>
+                `).join('')}
+            </div>
+            
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <div style="font-size: 20px; font-weight: 900; color: #FF6B00;">
+                        R ${order.total.toFixed(2)}
+                    </div>
+                    <div style="font-size: 12px; color: #666;">
+                        ${order.paymentMethod} • ${order.paymentConfirmed ? '✓ Confirmed' : '⏳ Pending'}
                     </div>
                 </div>
-                `;
-            });
-            
-            recentList.innerHTML = html;
-        }
-
-        function loadMobileOrders() {
-            const orders = JSON.parse(localStorage.getItem('drixel_orders')) || [];
-            const ordersList = document.getElementById('mobileOrdersList');
-            
-            if (orders.length === 0) {
-                ordersList.innerHTML = '<p style="text-align: center; color: #666; padding: 40px;">No orders yet.</p>';
-                return;
-            }
-            
-            // Sort orders newest first
-            const sortedOrders = [...orders].sort((a, b) => new Date(b.date) - new Date(a.date));
-            
-            let html = '';
-            sortedOrders.forEach(order => {
-                const orderDate = new Date(order.date).toLocaleDateString();
-                const statusClass = order.status === 'pending_payment' ? 'status-pending' : 
-                                  order.status === 'processing' ? 'status-processing' : 'status-completed';
-                
-                html += `
-                <div class="mobile-order-card">
-                    <div class="mobile-order-header">
-                        <div>
-                            <div class="mobile-order-id">#${order.id.slice(-6)}</div>
-                            <div style="font-size: 12px; color: #666;">${orderDate}</div>
-                        </div>
-                        <div class="mobile-order-status ${statusClass}">${order.status}</div>
-                    </div>
-                    
-                    <div style="font-size: 14px; margin-bottom: 10px;">
-                        <div><strong>${order.customer.name}</strong></div>
-                        <div style="color: #666;">${order.customer.email}</div>
-                    </div>
-                    
-                    <div style="background: #f8f9fa; padding: 10px; border-radius: 5px; font-size: 12px; margin-bottom: 10px;">
-                        ${order.items.map(item => `
-                            <div style="display: flex; justify-content: space-between; padding: 3px 0;">
-                                <div>${item.quantity} × ${item.name}</div>
-                                <div>R ${(item.price * item.quantity).toFixed(2)}</div>
-                            </div>
-                        `).join('')}
-                    </div>
-                    
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <div style="font-size: 18px; font-weight: 900; color: #FF6B00;">
-                            R ${order.total.toFixed(2)}
-                        </div>
-                        <div>
-                            ${order.paymentMethod === 'bank' && !order.paymentConfirmed ? `
-                                <button onclick="confirmMobilePayment('${order.id}')" style="background: #06D6A0; color: white; border: none; padding: 5px 10px; border-radius: 5px; font-size: 12px; margin-right: 5px;">
-                                    ✓ Confirm
-                                </button>
-                            ` : ''}
-                            <button onclick="viewMobileOrder('${order.id}')" style="background: #0066CC; color: white; border: none; padding: 5px 10px; border-radius: 5px; font-size: 12px;">
-                                Details
-                            </button>
-                        </div>
-                    </div>
-                </div>
-                `;
-            });
-            
-            ordersList.innerHTML = html;
-        }
-
-        function loadMobileUsers() {
-            const users = JSON.parse(localStorage.getItem(USERS_STORAGE_KEY)) || [];
-            const usersList = document.getElementById('mobileUsersList');
-            
-            if (users.length === 0) {
-                usersList.innerHTML = '<p style="text-align: center; color: #666; padding: 40px;">No users yet.</p>';
-                return;
-            }
-            
-            let html = '';
-            users.forEach(user => {
-                const createdAt = new Date(user.createdAt).toLocaleDateString();
-                
-                html += `
-                <div class="mobile-user-card">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                        <div>
-                            <div style="font-weight: 900; font-size: 16px;">
-                                ${user.name}
-                                ${user.role === 'admin' ? '<span style="background: #FF6B00; color: white; padding: 1px 6px; border-radius: 10px; font-size: 10px; margin-left: 5px;">ADMIN</span>' : ''}
-                            </div>
-                            <div style="color: #666; font-size: 12px;">${user.email}</div>
-                        </div>
-                        <div style="font-size: 11px; color: #666;">
-                            ${createdAt}
-                        </div>
-                    </div>
-                    
-                    <div style="display: flex; gap: 10px;">
-                        <button onclick="viewMobileUser('${user.email}')" style="background: #111; color: white; border: none; padding: 8px 12px; border-radius: 5px; font-size: 12px; flex: 1;">
-                            <i class="fas fa-eye"></i> View
+                <div style="display: flex; gap: 5px;">
+                    ${order.paymentMethod === 'bank' && !order.paymentConfirmed ? `
+                        <button onclick="confirmAdminPayment('${order.id}')" style="background: #0CAF60; color: white; border: none; padding: 8px 12px; border-radius: 5px; font-size: 12px; cursor: pointer;">
+                            <i class="fas fa-check"></i> Confirm
                         </button>
-                        ${user.role !== 'admin' ? `
-                            <button onclick="deleteMobileUser('${user.id}')" style="background: #EF476F; color: white; border: none; padding: 8px 12px; border-radius: 5px; font-size: 12px; flex: 1;">
-                                <i class="fas fa-trash"></i> Delete
-                            </button>
-                        ` : ''}
-                    </div>
+                    ` : ''}
+                    <button onclick="viewAdminOrder('${order.id}')" style="background: #0066CC; color: white; border: none; padding: 8px 12px; border-radius: 5px; font-size: 12px; cursor: pointer;">
+                        <i class="fas fa-eye"></i> View
+                    </button>
                 </div>
-                `;
-            });
-            
-            usersList.innerHTML = html;
-        }
+            </div>
+        </div>
+        `;
+    });
+    
+    ordersList.innerHTML = html;
+}
 
-        function loadMobilePending() {
-            const orders = JSON.parse(localStorage.getItem('drixel_orders')) || [];
-            const pendingOrders = orders.filter(order => order.paymentMethod === 'bank' && !order.paymentConfirmed);
-            const pendingList = document.getElementById('mobilePendingList');
+// ===== MODIFY UPDATEAUTHUI TO ADD ADMIN ACCESS =====
+function updateAuthUI() {
+    const authLink = document.getElementById('authLink');
+    const user = getCurrentUser();
+    
+    if (user) {
+        authLink.innerHTML = `<i class="fas fa-sign-out-alt"></i>`;
+        authLink.title = `Logged in as ${user.name} (Logout)`;
+        authLink.onclick = function(e) {
+            e.preventDefault();
+            logout();
+        };
+        
+        // Add admin access if user is admin
+        if (user.email === 'admin@drixelsa.co.za') {
+            // Add admin access button to navbar
+            addAdminAccessButton();
             
-            if (pendingOrders.length === 0) {
-                pendingList.innerHTML = '<p style="text-align: center; color: #06D6A0; padding: 40px;"><i class="fas fa-check-circle"></i> No pending payments</p>';
-                return;
-            }
+            // Setup admin event listeners
+            setTimeout(() => {
+                setupAdminEventListeners();
+            }, 100);
             
-            let html = '';
-            pendingOrders.forEach(order => {
-                html += `
-                <div class="mobile-order-card" style="border-left: 5px solid #EF476F;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                        <div>
-                            <div style="font-weight: 900; color: #EF476F;">#${order.id.slice(-6)}</div>
-                            <div style="font-size: 12px; color: #666;">${order.customer.name}</div>
-                        </div>
-                        <div style="font-size: 18px; font-weight: 900; color: #111;">
-                            R ${order.total.toFixed(2)}
-                        </div>
-                    </div>
-                    
-                    <div style="background: #f8f9fa; padding: 10px; border-radius: 5px; font-size: 12px; margin-bottom: 10px;">
-                        <strong>Bank Transfer:</strong><br>
-                        Nedbank: 1332096999<br>
-                        Ref: ${order.id}
-                    </div>
-                    
-                    <div style="display: flex; gap: 10px;">
-                        <button onclick="confirmMobilePayment('${order.id}')" style="background: #06D6A0; color: white; border: none; padding: 10px; border-radius: 5px; font-size: 14px; flex: 1;">
-                            <i class="fas fa-check-circle"></i> Confirm
-                        </button>
-                        <button onclick="remindMobileCustomer('${order.customer.email}')" style="background: #0066CC; color: white; border: none; padding: 10px; border-radius: 5px; font-size: 14px; flex: 1;">
-                            <i class="fas fa-envelope"></i> Remind
-                        </button>
-                    </div>
-                </div>
-                `;
-            });
-            
-            pendingList.innerHTML = html;
+            console.log('✅ Admin user logged in:', user.email);
         }
+    } else {
+        authLink.innerHTML = `<i class="fas fa-user"></i>`;
+        authLink.title = "Login / Register";
+        authLink.onclick = function(e) {
+            e.preventDefault();
+            showPage('auth');
+        };
+    }
+}
 
-        function viewMobileOrder(orderId) {
-            const orders = JSON.parse(localStorage.getItem('drixel_orders')) || [];
-            const order = orders.find(o => o.id === orderId);
-            
-            if (order) {
-                const itemsList = order.items.map(item => 
-                    `- ${item.quantity} × ${item.name}: R ${(item.price * item.quantity).toFixed(2)}`
-                ).join('\n');
-                
-                alert(
-                    `Order #${order.id}\n` +
-                    `Date: ${new Date(order.date).toLocaleString()}\n` +
-                    `Customer: ${order.customer.name}\n` +
-                    `Email: ${order.customer.email}\n` +
-                    `Phone: ${order.customer.phone}\n` +
-                    `Items:\n${itemsList}\n` +
-                    `Total: R ${order.total.toFixed(2)}\n` +
-                    `Status: ${order.status}\n` +
-                    `Payment: ${order.paymentMethod}${order.paymentConfirmed ? ' (Confirmed)' : ' (Pending)'}`
-                );
-            }
-        }
+function addAdminAccessButton() {
+    // Remove existing admin button if any
+    const existingBtn = document.querySelector('#adminAccessBtn');
+    if (existingBtn) existingBtn.remove();
+    
+    // Add admin access button to nav icons
+    const navIcons = document.querySelector('.nav-icons');
+    const adminBtn = document.createElement('div');
+    adminBtn.id = 'adminAccessBtn';
+    adminBtn.innerHTML = '<i class="fas fa-user-shield" title="Admin Dashboard"></i>';
+    adminBtn.style.cssText = 'cursor: pointer; font-size: 22px; color: var(--nike-black); transition: var(--transition);';
+    adminBtn.onclick = showUniversalAdmin;
+    adminBtn.title = 'Admin Dashboard';
+    
+    // Add hover effect
+    adminBtn.onmouseover = function() {
+        this.style.color = 'var(--accent-orange)';
+        this.style.transform = 'translateY(-2px)';
+    };
+    adminBtn.onmouseout = function() {
+        this.style.color = 'var(--nike-black)';
+        this.style.transform = 'translateY(0)';
+    };
+    
+    // Insert before cart button
+    const cartBtn = document.querySelector('.cart-btn');
+    if (cartBtn) {
+        navIcons.insertBefore(adminBtn, cartBtn);
+    } else {
+        navIcons.appendChild(adminBtn);
+    }
+}
 
-        function confirmMobilePayment(orderId) {
-            if (confirm('Confirm payment for order #' + orderId + '?')) {
-                const orders = JSON.parse(localStorage.getItem('drixel_orders')) || [];
-                const orderIndex = orders.findIndex(o => o.id === orderId);
-                
-                if (orderIndex !== -1) {
-                    orders[orderIndex].paymentConfirmed = true;
-                    orders[orderIndex].status = 'processing';
-                    localStorage.setItem('drixel_orders', JSON.stringify(orders));
-                    
-                    alert('✅ Payment confirmed!');
-                    loadMobileStats();
-                    loadMobileOrders();
-                    loadMobilePending();
-                    loadMobileRecentOrders();
-                }
-            }
-        }
-
-        function remindMobileCustomer(email) {
-            alert(`📧 Reminder sent to: ${email}\n\nA payment reminder email has been sent.`);
-        }
-
-        function viewMobileUser(email) {
-            const orders = JSON.parse(localStorage.getItem('drixel_orders')) || [];
-            const userOrders = orders.filter(order => order.customer.email === email);
-            
-            if (userOrders.length === 0) {
-                alert(`User: ${email}\nNo orders yet.`);
-                return;
-            }
-            
-            let message = `User: ${email}\nTotal Orders: ${userOrders.length}\nTotal Spent: R ${userOrders.reduce((sum, order) => sum + order.total, 0).toFixed(2)}\n\n`;
-            userOrders.forEach((order, index) => {
-                message += `Order ${index + 1}:\n`;
-                message += `  #${order.id.slice(-6)}\n`;
-                message += `  Date: ${new Date(order.date).toLocaleDateString()}\n`;
-                message += `  Total: R ${order.total.toFixed(2)}\n`;
-                message += `  Status: ${order.status}\n`;
-                message += `  ---\n`;
-            });
-            
-            alert(message);
-        }
-
-        function deleteMobileUser(userId) {
-            if (confirm('Delete this user? This will also delete all their orders.')) {
-                const users = JSON.parse(localStorage.getItem(USERS_STORAGE_KEY)) || [];
-                const orders = JSON.parse(localStorage.getItem('drixel_orders')) || [];
-                
-                // Find user email
-                const userToDelete = users.find(user => user.id === userId);
-                
-                if (userToDelete && userToDelete.role !== 'admin') {
-                    // Remove user
-                    const updatedUsers = users.filter(user => user.id !== userId);
-                    localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(updatedUsers));
-                    
-                    // Remove user's orders
-                    const updatedOrders = orders.filter(order => order.customer.email !== userToDelete.email);
-                    localStorage.setItem('drixel_orders', JSON.stringify(updatedOrders));
-                    
-                    alert('✅ User and their orders deleted!');
-                    loadMobileStats();
-                    loadMobileUsers();
-                    loadMobileOrders();
-                    loadMobileRecentOrders();
-                } else {
-                    alert('Cannot delete admin user.');
-                }
-            }
-        }
-
-        function exportMobileData(type) {
-            if (type === 'orders') {
-                const orders = JSON.parse(localStorage.getItem('drixel_orders')) || [];
-                if (orders.length === 0) {
-                    alert('No orders to export.');
-                    return;
-                }
-                
-                let csv = 'Order ID,Date,Customer,Email,Total,Status,Payment Method,Confirmed\n';
-                orders.forEach(order => {
-                    csv += `"${order.id}","${new Date(order.date).toLocaleString()}","${order.customer.name}","${order.customer.email}","R ${order.total.toFixed(2)}","${order.status}","${order.paymentMethod}","${order.paymentConfirmed ? 'Yes' : 'No'}"\n`;
-                });
-                
-                downloadMobileCSV(csv, 'drixel_orders.csv');
-                alert(`✅ Exported ${orders.length} orders`);
-                
-            } else if (type === 'users') {
-                const users = JSON.parse(localStorage.getItem(USERS_STORAGE_KEY)) || [];
-                if (users.length === 0) {
-                    alert('No users to export.');
-                    return;
-                }
-                
-                let csv = 'Name,Email,Role,Created\n';
-                users.forEach(user => {
-                    csv += `"${user.name}","${user.email}","${user.role}","${new Date(user.createdAt).toLocaleDateString()}"\n`;
-                });
-                
-                downloadMobileCSV(csv, 'drixel_users.csv');
-                alert(`✅ Exported ${users.length} users`);
-            }
-        }
-
-        function downloadMobileCSV(csv, filename) {
-            const blob = new Blob([csv], { type: 'text/csv' });
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = filename;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            window.URL.revokeObjectURL(url);
-        }
-
-        function clearMobileData() {
-            if (confirm('⚠️ DELETE ALL TEST DATA?\n\nThis will clear ALL orders and users except the admin account.\n\nThis action cannot be undone!')) {
-                // Keep only admin
-                const users = JSON.parse(localStorage.getItem(USERS_STORAGE_KEY)) || [];
-                const adminUser = users.find(u => u.role === 'admin');
-                
-                localStorage.clear();
-                
-                if (adminUser) {
-                    localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify([adminUser]));
-                    setCurrentUser(adminUser);
-                }
-                
-                localStorage.setItem('drixel_admin_setup', 'true');
-                localStorage.setItem('drixel_cart', JSON.stringify([]));
-                localStorage.setItem('drixel_orders', JSON.stringify([]));
-                
-                alert('✅ All data cleared! Admin account preserved.');
-                showMobileTab('stats');
-                updateAuthUI();
-            }
-        }
-
-        function searchMobileOrders(query) {
-            const orders = JSON.parse(localStorage.getItem('drixel_orders')) || [];
-            const ordersList = document.getElementById('mobileOrdersList');
-            
-            if (!query.trim()) {
-                loadMobileOrders();
-                return;
-            }
-            
-            const filtered = orders.filter(order => 
-                order.id.toLowerCase().includes(query.toLowerCase()) ||
-                order.customer.name.toLowerCase().includes(query.toLowerCase()) ||
-                order.customer.email.toLowerCase().includes(query.toLowerCase())
-            );
-            
-            if (filtered.length === 0) {
-                ordersList.innerHTML = '<p style="text-align: center; color: #666; padding: 40px;">No orders found.</p>';
-                return;
-            }
-            
-            let html = '';
-            filtered.forEach(order => {
-                const orderDate = new Date(order.date).toLocaleDateString();
-                const statusClass = order.status === 'pending_payment' ? 'status-pending' : 
-                                  order.status === 'processing' ? 'status-processing' : 'status-completed';
-                
-                html += `
-                <div class="mobile-order-card">
-                    <div class="mobile-order-header">
-                        <div>
-                            <div class="mobile-order-id">#${order.id.slice(-6)}</div>
-                            <div style="font-size: 12px; color: #666;">${orderDate}</div>
-                        </div>
-                        <div class="mobile-order-status ${statusClass}">${order.status}</div>
-                    </div>
-                    
-                    <div style="font-size: 14px; margin-bottom: 10px;">
-                        <div><strong>${order.customer.name}</strong></div>
-                        <div style="color: #666;">${order.customer.email}</div>
-                    </div>
-                    
-                    <div style="background: #f8f9fa; padding: 10px; border-radius: 5px; font-size: 12px; margin-bottom: 10px;">
-                        ${order.items.map(item => `
-                            <div style="display: flex; justify-content: space-between; padding: 3px 0;">
-                                <div>${item.quantity} × ${item.name}</div>
-                                <div>R ${(item.price * item.quantity).toFixed(2)}</div>
-                            </div>
-                        `).join('')}
-                    </div>
-                    
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <div style="font-size: 18px; font-weight: 900; color: #FF6B00;">
-                            R ${order.total.toFixed(2)}
-                        </div>
-                        <div>
-                            ${order.paymentMethod === 'bank' && !order.paymentConfirmed ? `
-                                <button onclick="confirmMobilePayment('${order.id}')" style="background: #06D6A0; color: white; border: none; padding: 5px 10px; border-radius: 5px; font-size: 12px; margin-right: 5px;">
-                                    ✓ Confirm
-                                </button>
-                            ` : ''}
-                            <button onclick="viewMobileOrder('${order.id}')" style="background: #0066CC; color: white; border: none; padding: 5px 10px; border-radius: 5px; font-size: 12px;">
-                                Details
-                            </button>
-                        </div>
-                    </div>
-                </div>
-                `;
-            });
-            
-            ordersList.innerHTML = html;
-        }
-
-        // Add mobile admin access
-        function addMobileAdminAccess() {
-            const currentUser = getCurrentUser();
-            
-            if (currentUser && currentUser.email === 'admin@drixelsa.co.za') {
-                // Remove existing button if any
-                const existingBtn = document.querySelector('#mobileAdminBtn');
-                if (existingBtn) existingBtn.remove();
-                
-                // Add mobile admin button
-                const mobileAdminBtn = document.createElement('button');
-                mobileAdminBtn.id = 'mobileAdminBtn';
-                mobileAdminBtn.innerHTML = '<i class="fas fa-user-shield"></i>';
-                mobileAdminBtn.style.cssText = `
-                    position: fixed;
-                    bottom: 70px;
-                    right: 15px;
-                    width: 50px;
-                    height: 50px;
-                    background: #FF6B00;
-                    color: white;
-                    border: none;
-                    border-radius: 50%;
-                    font-size: 20px;
-                    cursor: pointer;
-                    z-index: 9998;
-                    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                `;
-                mobileAdminBtn.onclick = showMobileAdmin;
-                mobileAdminBtn.title = 'Mobile Admin Dashboard';
-                
-                document.body.appendChild(mobileAdminBtn);
-            }
-        }
-
-        // Setup event listeners
-        function setupMobileAdminEventListeners() {
-            // Close button
-            document.getElementById('hideMobileAdminBtn').addEventListener('click', hideMobileAdmin);
-            
-            // Tab buttons (top)
-            document.getElementById('mobileStatsTabBtn').addEventListener('click', () => showMobileTab('stats'));
-            document.getElementById('mobileOrdersTabBtn').addEventListener('click', () => showMobileTab('orders'));
-            document.getElementById('mobileUsersTabBtn').addEventListener('click', () => showMobileTab('users'));
-            document.getElementById('mobilePendingTabBtn').addEventListener('click', () => showMobileTab('pending'));
-            
-            // Bottom navigation
-            document.getElementById('bottomStatsBtn').addEventListener('click', () => showMobileTab('stats'));
-            document.getElementById('bottomOrdersBtn').addEventListener('click', () => showMobileTab('orders'));
-            document.getElementById('bottomUsersBtn').addEventListener('click', () => showMobileTab('users'));
-            document.getElementById('bottomPendingBtn').addEventListener('click', () => showMobileTab('pending'));
-            
-            // Quick action buttons
-            document.getElementById('exportOrdersBtn').addEventListener('click', () => exportMobileData('orders'));
-            document.getElementById('exportUsersBtn').addEventListener('click', () => exportMobileData('users'));
-            document.getElementById('clearDataBtn').addEventListener('click', clearMobileData);
-            
-            // Search input
-            const searchInput = document.getElementById('mobileOrdersSearch');
-            if (searchInput) {
-                searchInput.addEventListener('input', function(e) {
-                    searchMobileOrders(e.target.value);
-                });
-            }
-        }
-
-        // Initialize mobile admin
+// ===== ADMIN KEYBOARD SHORTCUT =====
+document.addEventListener('keydown', function(e) {
+    // Ctrl+Shift+A to open admin panel
+    if (e.ctrlKey && e.shiftKey && e.key === 'A') {
+        e.preventDefault();
+        showUniversalAdmin();
+    }
+    
+    // Ctrl+Shift+P to show pending orders
+    if (e.ctrlKey && e.shiftKey && e.key === 'P') {
+        e.preventDefault();
+        showUniversalAdmin();
         setTimeout(() => {
-            setupMobileAdminEventListeners();
+            switchAdminTab('pending');
         }, 100);
+    }
+});
 
-        // Touch gesture for admin (swipe down with 3 fingers)
-        let touchStartY = 0;
-        document.addEventListener('touchstart', function(e) {
-            if (e.touches.length === 3) { // 3 fingers
-                touchStartY = e.touches[0].clientY;
-            }
-        });
-
-        document.addEventListener('touchmove', function(e) {
-            if (e.touches.length === 3) {
-                const touchEndY = e.touches[0].clientY;
-                const swipeDistance = touchStartY - touchEndY;
-                
-                // Swipe down more than 100px with 3 fingers
-                if (swipeDistance > 100) {
-                    const currentUser = getCurrentUser();
-                    if (currentUser && currentUser.email === 'admin@drixelsa.co.za') {
-                        e.preventDefault();
-                        showMobileAdmin();
-                    }
-                }
-            }
-        });
-
-        console.log('📱 Mobile admin dashboard loaded!');
-        console.log('👑 Admin login: admin@drixelsa.co.za / @Anelisa2025');
+// ===== INITIALIZE ADMIN SYSTEM =====
+// Call this in your DOMContentLoaded function
+console.log('✅ Universal admin dashboard loaded!');
+console.log('👑 Admin login: admin@drixelsa.co.za / @Anelisa2025');
+console.log('📱 Works on ALL devices: Mobile, Tablet, Laptop, Desktop');
+console.log('🔑 Keyboard shortcuts: Ctrl+Shift+A (Admin), Ctrl+Shift+P (Pending)');
         // ==================== END MOBILE ADMIN ====================
 
     </script>
