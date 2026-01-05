@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Drixel SA - Coming Soon</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background-color: #f9f5f0;
+            color: #333;
+            line-height: 1.6;
+            overflow-x: hidden;
+            min-height: 100vh;
+        }
+        
+        .fullscreen-container {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 40px 20px;
+            position: relative;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        /* Header & Logo */
+        header {
+            position: absolute;
+            top: 30px;
+            left: 0;
+            right: 0;
+            text-align: center;
+            z-index: 10;
+        }
+        
+        .logo {
+            font-size: 36px;
+            font-weight: 700;
+            letter-spacing: 5px;
+            text-align: center;
+            color: #1a1a1a;
+            text-transform: uppercase;
+        }
+        
+        .logo span {
+            color: #d4a76a;
+        }
+        
+        /* Main Content */
+        .main-content {
+            text-align: center;
+            padding: 40px 0;
+            z-index: 2;
+            width: 100%;
+        }
+        
+        h1 {
+            font-size: 48px;
+            font-weight: 300;
+            margin-bottom: 20px;
+            color: #1a1a1a;
+            line-height: 1.2;
+        }
+        
+        h1 strong {
+            font-weight: 700;
+            color: #d4a76a;
+        }
+        
+        .subtitle {
+            font-size: 20px;
+            margin-bottom: 40px;
+            color: #666;
+            font-weight: 300;
+            max-width: 700px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        
+        /* Countdown Timer */
+        .countdown {
+            display: flex;
+            justify-content: center;
+            margin: 60px 0;
+            gap: 25px;
+        }
+        
+        .countdown-item {
+            text-align: center;
+            background-color: white;
+            padding: 30px 20px;
+            border-radius: 8px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+            min-width: 130px;
+        }
+        
+        .countdown-value {
+            font-size: 48px;
+            font-weight: 700;
+            color: #d4a76a;
+            display: block;
+            line-height: 1;
+        }
+        
+        .countdown-label {
+            font-size: 14px;
+            color: #777;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-top: 15px;
+        }
+        
+        /* Contact Info */
+        .contact-info {
+            margin-top: 60px;
+            background-color: white;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+            max-width: 800px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        
+        .contact-info h2 {
+            font-size: 24px;
+            margin-bottom: 20px;
+            color: #1a1a1a;
+            position: relative;
+            padding-bottom: 10px;
+        }
+        
+        .contact-info h2:after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 50px;
+            height: 2px;
+            background-color: #d4a76a;
+        }
+        
+        .contact-details {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 40px;
+            margin-top: 30px;
+        }
+        
+        .contact-item {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .contact-icon {
+            width: 50px;
+            height: 50px;
+            background-color: #f9f5f0;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #d4a76a;
+            font-size: 20px;
+        }
+        
+        .contact-text h3 {
+            font-size: 16px;
+            color: #777;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .contact-text p {
+            font-size: 18px;
+            color: #1a1a1a;
+            font-weight: 500;
+        }
+        
+        /* Newsletter Form */
+        .newsletter {
+            margin-top: 50px;
+            max-width: 700px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        
+        .newsletter h3 {
+            font-size: 20px;
+            margin-bottom: 15px;
+            color: #1a1a1a;
+        }
+        
+        .newsletter p {
+            color: #666;
+            margin-bottom: 20px;
+        }
+        
+        .newsletter-form {
+            display: flex;
+            max-width: 500px;
+            margin: 0 auto;
+        }
+        
+        .newsletter-form input {
+            flex: 1;
+            padding: 15px 20px;
+            border: 1px solid #ddd;
+            border-radius: 50px 0 0 50px;
+            font-size: 16px;
+            outline: none;
+        }
+        
+        .newsletter-form button {
+            background-color: #d4a76a;
+            color: white;
+            border: none;
+            padding: 0 30px;
+            border-radius: 0 50px 50px 0;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        
+        .newsletter-form button:hover {
+            background-color: #c09555;
+        }
+        
+        /* Footer */
+        footer {
+            text-align: center;
+            padding: 30px 0;
+            margin-top: 50px;
+            color: #777;
+            width: 100%;
+        }
+        
+        .social-links {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .social-links a {
+            width: 40px;
+            height: 40px;
+            background-color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #d4a76a;
+            font-size: 18px;
+            text-decoration: none;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+            transition: transform 0.3s, background-color 0.3s;
+        }
+        
+        .social-links a:hover {
+            transform: translateY(-5px);
+            background-color: #d4a76a;
+            color: white;
+        }
+        
+        /* Responsive Design */
+        @media (max-width: 992px) {
+            h1 {
+                font-size: 40px;
+            }
+            
+            .countdown {
+                gap: 15px;
+            }
+            
+            .countdown-item {
+                min-width: 110px;
+                padding: 25px 15px;
+            }
+            
+            .countdown-value {
+                font-size: 40px;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .fullscreen-container {
+                padding: 80px 20px;
+            }
+            
+            header {
+                top: 20px;
+            }
+            
+            .logo {
+                font-size: 32px;
+                letter-spacing: 3px;
+            }
+            
+            h1 {
+                font-size: 36px;
+            }
+            
+            .subtitle {
+                font-size: 18px;
+            }
+            
+            .countdown {
+                flex-wrap: wrap;
+                margin: 40px 0;
+            }
+            
+            .countdown-item {
+                min-width: 100px;
+                padding: 20px 15px;
+            }
+            
+            .countdown-value {
+                font-size: 36px;
+            }
+            
+            .contact-details {
+                flex-direction: column;
+                gap: 20px;
+            }
+            
+            .newsletter-form {
+                flex-direction: column;
+            }
+            
+            .newsletter-form input,
+            .newsletter-form button {
+                border-radius: 50px;
+                width: 100%;
+            }
+            
+            .newsletter-form input {
+                margin-bottom: 10px;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            h1 {
+                font-size: 32px;
+            }
+            
+            .subtitle {
+                font-size: 18px;
+            }
+            
+            .logo {
+                font-size: 28px;
+                letter-spacing: 3px;
+            }
+            
+            .countdown-item {
+                min-width: 80px;
+                padding: 15px 10px;
+            }
+            
+            .countdown-value {
+                font-size: 30px;
+            }
+            
+            .contact-info {
+                padding: 30px 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="fullscreen-container">
+        <!-- Header with Logo -->
+        <header>
+            <div class="logo">Drixel<span>SA</span></div>
+        </header>
+        
+        <!-- Main Content -->
+        <main class="main-content">
+            <h1>Something <strong>Fabulous</strong> is Coming Soon</h1>
+            <p class="subtitle">We're crafting a new collection that redefines contemporary fashion. Stay tuned for our grand launch.</p>
+            
+            <!-- Countdown Timer -->
+            <div class="countdown">
+                <div class="countdown-item">
+                    <span class="countdown-value" id="days">00</span>
+                    <span class="countdown-label">Days</span>
+                </div>
+                <div class="countdown-item">
+                    <span class="countdown-value" id="hours">00</span>
+                    <span class="countdown-label">Hours</span>
+                </div>
+                <div class="countdown-item">
+                    <span class="countdown-value" id="minutes">00</span>
+                    <span class="countdown-label">Minutes</span>
+                </div>
+                <div class="countdown-item">
+                    <span class="countdown-value" id="seconds">00</span>
+                    <span class="countdown-label">Seconds</span>
+                </div>
+            </div>
+            
+            <!-- Contact Information -->
+            <div class="contact-info">
+                <h2>Get In Touch</h2>
+                <p>We'd love to hear from you. Reach out to us for any inquiries or collaborations.</p>
+                
+                <div class="contact-details">
+                    <div class="contact-item">
+                        <div class="contact-icon">
+                            <i class="fas fa-phone"></i>
+                        </div>
+                        <div class="contact-text">
+                            <h3>Phone</h3>
+                            <p>061 016 0195</p>
+                            <p>068 7003485</p>
+                        </div>
+                    </div>
+                    
+                    <div class="contact-item">
+                        <div class="contact-icon">
+                            <i class="fas fa-envelope"></i>
+                        </div>
+                        <div class="contact-text">
+                            <h3>Email</h3>
+                            <p>drixelsa@gmail.com</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Newsletter Subscription -->
+            <div class="newsletter">
+                <h3>Be the First to Know</h3>
+                <p>Subscribe to our newsletter and get exclusive updates on our launch and special offers.</p>
+                <form class="newsletter-form" id="subscribe-form">
+                    <input type="email" placeholder="Enter your email address" required>
+                    <button type="submit">Notify Me</button>
+                </form>
+            </div>
+        </main>
+        
+        <!-- Footer -->
+        <footer>
+            <div class="social-links">
+                <a href="#"><i class="fab fa-instagram"></i></a>
+                <a href="#"><i class="fab fa-facebook-f"></i></a>
+                <a href="#"><i class="fab fa-twitter"></i></a>
+                <a href="#"><i class="fab fa-pinterest-p"></i></a>
+            </div>
+            <p>&copy; 2026 Drixel SA. All rights reserved. | Premium Clothing Brand</p>
+        </footer>
+    </div>
+
+    <script>
+        // Countdown Timer - Set to February 23, 2026
+        function updateCountdown() {
+            // Set the launch date to February 23, 2026 at 12:00 PM
+            const launchDate = new Date('February 23, 2026 12:00:00').getTime();
+            const now = new Date().getTime();
+            const timeRemaining = launchDate - now;
+            
+            // Calculate days, hours, minutes, seconds
+            const days = Math.floor(timeRemaining / (1000 * 60 * 60 * 24));
+            const hours = Math.floor((timeRemaining % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            const minutes = Math.floor((timeRemaining % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((timeRemaining % (1000 * 60)) / 1000);
+            
+            // Update the display
+            document.getElementById('days').textContent = days.toString().padStart(2, '0');
+            document.getElementById('hours').textContent = hours.toString().padStart(2, '0');
+            document.getElementById('minutes').textContent = minutes.toString().padStart(2, '0');
+            document.getElementById('seconds').textContent = seconds.toString().padStart(2, '0');
+            
+            // If the countdown is over
+            if (timeRemaining < 0) {
+                clearInterval(countdownInterval);
+                document.getElementById('days').textContent = '00';
+                document.getElementById('hours').textContent = '00';
+                document.getElementById('minutes').textContent = '00';
+                document.getElementById('seconds').textContent = '00';
+                document.querySelector('h1').innerHTML = "We're <strong>Launching Soon!</strong>";
+                document.querySelector('.subtitle').textContent = "Our collection is almost ready. Stay tuned for the big reveal!";
+            }
+        }
+        
+        // Initialize countdown - ACTIVE COUNTING to February 23, 2026
+        const countdownInterval = setInterval(updateCountdown, 1000);
+        updateCountdown(); // Initial call
+        
+        // Newsletter Form Submission
+        document.getElementById('subscribe-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const emailInput = this.querySelector('input[type="email"]');
+            const email = emailInput.value;
+            
+            // Simple validation
+            if (email && email.includes('@')) {
+                alert('Thank you for subscribing! We\'ll notify you when we launch.');
+                emailInput.value = '';
+            } else {
+                alert('Please enter a valid email address.');
+            }
+        });
+        
+        // Add smooth scroll for any anchor links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function(e) {
+                e.preventDefault();
+                const targetId = this.getAttribute('href');
+                if (targetId === '#') return;
+                
+                const targetElement = document.querySelector(targetId);
+                if (targetElement) {
+                    window.scrollTo({
+                        top: targetElement.offsetTop - 80,
+                        behavior: 'smooth'
+                    });
+                }
+            });
+        });
+    </script>
+</body>
+</html>
