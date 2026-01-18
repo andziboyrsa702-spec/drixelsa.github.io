@@ -3010,9 +3010,24 @@
 
 // ===== REAL YOCO LIVE PAYMENT PROCESSING =====
 async function processYocoPayment() {
-    if (!validateCardForm()) {
+    console.log("🔄 processYocoPayment() called");
+    
+    // ✅ ADD THIS CHECK:
+    if (!window.yocoSDK) {
+        console.error("❌ yocoSDK is not available!");
+        const errorsDiv = document.getElementById('yocoPaymentErrors');
+        errorsDiv.innerHTML = `
+            <p><i class="fas fa-exclamation-triangle"></i> Payment system loading...</p>
+            <p style="font-size: 12px; margin-top: 10px;">
+                Please wait a moment and try again. 
+                If this continues, refresh the page.
+            </p>
+        `;
+        errorsDiv.style.display = 'block';
         return;
     }
+    
+    console.log("✅ yocoSDK is available:", typeof window.yocoSDK.createToken);
     
     const errorsDiv = document.getElementById('yocoPaymentErrors');
     errorsDiv.style.display = 'none';
