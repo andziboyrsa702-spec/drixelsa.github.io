@@ -1810,32 +1810,6 @@
                         </div>
                     </div>
                 </div>
-                
-                <!-- Drixel Collections Bar -->
-                <div class="collections-bar">
-                    <button class="collection-btn active" data-collection="new" onclick="setShopCollection('new')">
-                        <i class="fa-solid fa-sparkles"></i>
-                        <span>New Arrivals</span>
-                    </button>
-                    <button class="collection-btn" data-collection="apparel" onclick="setShopCollection('apparel')">
-                        <i class="fa-solid fa-shirt"></i>
-                        <span>Apparel</span>
-                    </button>
-                    <button class="collection-btn" data-collection="accessories" onclick="setShopCollection('accessories')">
-                        <i class="fa-solid fa-bag-shopping"></i>
-                        <span>Accessories</span>
-                    </button>
-                    <button class="collection-btn" data-collection="footwear" onclick="setShopCollection('footwear')">
-                        <i class="fa-solid fa-shoe-prints"></i>
-                        <span>Footwear</span>
-                    </button>
-                    <button class="collection-btn" data-collection="headwear" onclick="setShopCollection('headwear')">
-                        <i class="fa-solid fa-hat-cowboy"></i>
-                        <span>Headwear</span>
-                    </button>
-                </div>
-                <div id="collectionMessage" class="collection-message" style="display:none;"></div>
-
                 <div class="products-grid" id="allProducts">
                     <!-- All products loaded by JavaScript -->
                 </div>
@@ -4042,99 +4016,16 @@ function initializeEmailJS() {
             });
         }
 
-        
-        // =====================
-        // Shop Collections Filter (New Arrivals / Apparel / Accessories / Footwear / Headwear)
-        // =====================
-        window.currentShopCollection = window.currentShopCollection || "new";
-
-        function _getFilteredProductsByCollection(collectionKey) {
-            const all = Array.isArray(window.PRODUCTS_DATA) ? window.PRODUCTS_DATA.slice() : [];
-
-            // New Arrivals: newest items by highest id
-            if (collectionKey === "new") {
-                return all.sort((a,b) => (b.id || 0) - (a.id || 0)).slice(0, 8);
-            }
-
-            // Apparel: hoodies, tshirts, pants/jeans/shorts, sweatshirts
-            if (collectionKey === "apparel") {
-                const apparelCats = new Set(["hoodies","tshirts","t-shirt","tshirts","pants","jeans","shorts","sweatshirts","tracksuits","sets","jackets"]);
-                return all.filter(p => apparelCats.has(String(p.category || "").toLowerCase()));
-            }
-
-            // Headwear: hats, caps, beanies, headwear
-            if (collectionKey === "headwear") {
-                const headCats = new Set(["hats","caps","beanies","headwear"]);
-                return all.filter(p => headCats.has(String(p.category || "").toLowerCase()));
-            }
-
-            // Accessories & Footwear are coming soon
-            if (collectionKey === "accessories" || collectionKey === "footwear") {
-                return [];
-            }
-
-            return all;
-        }
-
-        function _setActiveCollectionBtn(collectionKey) {
-            document.querySelectorAll(".collection-btn").forEach(btn => {
-                const key = btn.getAttribute("data-collection");
-                if (key === collectionKey) btn.classList.add("active");
-                else btn.classList.remove("active");
-            });
-        }
-
-        function setShopCollection(collectionKey) {
-            window.currentShopCollection = collectionKey;
-            _setActiveCollectionBtn(collectionKey);
-
-            const msg = document.getElementById("collectionMessage");
-            if (msg) msg.style.display = "none";
-
-            // Re-render products grid using current filter
-            loadAllProducts();
-        }
-
-
         function loadAllProducts() {
             const productsContainer = document.getElementById('allProducts');
             if (!productsContainer) return;
-
-            const collectionKey = window.currentShopCollection || "new";
-            const filtered = _getFilteredProductsByCollection(collectionKey);
-
+            
             productsContainer.innerHTML = '';
-
-            // Accessories & Footwear coming soon
-            if ((collectionKey === "accessories" || collectionKey === "footwear") && filtered.length === 0) {
-                const card = document.createElement('div');
-                card.className = 'coming-soon-card';
-                card.innerHTML = `
-                    <h3><i class="fa-solid fa-clock"></i> Coming Soon</h3>
-                    <p>${collectionKey === "accessories" ? "Accessories" : "Footwear"} are dropping soon. Stay tuned.</p>
-                `;
-                productsContainer.appendChild(card);
-                return;
-            }
-
-            // If empty after filter
-            if (filtered.length === 0) {
-                const card = document.createElement('div');
-                card.className = 'coming-soon-card';
-                card.innerHTML = `
-                    <h3><i class="fa-solid fa-circle-info"></i> No items found</h3>
-                    <p>Nothing to show in this section yet.</p>
-                `;
-                productsContainer.appendChild(card);
-                return;
-            }
-
-            filtered.forEach(product => {
+            
+            window.PRODUCTS_DATA.forEach(product => {
                 const productCard = createProductCard(product);
                 productsContainer.appendChild(productCard);
             });
-        }
-);
         }
 
         function createProductCard(product) {
@@ -7079,37 +6970,5 @@ const db = window.firebaseDb;
         document.addEventListener('DOMContentLoaded', handleOrderHash);
 
 </script>
-
-<!-- ===== GLOBAL showPage FIX (DO NOT REMOVE) ===== -->
-<script>
-(function () {
-  if (typeof window.showPage === "function") return;
-
-  window.showPage = function(pageId) {
-    try {
-      if (typeof window.navigateTo === "function") return window.navigateTo(pageId);
-      if (typeof window.openPage === "function") return window.openPage(pageId);
-      if (typeof window.switchPage === "function") return window.switchPage(pageId);
-
-      document.querySelectorAll('[data-page], section, .page').forEach(function(p){
-        p.style.display = "none";
-      });
-
-      var target =
-        document.querySelector('[data-page="' + pageId + '"]') ||
-        document.getElementById(pageId);
-
-      if (target) {
-        target.style.display = "block";
-      } else {
-        console.warn("showPage: page not found:", pageId);
-      }
-    } catch (e) {
-      console.error("showPage error:", e);
-    }
-  };
-})();
-</script>
-
 </body>
 </html>
