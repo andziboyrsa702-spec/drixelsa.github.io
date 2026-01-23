@@ -3309,6 +3309,10 @@
             multiFactor, 
             PhoneMultiFactorGenerator, 
             getMultiFactorResolver
+            , setPersistence
+            , browserLocalPersistence
+            , browserSessionPersistence
+
         } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
         import { 
             getFirestore, 
@@ -3342,6 +3346,14 @@
         // Initialize Firebase
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
+
+        // ✅ Keep users logged in after refresh (mobile + desktop)
+        // Try local persistence first, fall back to session if browser blocks storage.
+        try {
+            await setPersistence(auth, browserLocalPersistence);
+        } catch (e) {
+            try { await setPersistence(auth, browserSessionPersistence); } catch (e2) {}
+        }
         const db = getFirestore(app);
         const analytics = getAnalytics(app);
 
@@ -3403,6 +3415,9 @@
         };
         
         // Initialize auth state listener immediately
+        let __appInitDone = false;
+        let __firstAuthResolved = false;
+
         onAuthStateChanged(auth, (user) => {
             if (user) {
                 console.log("✅ User logged in:", user.email);
@@ -3433,6 +3448,14 @@
                 window.currentFirebaseUser = null;
                 if (typeof updateAuthUI === 'function') {
                     updateAuthUI();
+                }
+            }
+            // ✅ Run app initialization once, after auth state is known (prevents refresh/login glitches)
+            if (!__firstAuthResolved) {
+                __firstAuthResolved = true;
+                if (!__appInitDone && typeof initializeAppAfterFirebase === 'function') {
+                    __appInitDone = true;
+                    initializeAppAfterFirebase();
                 }
             }
         });
@@ -3469,11 +3492,9 @@
         })();
 
 // Initialize the rest of the app once Firebase is ready
-        setTimeout(() => {
-            if (typeof initializeAppAfterFirebase === 'function') {
-                initializeAppAfterFirebase();
-            }
-        }, 500);
+        // ✅ App init is now triggered after the FIRST onAuthStateChanged event,
+        // so refresh/redirect never "looks logged out" while auth is still loading.
+
     </script>
 
     <!-- ===== MAIN JAVASCRIPT ===== -->
@@ -3553,7 +3574,29 @@
 
 
         // ===== APP STATE =====
-        let cart = [];
+        const CART_STORAGE_KEY = 'drixel_cart_v1';
+        const LAST_PAGE_KEY = 'drixel_last_page';
+
+        function loadCartFromStorage() {
+            try {
+                const raw = localStorage.getItem(CART_STORAGE_KEY);
+                if (!raw) return [];
+                const parsed = JSON.parse(raw);
+                return Array.isArray(parsed) ? parsed : [];
+            } catch (e) {
+                return [];
+            }
+        }
+        function saveCartToStorage() {
+            try {
+                localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(cart || []));
+            } catch (e) {
+                // ignore (storage blocked)
+            }
+        }
+
+        // ✅ Persist cart across refresh (guest + logged-in)
+        let cart = loadCartFromStorage();
         let productSelections = JSON.parse(localStorage.getItem('drixel_selections')) || {};
         let cookiesAccepted = localStorage.getItem('drixel_cookies') || false;
         let currentYocoPayment = {
@@ -4134,6 +4177,7 @@ mobileMenuBtn.addEventListener('click', function() {
         // ===== PAGE NAVIGATION =====
         function showPage(page) {
             console.log('🌐 Showing page:', page);
+            try { localStorage.setItem(LAST_PAGE_KEY, page); } catch(e) {}
             
             // Hide all pages
             document.querySelectorAll('.page').forEach(p => {
@@ -5162,6 +5206,7 @@ mobileMenuBtn.addEventListener('click', function() {
         function updateCartCount() {
             const totalItems = cart.reduce((total, item) => total + item.quantity, 0);
             cartCount.textContent = totalItems;
+            saveCartToStorage();
         }
 
         function updateCartSummary() {
@@ -7258,8 +7303,16 @@ closeConfirmPaymentModal();
             
             updateCartCount();
             updateAuthUI();
-            showPage('home');
-            loadFeaturedProducts();
+
+            // ✅ Restore last visited page after refresh (default: shop)
+            let startPage = 'shop';
+            try { startPage = localStorage.getItem(LAST_PAGE_KEY) || 'shop'; } catch(e) {}
+            showPage(startPage);
+
+            // Load content for the starting page
+            if (startPage === 'home') {
+                loadFeaturedProducts();
+            }
             loadAllProducts();
             updateCollectionsBarActive(window.currentCollectionFilter || 'all');
             loadYocoProducts();
