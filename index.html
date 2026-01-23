@@ -3437,7 +3437,38 @@
             }
         });
         
-        // Initialize the rest of the app once Firebase is ready
+        
+
+        // ✅ Handle Google sign-in redirect result (mobile) so the user is ACTUALLY logged in after returning
+        (async () => {
+            try {
+                if (typeof window.firebaseGetRedirectResult === 'function') {
+                    const redirectResult = await window.firebaseGetRedirectResult(auth);
+                    if (redirectResult && redirectResult.user) {
+                        const u = redirectResult.user;
+                        console.log("✅ Google redirect login complete:", u.email);
+                        // onAuthStateChanged will also run, but we help UX immediately
+                        const loginSuccess = document.getElementById('loginSuccess');
+                        if (loginSuccess) {
+                            loginSuccess.textContent = 'Login successful! Redirecting...';
+                            loginSuccess.style.display = 'block';
+                        }
+                        setTimeout(() => {
+                            try { showPage('shop'); } catch(e) {}
+                            try { closeModal('authModal'); } catch(e) {}
+                        }, 350);
+                    }
+                }
+            } catch (e) {
+                // It's normal to get "auth/no-auth-event" when there was no redirect sign-in
+                console.warn("ℹ️ No Google redirect result (or redirect not used):", e?.code || e);
+            } finally {
+                // Always clear in-progress flag after a redirect round-trip
+                window.__googleLoginInProgress = false;
+            }
+        })();
+
+// Initialize the rest of the app once Firebase is ready
         setTimeout(() => {
             if (typeof initializeAppAfterFirebase === 'function') {
                 initializeAppAfterFirebase();
