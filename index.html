@@ -536,7 +536,7 @@
     justify-content: flex-start;
 }
 /* Keep mobile nav working as-is on small screens */
-@media (max-width: 768px){
+@media (max-width: 768px) {
     #globalMenuPanel{ top: 85px; right: 12px; width: 92vw; max-width: 420px; }
 }/* ===== FOOTER ===== */
         footer {
@@ -890,6 +890,38 @@
         }
 
         /* ===== SINGLE PRODUCT PAGE ===== */
+        .product-backbar{
+            display:flex;
+            align-items:center;
+            justify-content:flex-start;
+            margin-bottom: 18px;
+        }
+        .back-to-products-btn{
+            display:inline-flex;
+            align-items:center;
+            gap:10px;
+            padding: 10px 14px;
+            border-radius: 999px;
+            border: 1px solid rgba(255,255,255,0.16);
+            background: rgba(255,255,255,0.06);
+            color: inherit;
+            cursor: pointer;
+            font-weight: 600;
+            transition: transform .12s ease, background .12s ease, border-color .12s ease;
+        }
+        .back-to-products-btn:hover{
+            transform: translateY(-1px);
+            background: rgba(255,255,255,0.09);
+            border-color: rgba(255,255,255,0.22);
+        }
+        .back-to-products-btn:active{
+            transform: translateY(0);
+        }
+        @media (max-width: 640px){
+            .product-backbar{ margin-bottom: 12px; }
+            .back-to-products-btn{ width: 100%; justify-content:center; }
+        }
+
         .single-product {
             padding: 80px 0;
         }
@@ -1554,6 +1586,40 @@
             .timeline {
                 padding: 25px;
             }
+
+            /* ===== PRODUCT PAGE RESPONSIVE FIX ===== */
+            .product-detail {
+                grid-template-columns: 1fr;
+                gap: 32px;
+            }
+
+            .main-image {
+                height: auto;
+                width: 100%;
+                max-height: 460px;
+                aspect-ratio: 1 / 1;
+            }
+
+            .main-image img {
+                width: 100%;
+                height: 100%;
+                object-fit: contain;
+            }
+
+            .thumbnails {
+                gap: 12px;
+                overflow-x: auto;
+                overflow-y: hidden;
+                -webkit-overflow-scrolling: touch;
+                padding-bottom: 6px;
+            }
+
+            .thumbnail {
+                flex: 0 0 auto;
+                width: 72px;
+                height: 72px;
+            }
+
         }
 
         @media (max-width: 576px) {
@@ -1588,6 +1654,17 @@
             .cookie-buttons .btn {
                 width: 100%;
             }
+
+            /* ===== PRODUCT PAGE (SMALL PHONES) ===== */
+            .main-image {
+                max-height: 380px;
+                aspect-ratio: 4 / 5;
+            }
+            .thumbnail {
+                width: 64px;
+                height: 64px;
+            }
+
         }
 
         /* ===== UTILITIES ===== */
@@ -2013,6 +2090,13 @@
         }
     
 </style>
+
+  <!-- Faster payment start (preconnect) -->
+  <link rel="preconnect" href="https://drixel-payments-server.onrender.com" crossorigin>
+  <link rel="dns-prefetch" href="https://drixel-payments-server.onrender.com">
+  <link rel="preconnect" href="https://payments.yoco.com" crossorigin>
+  <link rel="dns-prefetch" href="https://payments.yoco.com">
+
 </head>
 <body>
     <!-- Cookie Consent Modal -->
@@ -2093,7 +2177,7 @@
     <!-- Navbar -->
     <nav class="navbar">
         <div class="container">
-            <a href="#" class="logo" onclick="showPage('home'); return false;">DRIXEL<span style="color: var(--accent-orange);">SA</span></a>
+            <a href="#" class="logo" onclick="showPage('shop'); return false;">DRIXEL<span style="color: var(--accent-orange);">SA</span></a>
             
             <div class="nav-links" id="navLinks">
                 <a href="#" class="active" onclick="showPage('home'); return false;">Home</a>
@@ -2161,8 +2245,8 @@
             <div class="container">
                 <h1>Elevate Your Street Style</h1>
                 <p>Premium South African streetwear that blends urban culture with luxury aesthetics. Founded in 2025, crafted for the bold.</p>
-                <a href="#" class="btn" onclick="checkAuthAndNavigate('shop')">Shop Collection</a>
-                <a href="#" class="btn btn-outline mt-20" onclick="checkAuthAndNavigate('yoco-direct')">Quick Checkout</a>
+                <a href="#" class="btn" onclick="showPage('shop'); return false;">Shop Collection</a>
+                <a href="#" class="btn btn-outline mt-20" onclick="showPage('yoco-direct'); return false;">Quick Checkout</a>
             </div>
         </div>
 
@@ -2191,8 +2275,8 @@
                     <!-- Featured products loaded by JavaScript -->
                 </div>
                 <div class="text-center mt-40">
-                    <a href="#" class="btn" onclick="checkAuthAndNavigate('shop')">View All Products</a>
-                    <a href="#" class="btn btn-outline mt-20" onclick="checkAuthAndNavigate('yoco-direct')">Quick Checkout</a>
+                    <a href="#" class="btn" onclick="showPage('shop'); return false;">View All Products</a>
+                    <a href="#" class="btn btn-outline mt-20" onclick="showPage('yoco-direct'); return false;">Quick Checkout</a>
                 </div>
             </div>
         </div>
@@ -2272,7 +2356,7 @@
                     <!-- All products loaded by JavaScript -->
                 </div>
                 <div class="text-center mt-40">
-                    <a href="#" class="btn btn-outline" onclick="checkAuthAndNavigate('yoco-direct')">
+                    <a href="#" class="btn btn-outline" onclick="showPage('yoco-direct'); return false;">
                         <i class="fas fa-bolt"></i> Express Checkout with Yoco
                     </a>
                 </div>
@@ -2310,6 +2394,11 @@
     <section id="productPage" class="page hidden">
         <div class="single-product">
             <div class="container">
+<div class="product-backbar">
+                    <button type="button" class="back-to-products-btn" onclick="if (typeof showPage==='function') { showPage('shopPage'); } else { window.location.hash = '#shop'; document.getElementById('productPage')?.classList.add('hidden'); document.getElementById('shopPage')?.classList.remove('hidden'); window.scrollTo({top:0, behavior:'smooth'}); }">
+                        <i class="fas fa-arrow-left"></i> Back to Products
+                    </button>
+                </div>
                 <div id="productDetail">
                     <!-- Product details loaded by JavaScript -->
                 </div>
@@ -2455,7 +2544,7 @@
       <input type="radio" id="payYoco" name="paymentMethod" value="yoco">
       <span class="pm-icon"><i class="fa-solid fa-credit-card"></i></span>
       <span class="pm-text">
-        <strong>Secure Pay with Yoco (temporarily unavailable)</strong>
+        <strong>Secure Pay with Yoco</strong>
         <span class="pm-sub">Pay instantly with debit/credit card</span>
       </span>
     </label>
@@ -2484,6 +2573,7 @@
                             
                             <div id="yocoPaymentInfo" style="display: none;">
                                 <p>Click the button below to securely pay with your credit or debit card.</p>
+                                <p style="margin-top:10px; font-size: 0.95em; opacity: 0.9;"><strong>Important:</strong> After you complete payment, return to this page and tap <strong>Place Order</strong> if it doesn’t confirm automatically.</p>
                                 <button class="btn btn-accent mt-20" style="width: 100%;" onclick="initiateYocoCheckout()">
                                     <i class="fas fa-bolt"></i> Pay with Yoco Now
                                 </button>
@@ -2496,6 +2586,7 @@
                                         <h4 style="color: #0096FF; margin-bottom: 15px;">
                                             <i class="fas fa-qrcode"></i> SnapScan Payment
                                         </h4>
+                                        <p style="margin: 10px 0 15px; font-size: 0.95em; opacity: 0.9;"><strong>Important:</strong> After paying in SnapScan, please come back to this page (use the back button) and tap <strong>Place Order</strong> to confirm your order and receive your receipt + email.</p>
                                         
                                         <!-- SnapScan QR Code -->
                                         <div class="snapscan-qr-container">
@@ -2504,6 +2595,13 @@
                                             <p style="font-size: 14px; color: #666;">
                                                 Use your SnapScan mobile app to scan this QR code
                                             </p>
+
+                                            <a id="snapScanClickPayLink" href="#" target="_blank"
+                                               style="display:inline-block;margin-top:10px;padding:10px 14px;border-radius:10px;
+                                                      background:#111;color:#fff;text-decoration:none;font-weight:700;font-size:14px;">
+                                                Click here to pay
+                                            </a>
+                                            <div id="snapScanClickPayAmount" style="margin-top:8px;font-size:12px;color:#999;"></div>
                                         </div>
                                         
                                         <div class="snapscan-ref-box">
@@ -2550,6 +2648,9 @@
                                 </label>
                             </div>
                         </div>
+<div class="mt-20" style="font-size:0.95em; opacity:0.9;"><strong>Note:</strong> If you paid via SnapScan/Yoco in another screen, come back here and tap <strong>Place Order</strong> to finalize and receive your receipt + confirmation email.</div>
+
+
 
 
                         <button class="btn mt-20" style="width: 100%;" onclick="placeOrder()">Place Order</button>
@@ -2611,7 +2712,7 @@
                     </div>
                     
                     <div class="mt-40">
-                        <a href="#" class="btn" onclick="checkAuthAndNavigate('shop')">Continue Shopping</a>
+                        <a href="#" class="btn" onclick="showPage('shop'); return false;">Continue Shopping</a>
                         <a href="#" class="btn btn-outline mt-20" onclick="showPage('home'); return false;">Return to Home</a>
                     </div>
                 </div>
@@ -3008,8 +3109,8 @@
                     <h3>Quick Links</h3>
                     <ul class="footer-links">
                         <li><a href="#" onclick="showPage('home'); return false;">Home</a></li>
-                        <li><a href="#" onclick="checkAuthAndNavigate('shop')">Shop</a></li>
-                        <li><a href="#" onclick="checkAuthAndNavigate('yoco-direct')">Quick Buy</a></li>
+                        <li><a href="#" onclick="showPage('shop'); return false;">Shop</a></li>
+                        <li><a href="#" onclick="showPage('yoco-direct'); return false;">Quick Buy</a></li>
                         <li><a href="#" onclick="showPage('about'); return false;">About Us</a></li>
                         <li><a href="#" onclick="showPage('contact'); return false;">Contact</a></li>
                     </ul>
@@ -3332,6 +3433,7 @@
         const ADMIN_NAMES = "Anelisa Thelejane & Andzani Mashabane";
         const YOCO_PUBLIC_KEY = "pk_live_f26b158aDmMkbm56f1c4";
         const SNAPSCAN_QR_URL = "https://pos.snapscan.io/qr/qvxSxlIE";
+        const PAYMENT_SERVER_BASE = "https://drixel-payments-server.onrender.com";
         const SNAPSCAN_REGISTRATION = "2026/000210/07";
 
         // ===== SITE BASE URL (GLOBAL) =====
@@ -4057,12 +4159,15 @@ mobileMenuBtn.addEventListener('click', function() {
 
         function checkAuthAndNavigate(page) {
             const currentUser = window.currentFirebaseUser;
-            
-            if (!currentUser && (page === 'shop' || page === 'cart' || page === 'checkout' || page === 'yoco-direct')) {
-                alert('Please login or create an account to shop. You need an account to add items to cart and place orders.');
+
+            // Allow everyone to browse products (Home/Shop/Product pages/Quick Buy page).
+            // Only require login when the user tries to access the cart or checkout.
+            if (!currentUser && (page === 'cart' || page === 'checkout')) {
+                alert('Please login or create an account to continue. You need an account to add items to cart and place orders.');
                 showPage('auth');
                 return false;
             }
+
             showPage(page);
             return true;
         }
@@ -4615,8 +4720,9 @@ mobileMenuBtn.addEventListener('click', function() {
             
             featuredContainer.innerHTML = '';
             
-            const featuredProducts = window.PRODUCTS_DATA.filter(product => product.featured);
-            
+            let featuredProducts = window.PRODUCTS_DATA.filter(product => product.featured);
+            if (!featuredProducts.length) featuredProducts = window.PRODUCTS_DATA.slice(0, 8);
+
             featuredProducts.forEach(product => {
                 const productCard = createProductCard(product);
                 featuredContainer.appendChild(productCard);
@@ -4936,9 +5042,9 @@ mobileMenuBtn.addEventListener('click', function() {
                         <i class="fas fa-shopping-bag"></i>
                         <h2>Your cart is empty</h2>
                         <p>Add some products to your cart and they'll appear here.</p>
-                        <a href="#" class="btn" onclick="checkAuthAndNavigate('shop')">Browse Products</a>
+                        <a href="#" class="btn" onclick="showPage('shop'); return false;">Browse Products</a>
                         <div class="buy-btn-container mt-40">
-                            <a href="#" onclick="checkAuthAndNavigate('yoco-direct')">
+                            <a href="#" onclick="showPage('yoco-direct'); return false;">
                                 <button class="buy-btn" style="background: transparent; border: 2px solid var(--accent-orange); color: var(--accent-orange);">
                                     <i class="fas fa-bolt"></i> Quick Checkout with Yoco
                                 </button>
@@ -5209,7 +5315,25 @@ mobileMenuBtn.addEventListener('click', function() {
             
             const snapScanLink = `${SNAPSCAN_QR_URL}?amount=${amount}&reference=${reference}`;
             
-            console.log("🔗 SnapScan Link:", snapScanLink);
+            
+
+            // Update the 'Click here to pay' link under the QR (opens SnapScan in a new tab)
+            const clickPayLinkEl = document.getElementById('snapScanClickPayLink');
+            if (clickPayLinkEl) clickPayLinkEl.href = snapScanLink;
+
+            attachSnapScanClickPayHandler();
+
+            // Show the amount under the link (optional)
+            const clickPayAmountEl = document.getElementById('snapScanClickPayAmount');
+            if (clickPayAmountEl) {
+                const amtNum = Number(amount);
+                if (!Number.isNaN(amtNum) && amtNum > 0) {
+                    clickPayAmountEl.textContent = `Total: R${amtNum.toFixed(2)}`;
+                } else {
+                    clickPayAmountEl.textContent = '';
+                }
+            }
+console.log("🔗 SnapScan Link:", snapScanLink);
             
             try {
                 const qrCode = new QRCode(qrContainer, {
@@ -5249,7 +5373,34 @@ mobileMenuBtn.addEventListener('click', function() {
             }
         }
 
-        function generateSnapScanReference() {
+        
+        function attachSnapScanClickPayHandler() {
+            const el = document.getElementById('snapScanClickPayLink');
+            if (!el) return;
+            if (el.dataset.bound === '1') return;
+            el.dataset.bound = '1';
+            el.addEventListener('click', function(ev) {
+                try {
+                    // Ensure we have a SnapScan order prepared
+                    if (!window.currentSnapScanOrder) {
+                        // Try to build from checkout totals if available
+                        const totalEl = document.getElementById('orderTotal');
+                        const total = totalEl ? Number(String(totalEl.textContent).replace(/[^0-9.]/g,'')) : null;
+                        const ref = generateSnapScanReference();
+                        if (total && !Number.isNaN(total)) {
+                            window.currentSnapScanOrder = { amount: total, reference: ref };
+                        }
+                    }
+                    if (window.currentSnapScanOrder) {
+                        storePendingSnapScan(window.currentSnapScanOrder);
+                    }
+                } catch(_) {}
+                // open in same tab so back button returns to checkout
+                try { el.target = '_self'; } catch(_) {}
+            });
+        }
+
+function generateSnapScanReference() {
             const randomNum = Math.floor(Math.random() * 9000) + 1000;
             return `DRIX${randomNum}`;
         }
@@ -5284,7 +5435,7 @@ mobileMenuBtn.addEventListener('click', function() {
             });
         }
 
-        async function confirmSnapScanPayment() {
+        async function confirmSnapScanPayment(skipConfirm = false) {
             if (!currentSnapScanOrder) {
                 alert('No SnapScan order found. Please select SnapScan payment method first.');
                 return;
@@ -5304,8 +5455,11 @@ mobileMenuBtn.addEventListener('click', function() {
                 return;
             }
             
-            const confirmPayment = confirm(`Have you completed the payment of R${currentSnapScanOrder.amount.toFixed(2)} using SnapScan?\n\nReference: ${currentSnapScanOrder.reference}\n\nClick OK to confirm your payment.`);
-            
+            const confirmPayment = skipConfirm ? true : confirm(`Have you completed the payment of R${currentSnapScanOrder.amount.toFixed(2)} using SnapScan?
+
+Reference: ${currentSnapScanOrder.reference}
+
+Click OK to confirm your payment.`);
             if (confirmPayment) {
                 try {
                     console.log("✅ Processing SnapScan payment confirmation...");
@@ -5487,9 +5641,7 @@ cart = [];
                     alert(`✅ Order placed successfully!\n\nOrder #${orderNumber}\n\nPayment Details:\nBank: Standard Bank\nAccount: 071337873\nReference: ${orderNumber}\n\nPlease make payment and your order will be processed.`);
                     
                 } else if (paymentMethod === 'yoco') {
-                    // NOTE: Yoco card payments require a secure backend integration.
-                    alert('⚠️ Yoco card payments are currently disabled on this website because the old client-only flow is no longer supported. Please choose SnapScan or Bank Transfer for now.');
-                    return;
+                    // Yoco Hosted Checkout (server-side via /api/yoco/create-checkout)
                     // For Yoco, initiate payment first
                     const description = `Drixel SA Order #${orderNumber}`;
                     const metadata = {
@@ -5561,35 +5713,183 @@ return orderRef.id;
             }
         }
 
-        // ===== YOCO PAYMENT FUNCTIONS =====
-        function showYocoPaymentModal(amount, description, metadata = {}, customer = null) {
-            currentYocoPayment = {
-                amount: amount,
-                description: description,
-                metadata: metadata,
-                customer: customer
-            };
-            
-            document.getElementById('paymentAmount').textContent = amount.toFixed(2);
-            
-            const receiptEmail = document.getElementById('receiptEmail');
-            if (customer && customer.email) {
-                receiptEmail.value = customer.email;
-            } else if (window.currentFirebaseUser && window.currentFirebaseUser.email) {
-                receiptEmail.value = window.currentFirebaseUser.email;
-            } else {
-                receiptEmail.value = '';
+        
+        // ===== INSTANT PAYMENT UX HELPERS =====
+        function showPayOverlay(msg) {
+            const el = document.getElementById('payOverlay');
+            const title = document.getElementById('payOverlayTitle');
+            if (!el) return;
+            if (title && msg) title.textContent = msg;
+            el.style.display = 'flex';
+        }
+        function hidePayOverlay() {
+            const el = document.getElementById('payOverlay');
+            if (!el) return;
+            el.style.display = 'none';
+        }
+        function disableEl(el, disabled) {
+            if (!el) return;
+            try {
+                el.disabled = !!disabled;
+                el.style.opacity = disabled ? '0.7' : '';
+                el.style.pointerEvents = disabled ? 'none' : '';
+            } catch(_) {}
+        }
+        function warmPaymentServer() {
+            try {
+                // no-cors so it never blocks your UI; this helps wake Render faster
+                fetch(PAYMENT_SERVER_BASE, { mode: 'no-cors', cache: 'no-store' }).catch(()=>{});
+            } catch(_) {}
+        }
+
+
+        
+        // ===== SNAPSCAN QUICK PAY FLOW (AUTO FINALISE ON RETURN) =====
+        function getCurrentPageUrl() {
+            try {
+                const u = new URL(window.location.href);
+                // Remove any old payment flags
+                u.searchParams.delete('yoco');
+                u.searchParams.delete('snapscan');
+                u.searchParams.delete('paid');
+                return u.toString();
+            } catch (_) {
+                return window.location.href;
             }
-            
-            document.getElementById('yocoPaymentModal').classList.add('active');
-            document.body.style.overflow = 'hidden';
-            
-            document.getElementById('yocoPaymentErrors').style.display = 'none';
-            clearYocoFormErrors();
-            
-            setTimeout(() => {
-                document.getElementById('cardNumber').focus();
-            }, 100);
+        }
+
+        function storePendingSnapScan(order) {
+            try {
+                localStorage.setItem('drixel_pending_snapscan', JSON.stringify({
+                    ...order,
+                    ts: Date.now()
+                }));
+            } catch(_) {}
+        }
+
+        function readPendingSnapScan() {
+            try {
+                const raw = localStorage.getItem('drixel_pending_snapscan');
+                return raw ? JSON.parse(raw) : null;
+            } catch(_) { return null; }
+        }
+
+        function clearPendingSnapScan() {
+            try { localStorage.removeItem('drixel_pending_snapscan'); } catch(_) {}
+        }
+
+        async function autoFinalizeSnapScanIfNeeded() {
+            const pending = readPendingSnapScan();
+            if (!pending) return;
+
+            // Only attempt if cart still matches or if user is on checkout page.
+            // We purposely do NOT require a SnapScan redirect (SnapScan doesn't guarantee one);
+            // returning to the tab is treated as "payment completed" per your requirement.
+            try {
+                // restore currentSnapScanOrder so confirmSnapScanPayment can use it
+                window.currentSnapScanOrder = window.currentSnapScanOrder || pending;
+
+                // If user is not on checkout page, route them there
+                if (typeof showPage === 'function') {
+                    showPage('checkout');
+                }
+
+                // Give UI a beat to render fields
+                setTimeout(async () => {
+                    // Validate shipping fields: if missing, don't auto place—just guide user
+                    const required = ['firstName','lastName','email','phone','address','city','postalCode','province'];
+                    const missing = required.filter(id => {
+                        const el = document.getElementById(id);
+                        return !el || !String(el.value || '').trim();
+                    });
+
+                    if (missing.length) {
+                        // Show gentle prompt; user can fill and then tap Place Order
+                        try {
+                            showToast?.('Payment detected. Please complete shipping info then tap Place Order.');
+                        } catch(_) {}
+                        return;
+                    }
+
+                    // Auto-place without a confirm dialog
+                    await confirmSnapScanPayment(true);
+                }, 600);
+            } catch (e) {
+                console.warn("SnapScan auto-finalise failed:", e);
+            }
+        }
+
+        // When user returns to the tab after paying, auto-finalise
+        window.addEventListener('focus', () => {
+            // slight delay to avoid running on initial load focus
+            setTimeout(autoFinalizeSnapScanIfNeeded, 400);
+        });
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden) setTimeout(autoFinalizeSnapScanIfNeeded, 400);
+        });
+
+// ===== YOCO PAYMENT FUNCTIONS =====
+        
+        function showYocoPaymentModal(amount, description, metadata = {}, customer = null) {
+            // Hosted Checkout via your Render server (keeps secret key off the browser)
+            // FAST: show overlay instantly and redirect as soon as Yoco returns the checkout URL.
+            try {
+                showPayOverlay('Starting Yoco…');
+                warmPaymentServer();
+
+                const amountInCents = Math.round(Number(amount) * 100);
+
+                const baseUrl = (window.SITE_BASE_URL || window.location.origin || '').replace(/\/$/, '');
+                const successUrl = `${baseUrl}/?yoco=success`;
+                const cancelUrl  = `${baseUrl}/?yoco=cancel`;
+                const failureUrl = `${baseUrl}/?yoco=failure`;
+
+                // If the old modal exists, hide it (we redirect to hosted checkout)
+                const modal = document.getElementById('yocoModal');
+                if (modal) modal.classList.add('hidden');
+
+                // Fail fast if the network hangs
+                const controller = new AbortController();
+                const timeoutMs = 12000;
+                const t = setTimeout(() => controller.abort(), timeoutMs);
+
+                fetch(`${PAYMENT_SERVER_BASE}/api/yoco/create-checkout`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        amountInCents,
+                        currency: 'ZAR',
+                        successUrl,
+                        cancelUrl,
+                        failureUrl,
+                        metadata: {
+                            ...(metadata || {}),
+                            description,
+                            customerEmail: customer?.email || null
+                        }
+                    }),
+                    signal: controller.signal,
+                    cache: 'no-store'
+                })
+                .then(async (r) => {
+                    const data = await r.json().catch(() => ({}));
+                    if (!r.ok) throw new Error(data?.message || data?.error || `Yoco error (${r.status})`);
+                    if (!data.redirectUrl) throw new Error('Yoco did not return a redirectUrl');
+                    window.location.href = data.redirectUrl;
+                })
+                .catch((err) => {
+                    console.error('Yoco checkout start failed:', err);
+                    hidePayOverlay();
+                    alert('Yoco payment could not start. Please try again, or use SnapScan.');
+                })
+                .finally(() => {
+                    clearTimeout(t);
+                });
+            } catch (err) {
+                console.error('Yoco checkout start failed:', err);
+                hidePayOverlay();
+                alert('Yoco payment could not start. Please try again, or use SnapScan.');
+            }
         }
 
         function closeYocoPaymentModal() {
@@ -7618,6 +7918,60 @@ const db = window.firebaseDb;
         window.addEventListener('hashchange', handleOrderHash);
         document.addEventListener('DOMContentLoaded', handleOrderHash);
 
+
+        // ===== EXPOSE FUNCTIONS FOR INLINE onclick HANDLERS (MOBILE FIX) =====
+        if (typeof window.acceptCookies === 'undefined' && typeof acceptCookies === 'function') window.acceptCookies = acceptCookies;
+        if (typeof window.addToCart === 'undefined' && typeof addToCart === 'function') window.addToCart = addToCart;
+        if (typeof window.changeProductColor === 'undefined' && typeof changeProductColor === 'function') window.changeProductColor = changeProductColor;
+        if (typeof window.checkAuthAndNavigate === 'undefined' && typeof checkAuthAndNavigate === 'function') window.checkAuthAndNavigate = checkAuthAndNavigate;
+        if (typeof window.closeAdminDashboard === 'undefined' && typeof closeAdminDashboard === 'function') window.closeAdminDashboard = closeAdminDashboard;
+        if (typeof window.closeConfirmPaymentModal === 'undefined' && typeof closeConfirmPaymentModal === 'function') window.closeConfirmPaymentModal = closeConfirmPaymentModal;
+        if (typeof window.closeModal === 'undefined' && typeof closeModal === 'function') window.closeModal = closeModal;
+        if (typeof window.closeOrderDeliveredModal === 'undefined' && typeof closeOrderDeliveredModal === 'function') window.closeOrderDeliveredModal = closeOrderDeliveredModal;
+        if (typeof window.closeOutForDeliveryModal === 'undefined' && typeof closeOutForDeliveryModal === 'function') window.closeOutForDeliveryModal = closeOutForDeliveryModal;
+        if (typeof window.closeYocoPaymentModal === 'undefined' && typeof closeYocoPaymentModal === 'function') window.closeYocoPaymentModal = closeYocoPaymentModal;
+        if (typeof window.confirmSnapScanPayment === 'undefined' && typeof confirmSnapScanPayment === 'function') window.confirmSnapScanPayment = confirmSnapScanPayment;
+        if (typeof window.copySnapScanReference === 'undefined' && typeof copySnapScanReference === 'function') window.copySnapScanReference = copySnapScanReference;
+        if (typeof window.declineCookies === 'undefined' && typeof declineCookies === 'function') window.declineCookies = declineCookies;
+        if (typeof window.decreaseQuantity === 'undefined' && typeof decreaseQuantity === 'function') window.decreaseQuantity = decreaseQuantity;
+        if (typeof window.deleteProduct === 'undefined' && typeof deleteProduct === 'function') window.deleteProduct = deleteProduct;
+        if (typeof window.editProduct === 'undefined' && typeof editProduct === 'function') window.editProduct = editProduct;
+        if (typeof window.exportOrders === 'undefined' && typeof exportOrders === 'function') window.exportOrders = exportOrders;
+        if (typeof window.firebaseGoogleLogin === 'undefined' && typeof firebaseGoogleLogin === 'function') window.firebaseGoogleLogin = firebaseGoogleLogin;
+        if (typeof window.increaseQuantity === 'undefined' && typeof increaseQuantity === 'function') window.increaseQuantity = increaseQuantity;
+        if (typeof window.initiateYocoCheckout === 'undefined' && typeof initiateYocoCheckout === 'function') window.initiateYocoCheckout = initiateYocoCheckout;
+        if (typeof window.initiateYocoCheckoutFromCart === 'undefined' && typeof initiateYocoCheckoutFromCart === 'function') window.initiateYocoCheckoutFromCart = initiateYocoCheckoutFromCart;
+        if (typeof window.initiateYocoDirectPayment === 'undefined' && typeof initiateYocoDirectPayment === 'function') window.initiateYocoDirectPayment = initiateYocoDirectPayment;
+        if (typeof window.loadAdminOverview === 'undefined' && typeof loadAdminOverview === 'function') window.loadAdminOverview = loadAdminOverview;
+        if (typeof window.markDeliveredAndEmail === 'undefined' && typeof markDeliveredAndEmail === 'function') window.markDeliveredAndEmail = markDeliveredAndEmail;
+        if (typeof window.markOutForDeliveryAndEmail === 'undefined' && typeof markOutForDeliveryAndEmail === 'function') window.markOutForDeliveryAndEmail = markOutForDeliveryAndEmail;
+        if (typeof window.navigateToShopAndFilter === 'undefined' && typeof navigateToShopAndFilter === 'function') window.navigateToShopAndFilter = navigateToShopAndFilter;
+        if (typeof window.openConfirmPaymentModal === 'undefined' && typeof openConfirmPaymentModal === 'function') window.openConfirmPaymentModal = openConfirmPaymentModal;
+        if (typeof window.openOrderDeliveredModal === 'undefined' && typeof openOrderDeliveredModal === 'function') window.openOrderDeliveredModal = openOrderDeliveredModal;
+        if (typeof window.openOutForDeliveryModal === 'undefined' && typeof openOutForDeliveryModal === 'function') window.openOutForDeliveryModal = openOutForDeliveryModal;
+        if (typeof window.placeOrder === 'undefined' && typeof placeOrder === 'function') window.placeOrder = placeOrder;
+        if (typeof window.processPaymentConfirmation === 'undefined' && typeof processPaymentConfirmation === 'function') window.processPaymentConfirmation = processPaymentConfirmation;
+        if (typeof window.processYocoPayment === 'undefined' && typeof processYocoPayment === 'function') window.processYocoPayment = processYocoPayment;
+        if (typeof window.removeFromCart === 'undefined' && typeof removeFromCart === 'function') window.removeFromCart = removeFromCart;
+        if (typeof window.resetPasswordFromLogin === 'undefined' && typeof resetPasswordFromLogin === 'function') window.resetPasswordFromLogin = resetPasswordFromLogin;
+        if (typeof window.saveSettings === 'undefined' && typeof saveSettings === 'function') window.saveSettings = saveSettings;
+        if (typeof window.selectColor === 'undefined' && typeof selectColor === 'function') window.selectColor = selectColor;
+        if (typeof window.selectSize === 'undefined' && typeof selectSize === 'function') window.selectSize = selectSize;
+        if (typeof window.sendContactMessage === 'undefined' && typeof sendContactMessage === 'function') window.sendContactMessage = sendContactMessage;
+        if (typeof window.showAddProductForm === 'undefined' && typeof showAddProductForm === 'function') window.showAddProductForm = showAddProductForm;
+        if (typeof window.showAuthTab === 'undefined' && typeof showAuthTab === 'function') window.showAuthTab = showAuthTab;
+        if (typeof window.showCollectionComingSoon === 'undefined' && typeof showCollectionComingSoon === 'function') window.showCollectionComingSoon = showCollectionComingSoon;
+        if (typeof window.showPage === 'undefined' && typeof showPage === 'function') window.showPage = showPage;
+        if (typeof window.switchAdminTab === 'undefined' && typeof switchAdminTab === 'function') window.switchAdminTab = switchAdminTab;
+        if (typeof window.updateCartItemQuantity === 'undefined' && typeof updateCartItemQuantity === 'function') window.updateCartItemQuantity = updateCartItemQuantity;
+        if (typeof window.updateOrderStatus === 'undefined' && typeof updateOrderStatus === 'function') window.updateOrderStatus = updateOrderStatus;
+        if (typeof window.viewOrderDetails === 'undefined' && typeof viewOrderDetails === 'function') window.viewOrderDetails = viewOrderDetails;
+        // Ensure default page shows after load
+        document.addEventListener('DOMContentLoaded', () => {
+            try {
+                if (typeof window.showPage === 'function') window.showPage('home');
+            } catch (e) {}
+        });
 </script>
 
 <!-- ===== DRIXEL FAQ ASSISTANT (Safe) ===== -->
@@ -8453,6 +8807,41 @@ const db = window.firebaseDb;
 #orderDetailsOverlay .drixel-order-box, #orderDetailsOverlay td, #orderDetailsOverlay th, #orderDetailsOverlay div{color:#ffffff !important;}
 #orderDetailsOverlay .drixel-muted{opacity:0.92 !important;}
 #orderDetailsOverlay .drixel-items th{opacity:0.95 !important;}
+
+
+        /* ===== PRODUCT PAGE RESPONSIVE FIX (no horizontal scroll) ===== */
+        html, body{
+            max-width: 100%;
+            overflow-x: hidden;
+        }
+        @media (max-width: 600px){
+            .product-actions{
+                flex-direction: column;
+                align-items: stretch;
+                gap: 14px;
+            }
+            .product-actions .btn{
+                width: 100%;
+            }
+            .quantity-selector{
+                width: 100%;
+                justify-content: space-between;
+            }
+            .thumbnails{
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+                padding-bottom: 6px;
+                flex-wrap: nowrap;
+            }
+            .thumbnail{
+                flex: 0 0 auto;
+            }
+            .main-image{
+                height: auto;
+                max-height: 520px;
+            }
+        }
+
 </style>
 
 
@@ -8488,6 +8877,85 @@ const db = window.firebaseDb;
   window.addEventListener("load", ()=> setTimeout(handleGoogleRedirectResult, 350));
 })();
 </script>
+
+
+<script>
+/* ===== Fallback: ensure showPage exists for inline onclick handlers =====
+   This does NOT change any data logic; it only prevents "showPage is undefined"
+   and restores basic page navigation on all devices. */
+(function(){
+  if (typeof window.showPage === 'function') return;
+
+  window.showPage = function(page){
+    try{
+      // Hide all pages
+      document.querySelectorAll('.page').forEach(p => p.classList.add('hidden'));
+
+      // Show selected page (by id)
+      const el = document.getElementById(page);
+      if (el) el.classList.remove('hidden');
+
+      // Update active nav links (if present)
+      document.querySelectorAll('.nav-links a').forEach(a=>{
+        try{
+          const onclick = a.getAttribute('onclick') || '';
+          if (onclick.includes("showPage('"+page+"'") || onclick.includes('showPage("'+page+'"')) {
+            a.classList.add('active');
+          } else {
+            a.classList.remove('active');
+          }
+        }catch(e){}
+      });
+
+      // Close mobile menu if open
+      const navLinksContainer = document.querySelector('.nav-links');
+      if (navLinksContainer) navLinksContainer.classList.remove('active');
+
+      window.scrollTo(0,0);
+    }catch(e){
+      console.error('Fallback showPage failed:', e);
+    }
+  };
+
+  // Ensure something visible on first load
+  document.addEventListener('DOMContentLoaded', ()=>{
+    try{
+      // prefer home then shop
+      if (document.getElementById('home')) window.showPage('home');
+      else if (document.getElementById('shop')) window.showPage('shop');
+    }catch(e){}
+  });
+})();
+
+        // Warm the payment server early so Yoco starts faster (Render can sleep)
+        document.addEventListener('DOMContentLoaded', () => {
+            warmPaymentServer();
+
+            // Warm again when user shows payment area / hovers pay buttons
+            ['payWithYocoBtn','yocoPayBtn','quickBuyBtn'].forEach((id) => {
+                const el = document.getElementById(id);
+                if (el) {
+                    el.addEventListener('mouseenter', warmPaymentServer);
+                    el.addEventListener('touchstart', warmPaymentServer, { passive: true });
+                    el.addEventListener('click', () => {
+                        // Give instant feedback on click; actual redirect happens in showYocoPaymentModal
+                        if (id === 'payWithYocoBtn' || id === 'yocoPayBtn') showPayOverlay('Starting Yoco…');
+                    });
+                }
+            });
+        });
+
+</script>
+
+
+<!-- Instant payment overlay -->
+<div id="payOverlay" style="position:fixed; inset:0; background:rgba(0,0,0,.6); display:none; align-items:center; justify-content:center; z-index:99999;">
+  <div style="background:#111; color:#fff; padding:18px 20px; border-radius:14px; font-family:system-ui,-apple-system,Segoe UI,Roboto; width:min(360px,92vw); box-shadow:0 10px 40px rgba(0,0,0,.45); text-align:center;">
+    <div id="payOverlayTitle" style="font-size:16px; font-weight:700; margin-bottom:8px;">Starting payment…</div>
+    <div style="opacity:.85; font-size:13px;">Please don’t close this page.</div>
+    <div style="margin-top:14px; font-size:12px; opacity:.7;">If it takes long, your payment server may be waking up.</div>
+  </div>
+</div>
 
 </body>
 </html>
