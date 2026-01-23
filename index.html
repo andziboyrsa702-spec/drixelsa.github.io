@@ -3484,7 +3484,21 @@
                 }
             } catch (e) {
                 // It's normal to get "auth/no-auth-event" when there was no redirect sign-in
-                console.warn("ℹ️ No Google redirect result (or redirect not used):", e?.code || e);
+                // If there's an actual redirect error, show it to the user
+                const loginError = document.getElementById('loginError');
+                const code = e?.code || '';
+                if (loginError && code && code !== 'auth/no-auth-event') {
+                    let msg = e?.message || 'Google login failed.';
+                    if (code === 'auth/unauthorized-domain') {
+                        msg = "Google login blocked: this domain is not authorized in Firebase. Add it under Firebase Auth → Settings → Authorized domains.";
+                    } else if (code === 'auth/operation-not-allowed') {
+                        msg = "Google login is disabled in Firebase Console. Enable it under Authentication → Sign-in method → Google.";
+                    }
+                    loginError.textContent = msg;
+                    loginError.style.display = 'block';
+                } else {
+                    console.warn("ℹ️ No Google redirect result (or redirect not used):", code || e);
+                }
             } finally {
                 // Always clear in-progress flag after a redirect round-trip
                 window.__googleLoginInProgress = false;
@@ -4471,68 +4485,65 @@ mobileMenuBtn.addEventListener('click', function() {
             try {
                 const auth = window.firebaseAuth;
 
-            // Prevent double-click / multiple popups
-            if (window.__googleLoginInProgress) return;
-            window.__googleLoginInProgress = true;
-
-            const isMobile = window.matchMedia && window.matchMedia("(max-width: 768px)").matches;
+                // Prevent double-click / multiple attempts
+                if (window.__googleLoginInProgress) return;
+                window.__googleLoginInProgress = true;
 
                 const Provider = window.firebaseGoogleAuthProvider;
                 const provider = new Provider();
 
-                let userCredential;
+                // ✅ Try popup FIRST (works on many Android/Chrome devices too)
+                // If popup is blocked/cancelled, fall back to redirect.
+                try {
+                    const userCredential = await window.firebaseSignInWithPopup(auth, provider);
+                    if (userCredential && userCredential.user) {
+                        console.log("✅ Google popup login successful:", userCredential.user.email);
+                        if (loginSuccess) {
+                            loginSuccess.textContent = 'Login successful!';
+                            loginSuccess.style.display = 'block';
+                        }
+                        try { closeModal('authModal'); } catch(e) {}
+                        try { showPage('shop'); } catch(e) {}
+                        return;
+                    }
+                } catch (err) {
+                    const code = err?.code || '';
+                    const popupBlocked = code === 'auth/popup-blocked' || code === 'auth/popup-closed-by-user';
+                    const unsupported = code === 'auth/operation-not-supported-in-this-environment';
+                    // If popup is blocked/unsupported, continue to redirect fallback
+                    if (!popupBlocked && !unsupported) {
+                        throw err;
+                    }
+                }
 
-                // On mobile, popups are often blocked/cancelled. Use redirect.
-                if (isMobile && window.firebaseSignInWithRedirect) {
+                // ✅ Redirect fallback (most reliable on mobile + Safari)
+                if (window.firebaseSignInWithRedirect) {
                     if (loginSuccess) {
                         loginSuccess.textContent = 'Opening Google login...';
                         loginSuccess.style.display = 'block';
                     }
                     await window.firebaseSignInWithRedirect(auth, provider);
-                    return; // flow continues after redirect
+                    return; // continues after redirect
                 }
 
-                try {
-                    userCredential = await window.firebaseSignInWithPopup(auth, provider);
-                } catch (err) {
-                    // If popup was cancelled/blocked or interrupted, fallback to redirect
-                    const code = err?.code || '';
-                    if ((code === 'auth/cancelled-popup-request' || code === 'auth/popup-blocked' || code === 'auth/popup-closed-by-user') 
-                        && window.firebaseSignInWithRedirect) {
-                        if (loginSuccess) {
-                            loginSuccess.textContent = 'Opening Google login...';
-                            loginSuccess.style.display = 'block';
-                        }
-                        await window.firebaseSignInWithRedirect(auth, provider);
-                        return;
-                    }
-                    userCredential = await _handleMfaRequired(auth, err);
-                }
-
-                const user = userCredential.user;
-                console.log("✅ Google login successful:", user?.email);
-
-                // Auto-enroll SMS MFA (only if not enrolled yet)
-                try { await _ensureSmsMfaEnrolled(user); } catch(mfaErr) { console.warn('MFA enrollment skipped:', mfaErr); }
-
-                if (loginSuccess) {
-                    loginSuccess.textContent = 'Login successful! Redirecting...';
-                    loginSuccess.style.display = 'block';
-                }
-
-                setTimeout(() => {
-                    try { showPage('shop'); } catch(e) {}
-                    try { closeModal('authModal'); } catch(e) {}
-                }, 800);
-
+                throw new Error("Google login is not available in this browser.");
             } catch (error) {
-                console.error("❌ Google login failed:", error);
+                console.error("❌ Google login error:", error);
                 if (loginError) {
-                    loginError.textContent = error?.message || "Google login failed. Please try again.";
+                    const code = error?.code || '';
+                    let msg = error?.message || 'Google login failed. Please try again.';
+                    if (code === 'auth/unauthorized-domain') {
+                        msg = "Google login blocked: this domain is not authorized in Firebase. Add it under Firebase Auth → Settings → Authorized domains.";
+                    } else if (code === 'auth/operation-not-allowed') {
+                        msg = "Google login is disabled in Firebase Console. Enable it under Authentication → Sign-in method → Google.";
+                    }
+                    loginError.textContent = msg;
                     loginError.style.display = 'block';
                 } else {
-                    alert(error?.message || "Google login failed.");
+                    alert(error?.message || 'Google login failed.');
                 }
+            } finally {
+                window.__googleLoginInProgress = false;
             }
         }
 
