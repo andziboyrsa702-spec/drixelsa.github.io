@@ -5951,7 +5951,7 @@ return orderRef.id;
                 showPayOverlay('Starting Yoco…');
                 warmPaymentServer();
 
-                const amountInCents = Math.round(Number(amount) * 1000);
+                const amountInCents = Math.round(Number(amount) * 100);
 
                 const baseUrl = (window.SITE_BASE_URL || window.location.origin || '').replace(/\/$/, '');
                 const successUrl = `${baseUrl}/?yoco=success`;
