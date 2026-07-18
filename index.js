@@ -7017,7 +7017,7 @@ async function loadActiveBanners() {
         } else {
             document.body.prepend(container);
         }
-    } catch(e) { console.log('Banners not loaded:', e.message); }
+    } catch(e) { /* Banners blocked by Firestore rules - silent */ }
 }
 
 // Utility: slightly lighten/darken a hex color
