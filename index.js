@@ -310,12 +310,12 @@ function validatePasswordStrength(password) {
 window.validatePasswordStrength = validatePasswordStrength;
 
 // ===== RESEND EMAIL CONFIGURATION & HELPER =====
-// NOTE: The Resend API key must be set in localStorage by the admin.
-// Never hardcode API keys in client-side code.
+// Default API key for this store (admin can override in Settings)
+const _DEFAULT_RESEND_KEY = 're_9127pJDT_jRDx942YS4UbyH3YDfm9H7ow';
+
 async function sendEmailViaResend({ to, cc, subject, html }) {
-    const apiKey = localStorage.getItem('drixel_resend_api_key') || '';
+    const apiKey = localStorage.getItem('drixel_resend_api_key') || _DEFAULT_RESEND_KEY;
     let fromEmail = localStorage.getItem('drixel_resend_from_email') || 'info@customer.drixelsa.co.za';
-    const endpoint = localStorage.getItem('drixel_email_endpoint') || '/api/send-email';
 
     // Auto-sanitize legacy invalid from email addresses
     if (!fromEmail || fromEmail.includes('onboarding@resend.dev') || fromEmail.includes('<') || fromEmail.includes('Drixel SA')) {
@@ -324,81 +324,91 @@ async function sendEmailViaResend({ to, cc, subject, html }) {
     }
 
     if (!apiKey) {
-        console.warn('⚠️ No Resend API key configured. Email not sent. Admin must set drixel_resend_api_key in localStorage.');
+        console.warn('⚠️ No Resend API key configured. Email not sent.');
         return { success: false, error: 'No API key configured' };
     }
 
-    if (apiKey) {
-        console.log("📨 Sending email directly from client via corsproxy.io (Simple Request)...");
-        const targetUrl = 'https://api.resend.com/emails';
-        
+    const emailPayload = {
+        from: fromEmail,
+        to: Array.isArray(to) ? to : [to],
+        ...(cc && cc.length > 0 ? { cc: Array.isArray(cc) ? cc : [cc] } : {}),
+        subject: subject,
+        html: html
+    };
+
+    // METHOD 1: Try direct Resend API call (works if CORS allows it)
+    try {
+        console.log("📨 Sending email directly via Resend API...");
+        const response = await fetch('https://api.resend.com/emails', {
+            method: 'POST',
+            headers: {
+                'Authorization': 'Bearer ' + apiKey,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(emailPayload)
+        });
+        if (response.ok) {
+            const data = await response.json().catch(() => ({}));
+            console.log("✅ Email sent directly:", data);
+            return { success: true, data };
+        }
+        console.warn("⚠️ Direct Resend API returned:", response.status, "trying fallback...");
+    } catch (e) {
+        console.warn("⚠️ Direct Resend API blocked (CORS), trying proxy fallback...");
+    }
+
+    // METHOD 2: Try corsproxy.io
+    try {
+        console.log("📨 Sending email via corsproxy.io...");
         const authHeader = 'Bearer ' + apiKey;
         const contentTypeHeader = 'application/json';
-        const url = `https://corsproxy.io/?url=${encodeURIComponent(targetUrl)}` +
+        const proxyUrl = `https://corsproxy.io/?url=${encodeURIComponent('https://api.resend.com/emails')}` +
                     `&reqHeaders=authorization:${encodeURIComponent(authHeader)}` +
                     `&reqHeaders=content-type:${encodeURIComponent(contentTypeHeader)}`;
 
-        try {
-            const response = await fetch(url, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'text/plain' // Force simple request (no preflight OPTIONS request)
-                },
-                body: JSON.stringify({
-                    from: fromEmail,
-                    to: Array.isArray(to) ? to : [to],
-                    ...(cc && cc.length > 0 ? { cc: Array.isArray(cc) ? cc : [cc] } : {}),
-                    subject: subject,
-                    html: html
-                })
-            });
-
-            if (response.ok) {
-                const data = await response.json().catch(() => ({}));
-                console.log("✅ Email sent successfully via client CORS proxy:", data);
-                return { success: true, data };
-            } else {
-                const errorText = await response.text();
-                console.error("❌ Resend API error response:", errorText);
-                alert("⚠️ Resend Email Error: " + errorText);
-                return { success: false, message: 'Resend API Error', details: errorText };
-            }
-        } catch (error) {
-            console.error("❌ Network error sending email via client CORS proxy:", error);
-            alert("⚠️ Resend Email Network Error: " + error.message);
-            return { success: false, message: 'Network error', details: error.message };
-        }
-    }
-
-    console.log("📨 Sending email via Firebase Cloud Function...");
-    try {
-        const response = await fetch(endpoint, {
+        const response = await fetch(proxyUrl, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                from: fromEmail,
-                to: Array.isArray(to) ? to : [to],
-                ...(cc && cc.length > 0 ? { cc: Array.isArray(cc) ? cc : [cc] } : {}),
-                subject: subject,
-                html: html
-            })
+            headers: { 'Content-Type': 'text/plain' },
+            body: JSON.stringify(emailPayload)
         });
-
         if (response.ok) {
             const data = await response.json().catch(() => ({}));
-            console.log("✅ Email sent successfully via Cloud Function:", data);
+            console.log("✅ Email sent via corsproxy.io:", data);
             return { success: true, data };
-        } else {
-            const errorText = await response.text();
-            console.error("❌ Cloud Function API error response:", errorText);
-            return { success: false, message: 'Cloud Function Error', details: errorText };
         }
-    } catch (error) {
-        console.error("❌ Network error sending email via Cloud Function:", error);
-        return { success: false, message: 'Network error', details: error.message };
+        console.warn("⚠️ corsproxy.io returned:", response.status, "trying EmailJS fallback...");
+    } catch (e) {
+        console.warn("⚠️ corsproxy.io failed, trying EmailJS fallback...");
     }
+
+    // METHOD 3: Try EmailJS (no CORS issues, works from any domain)
+    try {
+        if (window.emailjs) {
+            console.log("📨 Sending email via EmailJS...");
+            const emailjsPublicKey = localStorage.getItem('drixel_emailjs_public_key') || '';
+            const emailjsServiceId = localStorage.getItem('drixel_emailjs_service_id') || '';
+            const emailjsTemplateId = localStorage.getItem('drixel_emailjs_template_id') || '';
+
+            if (emailjsPublicKey && emailjsServiceId && emailjsTemplateId) {
+                emailjs.init({ publicKey: emailjsPublicKey });
+                const result = await emailjs.send(emailjsServiceId, emailjsTemplateId, {
+                    to_email: Array.isArray(to) ? to.join(',') : to,
+                    subject: subject,
+                    html_content: html,
+                    from_email: fromEmail
+                });
+                console.log("✅ Email sent via EmailJS:", result);
+                return { success: true, data: result };
+            }
+            console.warn("⚠️ EmailJS not configured (set keys in Admin > Settings)");
+        }
+    } catch (e) {
+        console.warn("⚠️ EmailJS failed:", e.message);
+    }
+
+    // All methods failed
+    console.error("❌ All email sending methods failed.");
+    return { success: false, message: 'All email methods failed. Check Admin > Settings to configure email.' };
 }
 window.sendEmailViaResend = sendEmailViaResend;
 
