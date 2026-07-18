@@ -1533,27 +1533,9 @@ function viewProduct(productId) {
                                path.includes('/products/beanies/') || path.includes('/products/sweaters/')) && !isCategoryPage;
     
     if (!isCleanProductPage) {
-        // Determine destination URL
-        const isLocalServer = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:';
-        
-        // If it is local python server without proxy, use flat product.html to avoid 404, otherwise use clean URLs!
-        if (isLocalServer) { 
-            window.location.href = BASE + 'product.html?id=' + productId;
-        } else {
-            let catPath = 'tees';
-            const cat = product.category.toLowerCase();
-            const name = product.name.toLowerCase();
-            
-            if (name.includes('hoodie') || name.includes('sweat') || name.includes('tracksuit') || name.includes('jacket') || cat.includes('outerwear')) {
-                catPath = 'hoodies';
-            } else if (name.includes('beanie') || name.includes('socks') || name.includes('backpack') || cat.includes('accessories')) {
-                if (name.includes('beanie')) catPath = 'beanies';
-                else catPath = 'accessories';
-            }
-            
-            const cleanName = encodeURIComponent(product.name.replace(/[^a-zA-Z0-9\s]/g, '').trim().replace(/\s+/g, '-'));
-            window.location.href = BASE + `products/${catPath}/${cleanName}?id=${productId}`;
-        }
+        // Always use product.html?id= for reliable navigation
+        // Clean URLs only work for pre-made product directories
+        window.location.href = BASE + 'product.html?id=' + productId;
         return;
     }
 
@@ -4059,6 +4041,12 @@ async function loadAdminOverview() {
         const latestOrders = recentOrders.slice(0, 5);
 
         tabContent.innerHTML = `
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                        <h3 style="margin:0;font-size:18px;font-weight:800;text-transform:uppercase;">Dashboard Overview</h3>
+                        <button onclick="clearAdminOverview()" style="padding:8px 16px;background:#ef476f;color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;">
+                            <i class="fas fa-trash-alt"></i> Clear Overview
+                        </button>
+                    </div>
                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 30px;">
                         <div class="admin-stat-card" style="border-top: 4px solid var(--accent-blue);">
                             <h3>Total Orders</h3>
@@ -4188,10 +4176,10 @@ async function loadAdminOrders() {
         orders.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
         tabContent.innerHTML = `
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                        <h3>All Orders (${orders.length})</h3>
-                        <div>
-                            <select id="orderFilter" onchange="filterOrders()" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 5px; margin-right: 10px;">
+                    <div class="admin-orders-header">
+                        <h3><i class="fas fa-shopping-bag"></i> All Orders (${orders.length})</h3>
+                        <div class="admin-orders-filters">
+                            <select id="orderFilter" onchange="filterOrders()">
                                 <option value="all">All Orders</option>
                                 <option value="pending">Pending Payment</option>
                                 <option value="paid">Paid</option>
@@ -4199,83 +4187,64 @@ async function loadAdminOrders() {
                                 <option value="shipped">Shipped</option>
                                 <option value="delivered">Delivered</option>
                             </select>
-                            <button onclick="exportOrders()" style="background: #0caf60; color: white; border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer;">
-                                <i class="fas fa-download"></i> Export
+                            <button onclick="exportOrders()" style="background:#0caf60;color:#fff;">
+                                <i class="fas fa-download"></i> Export CSV
                             </button>
                         </div>
                     </div>
                     
-                    <div style="background: white; padding: 20px; border-radius: 10px; border: 1px solid #e0e0e0;">
+                    <div class="admin-orders-card">
                         ${orders.length > 0 ? `
-                            <table style="width: 100%; border-collapse: collapse;">
+                            <table class="admin-table">
                                 <thead>
-                                    <tr style="background: #f5f5f5;">
-                                        <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">Order #</th>
-                                        <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">Customer</th>
-                                        <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">Items</th>
-                                        <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">Amount</th>
-                                        <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">Payment</th>
-                                        <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">Status</th>
-                                        <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">Date</th>
-                                        <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">Actions</th>
+                                    <tr>
+                                        <th>Order #</th>
+                                        <th>Customer</th>
+                                        <th>Items</th>
+                                        <th>Amount</th>
+                                        <th>Payment</th>
+                                        <th>Status</th>
+                                        <th>Date</th>
+                                        <th>Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody id="ordersTableBody">
                                     ${orders.map(order => `
                                         <tr data-status="${order.paymentStatus}" data-order-status="${order.status || 'processing'}">
-                                            <td style="padding: 12px; border-bottom: 1px solid #eee;">${order.order_id || order.orderNumber || order.id || '—'}</td>
-                                            <td style="padding: 12px; border-bottom: 1px solid #eee;">
+                                            <td data-label="Order #"><strong>${order.order_id || order.orderNumber || order.id || '—'}</strong></td>
+                                            <td data-label="Customer">
                                                 <strong>${order.customer?.name || 'N/A'}</strong><br>
-                                                <small>${order.customer?.email || ''}</small><br>
-                                                <small>${order.customer?.phone || ''}</small>
+                                                <small style="color:#888;">${order.customer?.email || ''}</small>
                                             </td>
-                                            <td style="padding: 12px; border-bottom: 1px solid #eee;">
-                                                ${order.items?.length || 0} items
-                                            </td>
-                                            <td style="padding: 12px; border-bottom: 1px solid #eee;">R ${(order.total || 0).toFixed(2)}</td>
-                                            <td style="padding: 12px; border-bottom: 1px solid #eee;">
-                                                <span style="padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold;
-                                                    background: ${order.paymentMethod === 'yoco' ? '#d4edda' :
-                order.paymentMethod === 'snapscan' ? '#cce5ff' :
-                    '#fff3cd'};
-                                                    color: ${order.paymentMethod === 'yoco' ? '#155724' :
-                order.paymentMethod === 'snapscan' ? '#004085' :
-                    '#856404'};">
+                                            <td data-label="Items">${order.items?.length || 0} items</td>
+                                            <td data-label="Amount"><strong>R ${(order.total || 0).toFixed(2)}</strong></td>
+                                            <td data-label="Payment">
+                                                <span class="admin-badge status-${order.paymentMethod === 'yoco' ? 'shipped' : order.paymentMethod === 'snapscan' ? 'delivered' : 'pending'}">
                                                     ${order.paymentMethod || 'bank'}
                                                 </span>
                                             </td>
-                                            <td style="padding: 12px; border-bottom: 1px solid #eee;">
-                                                <span style="padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold;
-                                                    background: ${order.paymentStatus === 'paid' ? '#d4edda' :
-                order.paymentStatus === 'pending' ? '#fff3cd' :
-                    '#f8d7da'};
-                                                    color: ${order.paymentStatus === 'paid' ? '#155724' :
-                order.paymentStatus === 'pending' ? '#856404' :
-                    '#721c24'};">
+                                            <td data-label="Status">
+                                                <span class="admin-badge status-${order.paymentStatus === 'paid' ? 'shipped' : order.paymentStatus === 'delivered' ? 'delivered' : 'pending'}">
                                                     ${order.paymentStatus || 'pending'}
                                                 </span>
                                             </td>
-                                            <td style="padding: 12px; border-bottom: 1px solid #eee;">
+                                            <td data-label="Date">
                                                 ${new Date(order.createdAt).toLocaleDateString()}<br>
-                                                <small>${new Date(order.createdAt).toLocaleTimeString()}</small>
+                                                <small style="color:#999;">${new Date(order.createdAt).toLocaleTimeString()}</small>
                                             </td>
-                                            <td style="padding: 12px; border-bottom: 1px solid #eee;">
-                                                <button onclick="viewOrderDetails('${order.id}')" style="background: #0066cc; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; margin-right: 5px;">
-                                                    View
+                                            <td data-label="Actions">
+                                                <button class="admin-order-action-btn view-btn" onclick="viewOrderDetails('${order.id}')">
+                                                    <i class="fas fa-eye"></i> View
                                                 </button>
-                                                <button onclick="updateOrderStatus('${order.id}')" style="background: #ff6b00; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer;">
-                                                    Update
+                                                <button class="admin-order-action-btn update-btn" onclick="updateOrderStatus('${order.id}')">
+                                                    <i class="fas fa-edit"></i> Update
                                                 </button>
                                             </td>
                                         </tr>
                                     `).join('')}
                                 </tbody>
                             </table>
-                        ` : '<p>No orders found.</p>'}
-                    </div>
-                    
-                    <div style="margin-top: 20px; color: #666; font-size: 14px;">
-                        <p><i class="fas fa-info-circle"></i> Orders are sorted by date (newest first).</p>
+                        ` : '<div style="text-align:center;padding:40px;color:#999;"><i class="fas fa-inbox" style="font-size:40px;margin-bottom:12px;display:block;"></i><p>No orders found.</p></div>'}
                     </div>
                 `;
     } catch (error) {
@@ -6542,6 +6511,71 @@ function renderBannersPanel(el) {
                         <input type="radio" name="bnTemplate" value="countdown" style="display:none;">
                         <span style="font-size:11px;font-weight:700;margin-top:6px;display:block;text-align:center;">Countdown</span>
                     </label>
+                    <label class="banner-tpl-card" data-val="gradient-text" onclick="selectBannerTemplate('gradient-text')">
+                        <div class="banner-tpl-preview" style="background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);justify-content:center;">
+                            <div style="color:#fff;font-size:11px;font-weight:900;text-align:center;background:linear-gradient(90deg,#fff,#ffd700);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">GRADIENT</div>
+                            <div style="height:3px;width:40px;background:#fff;border-radius:2px;margin:4px auto 0;opacity:0.5;"></div>
+                        </div>
+                        <input type="radio" name="bnTemplate" value="gradient-text" style="display:none;">
+                        <span style="font-size:11px;font-weight:700;margin-top:6px;display:block;text-align:center;">Gradient</span>
+                    </label>
+                    <label class="banner-tpl-card" data-val="product-spotlight" onclick="selectBannerTemplate('product-spotlight')">
+                        <div class="banner-tpl-preview" style="background:#111;display:flex;align-items:center;gap:8px;padding:0 12px;">
+                            <div style="flex:1;"><div style="height:3px;width:30px;background:#fff;border-radius:2px;margin-bottom:4px;"></div><div style="height:3px;width:20px;background:#fff;border-radius:2px;opacity:0.5;"></div></div>
+                            <div style="width:28px;height:28px;border-radius:50%;background:#333;border:2px solid #fff;"></div>
+                        </div>
+                        <input type="radio" name="bnTemplate" value="product-spotlight" style="display:none;">
+                        <span style="font-size:11px;font-weight:700;margin-top:6px;display:block;text-align:center;">Spotlight</span>
+                    </label>
+                    <label class="banner-tpl-card" data-val="minimal" onclick="selectBannerTemplate('minimal')">
+                        <div class="banner-tpl-preview" style="background:#fff;border:1px solid #eee;justify-content:center;">
+                            <div style="color:#111;font-size:12px;font-weight:900;letter-spacing:2px;">MINIMAL</div>
+                            <div style="height:2px;width:20px;background:#111;margin:4px auto;"></div>
+                        </div>
+                        <input type="radio" name="bnTemplate" value="minimal" style="display:none;">
+                        <span style="font-size:11px;font-weight:700;margin-top:6px;display:block;text-align:center;">Minimal</span>
+                    </label>
+                    <label class="banner-tpl-card" data-val="flash-sale" onclick="selectBannerTemplate('flash-sale')">
+                        <div class="banner-tpl-preview" style="background:linear-gradient(135deg,#ff0000 0%,#ff6b00 100%);justify-content:center;align-items:center;">
+                            <div style="color:#fff;font-size:9px;font-weight:900;letter-spacing:1px;">⚡ FLASH SALE</div>
+                            <div style="color:#ffd700;font-size:12px;font-weight:900;margin-top:2px;">50% OFF</div>
+                        </div>
+                        <input type="radio" name="bnTemplate" value="flash-sale" style="display:none;">
+                        <span style="font-size:11px;font-weight:700;margin-top:6px;display:block;text-align:center;">Flash Sale</span>
+                    </label>
+                    <label class="banner-tpl-card" data-val="collection" onclick="selectBannerTemplate('collection')">
+                        <div class="banner-tpl-preview" style="background:#111;display:grid;grid-template-columns:1fr 1fr;gap:2px;padding:6px;">
+                            <div style="background:#333;border-radius:2px;"></div>
+                            <div style="background:#444;border-radius:2px;"></div>
+                            <div style="grid-column:1/-1;display:flex;align-items:center;justify-content:center;"><div style="color:#fff;font-size:7px;font-weight:700;">COLLECTION</div></div>
+                        </div>
+                        <input type="radio" name="bnTemplate" value="collection" style="display:none;">
+                        <span style="font-size:11px;font-weight:700;margin-top:6px;display:block;text-align:center;">Collection</span>
+                    </label>
+                    <label class="banner-tpl-card" data-val="promo-strip" onclick="selectBannerTemplate('promo-strip')">
+                        <div class="banner-tpl-preview" style="background:#111;justify-content:center;align-items:center;flex-direction:row;gap:6px;padding:0 10px;">
+                            <div style="border:1.5px dashed #fff;border-radius:4px;padding:2px 6px;color:#ffd700;font-size:8px;font-weight:900;">SAVE20</div>
+                            <div style="color:#fff;font-size:7px;opacity:0.7;">Use code at checkout</div>
+                        </div>
+                        <input type="radio" name="bnTemplate" value="promo-strip" style="display:none;">
+                        <span style="font-size:11px;font-weight:700;margin-top:6px;display:block;text-align:center;">Promo Strip</span>
+                    </label>
+                    <label class="banner-tpl-card" data-val="neon" onclick="selectBannerTemplate('neon')">
+                        <div class="banner-tpl-preview" style="background:#0a0a0a;justify-content:center;align-items:center;">
+                            <div style="color:#0ff;font-size:11px;font-weight:900;text-shadow:0 0 5px #0ff,0 0 10px #0ff;">NEON</div>
+                            <div style="height:2px;width:30px;background:#0ff;margin:4px auto;box-shadow:0 0 6px #0ff;"></div>
+                        </div>
+                        <input type="radio" name="bnTemplate" value="neon" style="display:none;">
+                        <span style="font-size:11px;font-weight:700;margin-top:6px;display:block;text-align:center;">Neon</span>
+                    </label>
+                    <label class="banner-tpl-card" data-val="diagonal" onclick="selectBannerTemplate('diagonal')">
+                        <div class="banner-tpl-preview" style="background:#111;overflow:hidden;position:relative;">
+                            <div style="position:absolute;top:0;left:0;width:50%;height:100%;background:linear-gradient(135deg,#fff 0%,transparent 100%);opacity:0.1;"></div>
+                            <div style="color:#fff;font-size:9px;font-weight:900;z-index:1;">DIAGONAL</div>
+                        </div>
+                        <input type="radio" name="bnTemplate" value="diagonal" style="display:none;">
+                        <span style="font-size:11px;font-weight:700;margin-top:6px;display:block;text-align:center;">Diagonal</span>
+                    </label>
                 </div>
             </div>
 
@@ -6840,8 +6874,116 @@ async function loadActiveBanners() {
                     setTimeout(tick, 100);
                 }
 
+            } else if (template === 'gradient-text') {
+                bannerEl = document.createElement('div');
+                bannerEl.className = 'promo-banner promo-gradient-text';
+                bannerEl.style.cssText = `background:linear-gradient(135deg, ${bg} 0%, ${adjustHex(bg, 60)} 50%, ${adjustHex(bg, 30)} 100%);color:${fg};`;
+                bannerEl.innerHTML = `
+                    <div class="promo-gradient-text-inner">
+                        <h1 class="promo-gradient-title" style="background:linear-gradient(90deg, ${fg}, ${adjustHex(fg, -40)});-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">${b.title}</h1>
+                        ${b.subtitle ? `<p style="font-size:16px;opacity:0.85;margin:8px 0 20px;">${b.subtitle}</p>` : ''}
+                        <a href="${ctaHref}" class="promo-hero-cta" style="background:${fg};color:${bg};">${ctaText} &rarr;</a>
+                    </div>`;
+
+            } else if (template === 'product-spotlight') {
+                bannerEl = document.createElement('div');
+                bannerEl.className = 'promo-banner promo-product-spotlight';
+                bannerEl.style.cssText = `background:${bg};color:${fg};`;
+                bannerEl.innerHTML = `
+                    <div class="promo-spotlight-content">
+                        <div class="promo-spotlight-badge">FEATURED</div>
+                        <h2 style="font-size:clamp(24px,4vw,42px);font-weight:900;margin:10px 0;">${b.title}</h2>
+                        ${b.subtitle ? `<p style="font-size:15px;opacity:0.8;margin-bottom:20px;">${b.subtitle}</p>` : ''}
+                        <a href="${ctaHref}" style="display:inline-block;padding:12px 32px;background:${fg};color:${bg};border-radius:30px;font-weight:800;text-decoration:none;">${ctaText}</a>
+                    </div>
+                    ${b.imageUrl ? `<div class="promo-spotlight-img"><img src="${b.imageUrl}" alt="${b.title}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;"></div>` : `<div class="promo-spotlight-img" style="background:${adjustHex(bg, 30)};display:flex;align-items:center;justify-content:center;"><i class="fas fa-tshirt" style="font-size:48px;opacity:0.3;"></i></div>`}`;
+
+            } else if (template === 'minimal') {
+                bannerEl = document.createElement('div');
+                bannerEl.className = 'promo-banner promo-minimal';
+                bannerEl.style.cssText = `background:${bg === '#111111' ? '#ffffff' : bg};color:${fg === '#ffffff' ? '#111111' : fg};`;
+                bannerEl.innerHTML = `
+                    <div class="promo-minimal-inner">
+                        <div class="promo-minimal-line"></div>
+                        <h1 style="font-size:clamp(28px,5vw,56px);font-weight:900;letter-spacing:-2px;line-height:1;margin:16px 0;">${b.title}</h1>
+                        ${b.subtitle ? `<p style="font-size:15px;opacity:0.6;margin-bottom:24px;max-width:400px;">${b.subtitle}</p>` : ''}
+                        <a href="${ctaHref}" style="display:inline-block;padding:14px 36px;border:2px solid currentColor;font-weight:800;font-size:13px;letter-spacing:1px;text-transform:uppercase;text-decoration:none;color:inherit;">${ctaText}</a>
+                    </div>`;
+
+            } else if (template === 'flash-sale') {
+                bannerEl = document.createElement('div');
+                bannerEl.className = 'promo-banner promo-flash-sale';
+                const flashBg = bg === '#111111' ? '#ff0000' : bg;
+                bannerEl.style.cssText = `background:linear-gradient(135deg, ${flashBg} 0%, ${adjustHex(flashBg, 40)} 100%);color:${fg};`;
+                bannerEl.innerHTML = `
+                    <div class="promo-flash-sale-inner">
+                        <div class="promo-flash-left">
+                            <div style="font-size:clamp(14px,2vw,18px);font-weight:700;letter-spacing:3px;text-transform:uppercase;opacity:0.9;">⚡ Flash Sale</div>
+                            <h1 style="font-size:clamp(32px,6vw,64px);font-weight:900;line-height:1;margin:8px 0;">${b.title}</h1>
+                            ${b.subtitle ? `<p style="font-size:16px;opacity:0.9;">${b.subtitle}</p>` : ''}
+                        </div>
+                        <div class="promo-flash-right">
+                            <a href="${ctaHref}" style="display:inline-block;padding:16px 40px;background:${fg};color:${flashBg};border-radius:50px;font-weight:900;font-size:16px;text-decoration:none;box-shadow:0 8px 30px rgba(0,0,0,0.3);">${ctaText}</a>
+                        </div>
+                    </div>`;
+
+            } else if (template === 'collection') {
+                bannerEl = document.createElement('div');
+                bannerEl.className = 'promo-banner promo-collection';
+                bannerEl.style.cssText = `background:${bg};color:${fg};`;
+                bannerEl.innerHTML = `
+                    <div class="promo-collection-inner">
+                        <div class="promo-collection-text">
+                            <div style="font-size:11px;font-weight:700;letter-spacing:3px;text-transform:uppercase;opacity:0.5;margin-bottom:10px;">New Collection</div>
+                            <h2 style="font-size:clamp(24px,4vw,44px);font-weight:900;line-height:1.1;margin:0 0 12px;">${b.title}</h2>
+                            ${b.subtitle ? `<p style="font-size:14px;opacity:0.7;margin-bottom:20px;">${b.subtitle}</p>` : ''}
+                            <a href="${ctaHref}" style="display:inline-block;padding:12px 28px;background:${fg};color:${bg};border-radius:6px;font-weight:800;font-size:13px;text-decoration:none;">${ctaText} &rarr;</a>
+                        </div>
+                        <div class="promo-collection-grid">
+                            ${b.imageUrl ? `<div style="grid-column:1/-1;background-image:url('${b.imageUrl}');background-size:cover;background-position:center;border-radius:8px;min-height:120px;"></div>` : `<div style="background:${adjustHex(bg, 20)};border-radius:8px;min-height:60px;"></div><div style="background:${adjustHex(bg, 30)};border-radius:8px;min-height:60px;"></div>`}
+                        </div>
+                    </div>`;
+
+            } else if (template === 'promo-strip') {
+                bannerEl = document.createElement('div');
+                bannerEl.className = 'promo-banner promo-promo-strip';
+                bannerEl.style.cssText = `background:${bg};color:${fg};`;
+                bannerEl.innerHTML = `
+                    <div class="promo-strip-inner">
+                        <div style="display:flex;align-items:center;gap:16px;justify-content:center;flex-wrap:wrap;">
+                            <span style="font-size:clamp(14px,2vw,18px);font-weight:700;">${b.title}</span>
+                            ${b.subtitle ? `<span style="border:2px dashed ${fg};padding:6px 16px;border-radius:6px;font-weight:900;font-size:clamp(16px,2.5vw,22px);letter-spacing:2px;color:${adjustHex(fg, -30)};">${b.subtitle}</span>` : ''}
+                            <a href="${ctaHref}" style="padding:10px 24px;background:${fg};color:${bg};border-radius:6px;font-weight:800;font-size:13px;text-decoration:none;">${ctaText}</a>
+                        </div>
+                    </div>`;
+
+            } else if (template === 'neon') {
+                bannerEl = document.createElement('div');
+                bannerEl.className = 'promo-banner promo-neon';
+                const neonColor = fg === '#ffffff' ? '#00ffff' : fg;
+                bannerEl.style.cssText = `background:#0a0a0a;color:${neonColor};`;
+                bannerEl.innerHTML = `
+                    <div class="promo-neon-inner">
+                        <h1 style="font-size:clamp(28px,5vw,52px);font-weight:900;text-shadow:0 0 10px ${neonColor},0 0 20px ${neonColor},0 0 40px ${neonColor};letter-spacing:2px;margin:0 0 12px;">${b.title}</h1>
+                        ${b.subtitle ? `<p style="font-size:14px;opacity:0.7;text-shadow:0 0 5px ${neonColor};margin-bottom:20px;">${b.subtitle}</p>` : ''}
+                        <a href="${ctaHref}" style="display:inline-block;padding:12px 32px;border:2px solid ${neonColor};color:${neonColor};font-weight:800;font-size:14px;text-decoration:none;text-shadow:0 0 5px ${neonColor};box-shadow:0 0 10px ${neonColor}40,inset 0 0 10px ${neonColor}20;border-radius:4px;">${ctaText}</a>
+                    </div>`;
+
+            } else if (template === 'diagonal') {
+                bannerEl = document.createElement('div');
+                bannerEl.className = 'promo-banner promo-diagonal';
+                bannerEl.style.cssText = `background:${bg};color:${fg};position:relative;overflow:hidden;`;
+                bannerEl.innerHTML = `
+                    <div style="position:absolute;top:0;left:0;width:60%;height:100%;background:linear-gradient(135deg, ${adjustHex(bg, 40)} 0%, transparent 100%);opacity:0.4;"></div>
+                    <div style="position:absolute;bottom:0;right:0;width:40%;height:60%;background:linear-gradient(315deg, ${adjustHex(bg, 20)} 0%, transparent 100%);opacity:0.3;"></div>
+                    <div style="position:relative;z-index:1;padding:clamp(40px,6vw,70px) 6%;">
+                        <h2 style="font-size:clamp(24px,4vw,48px);font-weight:900;margin:0 0 10px;">${b.title}</h2>
+                        ${b.subtitle ? `<p style="font-size:15px;opacity:0.8;margin-bottom:20px;max-width:500px;">${b.subtitle}</p>` : ''}
+                        <a href="${ctaHref}" style="display:inline-block;padding:12px 32px;background:${fg};color:${bg};border-radius:6px;font-weight:800;font-size:14px;text-decoration:none;">${ctaText} &rarr;</a>
+                    </div>`;
+
             } else {
-                // Hero: full-width gradient with glow
+                // Hero: full-width gradient with glow (default)
                 bannerEl = document.createElement('div');
                 bannerEl.className = 'promo-banner promo-hero';
                 bannerEl.style.cssText = `background:linear-gradient(135deg, ${bg} 0%, ${adjustHex(bg, 30)} 100%);color:${fg};${b.imageUrl ? `background-image:linear-gradient(to right, ${bg}ee 50%, transparent 100%), url('${b.imageUrl}');background-size:cover;background-position:center;` : ''}`;
@@ -6881,12 +7023,100 @@ function adjustHex(hex, amount) {
     } catch { return hex || '#333'; }
 }
 
+function clearAdminOverview() {
+    const tabContent = document.getElementById('adminTabContent');
+    if (tabContent) {
+        tabContent.innerHTML = `
+            <div style="text-align:center;padding:60px 20px;">
+                <i class="fas fa-check-circle" style="font-size:48px;color:#0caf60;margin-bottom:16px;"></i>
+                <h3 style="margin-bottom:8px;">Overview Cleared</h3>
+                <p style="color:#666;margin-bottom:24px;">Dashboard data has been cleared from view.</p>
+                <button onclick="loadAdminOverview()" style="padding:12px 28px;background:#0066cc;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;">
+                    <i class="fas fa-redo"></i> Reload Overview
+                </button>
+            </div>`;
+    }
+}
+
 function filterOrders() {
-    alert('Filter orders feature coming soon!');
+    const filterVal = document.getElementById('orderFilter')?.value || 'all';
+    const rows = document.querySelectorAll('#ordersTableBody tr');
+    rows.forEach(row => {
+        const status = row.getAttribute('data-status') || '';
+        const orderStatus = row.getAttribute('data-order-status') || '';
+        if (filterVal === 'all') {
+            row.style.display = '';
+        } else if (status === filterVal || orderStatus === filterVal) {
+            row.style.display = '';
+        } else {
+            row.style.display = 'none';
+        }
+    });
 }
 
 function exportOrders() {
-    alert('Export orders feature coming soon!');
+    const rows = document.querySelectorAll('#ordersTableBody tr');
+    if (rows.length === 0) { showToast('No orders to export.', 'warning'); return; }
+    let csv = 'Order #,Customer,Email,Items,Amount,Payment Method,Status,Date\n';
+    rows.forEach(row => {
+        if (row.style.display === 'none') return;
+        const cells = row.querySelectorAll('td');
+        const vals = Array.from(cells).map(c => '"' + (c.textContent || '').trim().replace(/"/g, '""') + '"');
+        csv += vals.join(',') + '\n';
+    });
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'drixel-orders-' + new Date().toISOString().split('T')[0] + '.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('Orders exported successfully!', 'success');
+}
+
+// Load floating coupon widget on storefront
+async function loadCouponWidget() {
+    try {
+        const db = window.firebaseDb;
+        const snap = await window.firebaseGetDocs(window.firebaseCollection(db, 'coupons'));
+        const now = Date.now();
+        let bestCoupon = null;
+        snap.forEach(d => {
+            const c = d.data();
+            const isExpired = c.expiry && new Date(c.expiry).getTime() < now;
+            if (c.active !== false && !isExpired) {
+                if (!bestCoupon || (c.type === 'percent' && c.amount > (bestCoupon.amount || 0))) {
+                    bestCoupon = c;
+                }
+            }
+        });
+        if (!bestCoupon) return;
+        // Don't show on admin pages or cart/checkout
+        if (document.getElementById('adminDashboard')) return;
+        const existing = document.getElementById('couponFloatWidget');
+        if (existing) existing.remove();
+        const widget = document.createElement('div');
+        widget.id = 'couponFloatWidget';
+        widget.className = 'coupon-float-widget';
+        const discountText = bestCoupon.type === 'percent' ? bestCoupon.amount + '% OFF' : 'R' + bestCoupon.amount + ' OFF';
+        widget.innerHTML = `
+            <button class="coupon-widget-close" onclick="document.getElementById('couponFloatWidget').remove();">&times;</button>
+            <span class="coupon-widget-badge">Active Deal</span>
+            <span class="coupon-widget-code">${bestCoupon.code}</span>
+            <p class="coupon-widget-desc">${discountText} — Use at checkout!</p>`;
+        widget.addEventListener('click', function(e) {
+            if (e.target.classList.contains('coupon-widget-close')) return;
+            navigator.clipboard?.writeText(bestCoupon.code).then(() => {
+                showToast('Coupon code ' + bestCoupon.code + ' copied!', 'success');
+            });
+        });
+        document.body.appendChild(widget);
+        // Auto-hide after 15 seconds
+        setTimeout(() => {
+            const w = document.getElementById('couponFloatWidget');
+            if (w) { w.style.transition = 'opacity 0.5s'; w.style.opacity = '0'; setTimeout(() => w.remove(), 500); }
+        }, 15000);
+    } catch(e) { /* silent */ }
 }
 
 
@@ -7694,6 +7924,10 @@ try {
     window.validateCoupon = validateCoupon;
     window.applyCouponUsage = applyCouponUsage;
     window.loadActiveBanners = loadActiveBanners;
+    window.loadCouponWidget = loadCouponWidget;
+    window.clearAdminOverview = clearAdminOverview;
+    window.filterOrders = filterOrders;
+    window.exportOrders = exportOrders;
     window.showAddProductForm = showAddProductForm;
     window.closeProductModal = closeProductModal;
     window.adminUpdateImagePreview = adminUpdateImagePreview;
@@ -7726,6 +7960,7 @@ try {
 document.addEventListener('DOMContentLoaded', () => {
     setTimeout(() => {
         try { loadActiveBanners(); } catch(e) {}
+        try { loadCouponWidget(); } catch(e) {}
     }, 2000);
 
     // Set today's date on any date input that has no value (replaces PHP date)
