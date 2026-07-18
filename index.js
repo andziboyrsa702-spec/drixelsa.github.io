@@ -913,25 +913,35 @@ document.addEventListener('DOMContentLoaded', function () {
             ];
         }
 
+// Helper: get relative path prefix based on current page depth
+function _basePath() {
+    const p = window.location.pathname;
+    const parts = p.split('/').filter(Boolean);
+    // Remove the filename from the count
+    const depth = parts.length > 0 && parts[parts.length - 1].includes('.') ? parts.length - 1 : parts.length;
+    return depth <= 0 ? './' : '../'.repeat(depth);
+}
+const BASE = _basePath();
+
 function showPage(page, hash = '') {
     const pageMap = {
-        'home': '/index.html',
-        'shop': '/products.html',
-        'products': '/products.html',
-        'product': '/product.html',
-        'cart': '/cart.html',
-        'checkout': '/checkout.html',
-        'auth': '/auth.html',
-        'about': '/about.html',
-        'contact': '/contact.html',
-        'terms': '/terms.html',
-        'privacy': '/privacy.html',
-        'refund': '/refund.html',
-        'shipping': '/shipping.html',
-        'yoco-direct': '/yoco-direct.html',
-        'orderConfirmation': '/orderConfirmation.html'
+        'home': 'index.html',
+        'shop': 'products.html',
+        'products': 'products.html',
+        'product': 'product.html',
+        'cart': 'cart.html',
+        'checkout': 'checkout.html',
+        'auth': 'auth.html',
+        'about': 'about.html',
+        'contact': 'contact.html',
+        'terms': 'terms.html',
+        'privacy': 'privacy.html',
+        'refund': 'refund.html',
+        'shipping': 'shipping.html',
+        'yoco-direct': 'yoco-direct.html',
+        'orderConfirmation': 'orderConfirmation.html'
     };
-    let target = pageMap[page] || ('/' + page + '.html');
+    let target = BASE + (pageMap[page] || (page + '.html'));
     if (hash) {
         target += hash;
     }
@@ -1528,7 +1538,7 @@ function viewProduct(productId) {
         
         // If it is local python server without proxy, use flat product.html to avoid 404, otherwise use clean URLs!
         if (isLocalServer) { 
-            window.location.href = '/product.html?id=' + productId;
+            window.location.href = BASE + 'product.html?id=' + productId;
         } else {
             let catPath = 'tees';
             const cat = product.category.toLowerCase();
@@ -1542,7 +1552,7 @@ function viewProduct(productId) {
             }
             
             const cleanName = encodeURIComponent(product.name.replace(/[^a-zA-Z0-9\s]/g, '').trim().replace(/\s+/g, '-'));
-            window.location.href = `/products/${catPath}/${cleanName}?id=${productId}`;
+            window.location.href = BASE + `products/${catPath}/${cleanName}?id=${productId}`;
         }
         return;
     }
