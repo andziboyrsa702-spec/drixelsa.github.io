@@ -1,7 +1,14 @@
 User-agent: *
 Allow: /
-Disallow: /cart.html
-Disallow: /checkout.html
+
+# Explicitly allow all JS, CSS, and media assets for Google Search Console rendering
+Allow: /*.js
+Allow: /*.css
+Allow: /*.png
+Allow: /*.jpg
+Allow: /*.jpeg
+Allow: /*.svg
+Allow: /*.webp
 
 Sitemap: https://drixelsa.co.za/sitemap.xml
 Sitemap: https://www.drixelsa.co.za/sitemap.xml
