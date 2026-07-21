@@ -158,13 +158,11 @@ const SNAPSCAN_QR_URL = "https://pos.snapscan.io/qr/qvxSxlIE";
 const SNAPSCAN_REGISTRATION = "2026/000210/07";
 
 // ===== RESEND & BACKEND EMAIL CONFIGURATION & HELPER =====
-const DEFAULT_RESEND_API_KEY = 're_HSq1yYdh_DBU1dwEwwtb6di7C9tLRLUUx';
-
 async function sendEmailViaResend({ to, cc, subject, html }) {
-    let storedApiKey = (localStorage.getItem('drixel_resend_api_key') || DEFAULT_RESEND_API_KEY).trim();
-    if (storedApiKey === 're_9127pJDT_jRDx942YS4UbyH3YDfm9H7ow' || !storedApiKey) {
-        storedApiKey = DEFAULT_RESEND_API_KEY;
-        localStorage.setItem('drixel_resend_api_key', DEFAULT_RESEND_API_KEY);
+    let storedApiKey = (localStorage.getItem('drixel_resend_api_key') || '').trim();
+    if (storedApiKey === 're_9127pJDT_jRDx942YS4UbyH3YDfm9H7ow' || storedApiKey === 're_HSq1yYdh_DBU1dwEwwtb6di7C9tLRLUUx') {
+        storedApiKey = '';
+        localStorage.removeItem('drixel_resend_api_key');
     }
 
     let fromEmail = localStorage.getItem('drixel_resend_from_email') || 'info@customer.drixelsa.co.za';
