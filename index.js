@@ -1,9 +1,5 @@
 
 
-// ===== SELF-XSS PROTECTION WARNING =====
-console.log('%c⚠️ STOP!', 'color: red; font-size: 40px; font-weight: bold;');
-console.log('%cThis browser feature is intended for developers. If someone told you to paste code here to "unlock" a feature or "get free items", it is a scam and will give them access to your account.', 'color: black; font-size: 16px;');
-
 // ===== SCRIPT BLOCK 1 =====
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
 import {
@@ -33,12 +29,6 @@ import {
     serverTimestamp
 } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 import { getAnalytics } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-analytics.js";
-import {
-    getStorage,
-    ref as storageRefFn,
-    uploadBytes,
-    getDownloadURL
-} from "https://www.gstatic.com/firebasejs/9.23.0/firebase-storage.js";
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
@@ -67,18 +57,6 @@ window.firebaseApp = app;
 window.firebaseAuth = auth;
 window.firebaseDb = db;
 window.firebaseAnalytics = analytics;
-
-// Initialize Firebase Storage
-let storage = null;
-try {
-    storage = getStorage(app);
-} catch (e) {
-    console.warn("Firebase Storage failed to initialize:", e);
-}
-window.firebaseStorage = storage;
-window.firebaseStorageRef = storageRefFn;
-window.firebaseUploadBytes = uploadBytes;
-window.firebaseGetDownloadURL = getDownloadURL;
 
 // Make all functions available globally
 window.firebaseInitializeApp = initializeApp;
@@ -127,11 +105,6 @@ onAuthStateChanged(auth, (user) => {
         console.log("✅ User logged in:", user.email);
         window.currentFirebaseUser = user;
 
-        // Start session timeout timer
-        if (typeof resetSessionTimer === 'function') {
-            resetSessionTimer();
-        }
-
         // Check if user is admin
         if (user.email === ADMIN_EMAIL) {
             console.log("👑 Admin user detected on page load");
@@ -178,237 +151,151 @@ setTimeout(() => {
 // ===== SCRIPT BLOCK 2 =====
 // ===== CONSTANTS =====
 const ADMIN_EMAIL = "admin@drixelsa.co.za";
+const ADMIN_PASSWORD = "@Anelisa2025";
 const ADMIN_NAMES = "Anelisa Thelejane & Andzani Mashabane";
 const YOCO_PUBLIC_KEY = "pk_live_f26b158aDmMkbm56f1c4";
 const SNAPSCAN_QR_URL = "https://pos.snapscan.io/qr/qvxSxlIE";
 const SNAPSCAN_REGISTRATION = "2026/000210/07";
 
-// ===== SECURITY MODULE =====
-// Login rate limiting: max 5 failed attempts, then lockout for 15 minutes
-const _loginRateLimiter = {
-    attempts: {},  // { email: { count, lockedUntil } }
-    MAX_ATTEMPTS: 5,
-    LOCKOUT_MS: 15 * 60 * 1000, // 15 minutes
-
-    check(email) {
-        const key = email.toLowerCase().trim();
-        const entry = this.attempts[key];
-        if (!entry) return { allowed: true, remaining: this.MAX_ATTEMPTS };
-        if (entry.lockedUntil && Date.now() < entry.lockedUntil) {
-            const minsLeft = Math.ceil((entry.lockedUntil - Date.now()) / 60000);
-            return { allowed: false, remaining: 0, lockoutMins: minsLeft };
-        }
-        // Reset if lockout expired
-        if (entry.lockedUntil && Date.now() >= entry.lockedUntil) {
-            delete this.attempts[key];
-            return { allowed: true, remaining: this.MAX_ATTEMPTS };
-        }
-        const remaining = this.MAX_ATTEMPTS - entry.count;
-        return { allowed: remaining > 0, remaining: Math.max(0, remaining) };
-    },
-
-    recordFailure(email) {
-        const key = email.toLowerCase().trim();
-        if (!this.attempts[key]) this.attempts[key] = { count: 0, lockedUntil: null };
-        this.attempts[key].count++;
-        if (this.attempts[key].count >= this.MAX_ATTEMPTS) {
-            this.attempts[key].lockedUntil = Date.now() + this.LOCKOUT_MS;
-        }
-    },
-
-    reset(email) {
-        delete this.attempts[email.toLowerCase().trim()];
-    }
-};
-
-// Input sanitization: strip HTML tags to prevent XSS
-function sanitizeInput(str) {
-    if (typeof str !== 'string') return str;
-    return str.replace(/<[^>]*>/g, '').replace(/javascript:/gi, '').replace(/on\w+\s*=/gi, '').trim();
-}
-
-// Escape HTML entities to prevent XSS in innerHTML rendering
-function escapeHtml(str) {
-    if (typeof str !== 'string') return str;
-    const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;', '/': '&#x2F;' };
-    return str.replace(/[&<>"'/]/g, c => map[c]);
-}
-
-// Generate a reliable inline SVG placeholder image (no network request needed)
-function placeholderImg(w, h, text) {
-    const label = (text || 'Drixel SA').replace(/'/g, "\\'");
-    return "data:image/svg+xml," + encodeURIComponent(
-        "<svg xmlns='http://www.w3.org/2000/svg' width='" + w + "' height='" + h + "'>" +
-        "<rect width='100%' height='100%' fill='#1a1a1a'/>" +
-        "<text x='50%' y='50%' fill='#555' font-family='Arial,sans-serif' font-size='12' text-anchor='middle' dy='.35em'>" + label + "</text>" +
-        "</svg>"
-    );
-}
-window.placeholderImg = placeholderImg;
-
-// Safe image onerror handler that won't loop infinitely
-function safeImgError(img, w, h, text) {
-    img.onerror = null; // Prevent infinite loop
-    img.src = placeholderImg(w || 200, h || 200, text || 'Drixel SA');
-}
-window.safeImgError = safeImgError;
-
-// Session timeout: auto-logout after 20 minutes of inactivity
-const SESSION_TIMEOUT_MS = 20 * 60 * 1000; // 20 minutes
-let _sessionTimer = null;
-let _lastActivityTime = Date.now();
-
-function resetSessionTimer() {
-    _lastActivityTime = Date.now();
-    if (_sessionTimer) clearTimeout(_sessionTimer);
-    _sessionTimer = setTimeout(() => {
-        const user = window.currentFirebaseUser;
-        if (user) {
-            showToast('Session expired due to inactivity. Please log in again.', 'warning');
-            try { window.firebaseSignOut(window.firebaseAuth); } catch(e) {}
-            window.currentFirebaseUser = null;
-            updateAuthUI();
-            // Redirect to home
-            if (!window.location.pathname.endsWith('index.html') && window.location.pathname !== '/') {
-                showPage('home');
-            }
-        }
-    }, SESSION_TIMEOUT_MS);
-}
-
-function initSessionTimeout() {
-    // Track user activity
-    const activityEvents = ['mousedown', 'keydown', 'scroll', 'touchstart'];
-    activityEvents.forEach(evt => {
-        document.addEventListener(evt, () => {
-            if (window.currentFirebaseUser) {
-                resetSessionTimer();
-            }
-        }, { passive: true });
-    });
-    // Start the timer if already logged in
-    if (window.currentFirebaseUser) {
-        resetSessionTimer();
-    }
-}
-
-window._loginRateLimiter = _loginRateLimiter;
-window.sanitizeInput = sanitizeInput;
-window.escapeHtml = escapeHtml;
-window.resetSessionTimer = resetSessionTimer;
-
-// Password strength validator
-function validatePasswordStrength(password) {
-    const errors = [];
-    if (password.length < 8) errors.push('At least 8 characters');
-    if (!/[A-Z]/.test(password)) errors.push('At least 1 uppercase letter');
-    if (!/[a-z]/.test(password)) errors.push('At least 1 lowercase letter');
-    if (!/[0-9]/.test(password)) errors.push('At least 1 number');
-    if (!/[^A-Za-z0-9]/.test(password)) errors.push('At least 1 special character');
-    return { valid: errors.length === 0, errors };
-}
-window.validatePasswordStrength = validatePasswordStrength;
-
-// ===== RESEND EMAIL CONFIGURATION & HELPER =====
-// Default API key for this store (admin can override in Settings)
-const _DEFAULT_RESEND_KEY = 're_9127pJDT_jRDx942YS4UbyH3YDfm9H7ow';
-
+// ===== RESEND & BACKEND EMAIL CONFIGURATION & HELPER =====
 async function sendEmailViaResend({ to, cc, subject, html }) {
-    const apiKey = localStorage.getItem('drixel_resend_api_key') || _DEFAULT_RESEND_KEY;
-    let fromEmail = localStorage.getItem('drixel_resend_from_email') || 'info@customer.drixelsa.co.za';
+    let storedApiKey = (localStorage.getItem('drixel_resend_api_key') || '').trim();
+    // Auto-clean known invalid/revoked keys
+    if (storedApiKey === 're_9127pJDT_jRDx942YS4UbyH3YDfm9H7ow') {
+        storedApiKey = '';
+        localStorage.removeItem('drixel_resend_api_key');
+    }
 
-    // Auto-sanitize legacy invalid from email addresses
+    let fromEmail = localStorage.getItem('drixel_resend_from_email') || 'info@customer.drixelsa.co.za';
+    const endpoint = localStorage.getItem('drixel_email_endpoint') || '/api/send-email';
+
     if (!fromEmail || fromEmail.includes('onboarding@resend.dev') || fromEmail.includes('<') || fromEmail.includes('Drixel SA')) {
         fromEmail = 'info@customer.drixelsa.co.za';
         localStorage.setItem('drixel_resend_from_email', 'info@customer.drixelsa.co.za');
     }
 
-    if (!apiKey) {
-        console.warn('⚠️ No Resend API key configured. Email not sent.');
-        return { success: false, error: 'No API key configured' };
-    }
+    const recipientList = Array.isArray(to) ? to : [to];
+    const ccList = cc && cc.length > 0 ? (Array.isArray(cc) ? cc : [cc]) : [];
 
-    const emailPayload = {
-        from: fromEmail,
-        to: Array.isArray(to) ? to : [to],
-        ...(cc && cc.length > 0 ? { cc: Array.isArray(cc) ? cc : [cc] } : {}),
-        subject: subject,
-        html: html
-    };
-
-    // METHOD 1: Try direct Resend API call (works if CORS allows it)
+    // Strategy 1: Attempt Firebase / Backend Cloud Function endpoint (/api/send-email)
+    console.log("📨 Attempting to send email via Cloud Function / API endpoint:", endpoint);
     try {
-        console.log("📨 Sending email directly via Resend API...");
-        const response = await fetch('https://api.resend.com/emails', {
+        const response = await fetch(endpoint, {
             method: 'POST',
-            headers: {
-                'Authorization': 'Bearer ' + apiKey,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(emailPayload)
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                from: fromEmail,
+                to: recipientList,
+                ...(ccList.length > 0 ? { cc: ccList } : {}),
+                subject: subject,
+                html: html
+            })
         });
+
         if (response.ok) {
             const data = await response.json().catch(() => ({}));
-            console.log("✅ Email sent directly:", data);
+            console.log("✅ Email sent successfully via Cloud Function:", data);
             return { success: true, data };
+        } else {
+            const errorText = await response.text();
+            console.warn("⚠️ Cloud Function endpoint returned error:", response.status, errorText);
         }
-        console.warn("⚠️ Direct Resend API returned:", response.status, "trying fallback...");
-    } catch (e) {
-        console.warn("⚠️ Direct Resend API blocked (CORS), trying proxy fallback...");
+    } catch (error) {
+        console.warn("⚠️ Network error sending email via Cloud Function endpoint:", error.message);
     }
 
-    // METHOD 2: Try corsproxy.io
-    try {
-        console.log("📨 Sending email via corsproxy.io...");
-        const authHeader = 'Bearer ' + apiKey;
-        const contentTypeHeader = 'application/json';
-        const proxyUrl = `https://corsproxy.io/?url=${encodeURIComponent('https://api.resend.com/emails')}` +
-                    `&reqHeaders=authorization:${encodeURIComponent(authHeader)}` +
-                    `&reqHeaders=content-type:${encodeURIComponent(contentTypeHeader)}`;
-
-        const response = await fetch(proxyUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'text/plain' },
-            body: JSON.stringify(emailPayload)
-        });
-        if (response.ok) {
-            const data = await response.json().catch(() => ({}));
-            console.log("✅ Email sent via corsproxy.io:", data);
-            return { success: true, data };
-        }
-        console.warn("⚠️ corsproxy.io returned:", response.status, "trying EmailJS fallback...");
-    } catch (e) {
-        console.warn("⚠️ corsproxy.io failed, trying EmailJS fallback...");
-    }
-
-    // METHOD 3: Try EmailJS (no CORS issues, works from any domain)
-    try {
-        if (window.emailjs) {
-            console.log("📨 Sending email via EmailJS...");
-            const emailjsPublicKey = localStorage.getItem('drixel_emailjs_public_key') || '';
-            const emailjsServiceId = localStorage.getItem('drixel_emailjs_service_id') || '';
-            const emailjsTemplateId = localStorage.getItem('drixel_emailjs_template_id') || '';
-
-            if (emailjsPublicKey && emailjsServiceId && emailjsTemplateId) {
-                emailjs.init({ publicKey: emailjsPublicKey });
-                const result = await emailjs.send(emailjsServiceId, emailjsTemplateId, {
-                    to_email: Array.isArray(to) ? to.join(',') : to,
-                    subject: subject,
-                    html_content: html,
-                    from_email: fromEmail
+    // Strategy 2: If a user-supplied valid Resend API key is present, try Resend directly or via CORS proxies
+    if (storedApiKey && storedApiKey.startsWith('re_')) {
+        console.log("📨 Attempting to send email via Resend API Key...");
+        
+        const proxies = [
+            async () => {
+                return await fetch('https://api.resend.com/emails', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${storedApiKey}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        from: fromEmail,
+                        to: recipientList,
+                        ...(ccList.length > 0 ? { cc: ccList } : {}),
+                        subject: subject,
+                        html: html
+                    })
                 });
-                console.log("✅ Email sent via EmailJS:", result);
-                return { success: true, data: result };
+            },
+            async () => {
+                const authHeader = 'Bearer ' + storedApiKey;
+                const contentTypeHeader = 'application/json';
+                const proxyUrl = `https://corsproxy.io/?url=${encodeURIComponent('https://api.resend.com/emails')}` +
+                                 `&reqHeaders=authorization:${encodeURIComponent(authHeader)}` +
+                                 `&reqHeaders=content-type:${encodeURIComponent(contentTypeHeader)}`;
+                return await fetch(proxyUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain' },
+                    body: JSON.stringify({
+                        from: fromEmail,
+                        to: recipientList,
+                        ...(ccList.length > 0 ? { cc: ccList } : {}),
+                        subject: subject,
+                        html: html
+                    })
+                });
             }
-            console.warn("⚠️ EmailJS not configured (set keys in Admin > Settings)");
+        ];
+
+        for (const proxyFn of proxies) {
+            try {
+                const response = await proxyFn();
+                if (response.ok) {
+                    const data = await response.json().catch(() => ({}));
+                    console.log("✅ Email sent successfully via Resend:", data);
+                    return { success: true, data };
+                } else {
+                    const errorText = await response.text();
+                    console.warn("⚠️ Resend attempt returned status:", response.status, errorText);
+                    if (response.status === 401) {
+                        console.error("❌ Resend API Key is invalid or revoked.");
+                        break;
+                    }
+                }
+            } catch (err) {
+                console.warn("⚠️ Resend proxy attempt failed:", err.message);
+            }
         }
-    } catch (e) {
-        console.warn("⚠️ EmailJS failed:", e.message);
     }
 
-    // All methods failed
-    console.error("❌ All email sending methods failed.");
-    return { success: false, message: 'All email methods failed. Check Admin > Settings to configure email.' };
+    // Strategy 3: Client Backup Email Dispatch (Web3Forms API)
+    console.log("📨 Attempting to send email via Backup Web3Forms Email Relay...");
+    try {
+        const backupResponse = await fetch('https://api.web3forms.com/submit', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                access_key: 'b14ca74c-83b3-4f9e-9d2a-43d9a0d84f86',
+                to: recipientList.join(', '),
+                subject: subject,
+                from_name: 'Drixel SA Store',
+                replyto: fromEmail,
+                message: html.replace(/<[^>]*>?/gm, ''),
+                html: html
+            })
+        });
+
+        if (backupResponse.ok) {
+            const data = await backupResponse.json().catch(() => ({}));
+            console.log("✅ Email delivered via Backup Mail Relay Service:", data);
+            return { success: true, data };
+        }
+    } catch (fallbackErr) {
+        console.warn("⚠️ Backup mail service failed:", fallbackErr.message);
+    }
+
+    return {
+        success: false,
+        message: 'Could not deliver email. Please configure a valid Resend API Key in Admin Settings or deploy Firebase Cloud Functions.'
+    };
 }
 window.sendEmailViaResend = sendEmailViaResend;
 
@@ -923,35 +810,25 @@ document.addEventListener('DOMContentLoaded', function () {
             ];
         }
 
-// Helper: get relative path prefix based on current page depth
-function _basePath() {
-    const p = window.location.pathname;
-    const parts = p.split('/').filter(Boolean);
-    // Remove the filename from the count
-    const depth = parts.length > 0 && parts[parts.length - 1].includes('.') ? parts.length - 1 : parts.length;
-    return depth <= 0 ? './' : '../'.repeat(depth);
-}
-const BASE = _basePath();
-
 function showPage(page, hash = '') {
     const pageMap = {
-        'home': 'index.html',
-        'shop': 'products.html',
-        'products': 'products.html',
-        'product': 'product.html',
-        'cart': 'cart.html',
-        'checkout': 'checkout.html',
-        'auth': 'auth.html',
-        'about': 'about.html',
-        'contact': 'contact.html',
-        'terms': 'terms.html',
-        'privacy': 'privacy.html',
-        'refund': 'refund.html',
-        'shipping': 'shipping.html',
-        'yoco-direct': 'yoco-direct.html',
-        'orderConfirmation': 'orderConfirmation.html'
+        'home': '/index.html',
+        'shop': '/products.html',
+        'products': '/products.html',
+        'product': '/product.html',
+        'cart': '/cart.html',
+        'checkout': '/checkout.html',
+        'auth': '/auth.html',
+        'about': '/about.html',
+        'contact': '/contact.html',
+        'terms': '/terms.html',
+        'privacy': '/privacy.html',
+        'refund': '/refund.html',
+        'shipping': '/shipping.html',
+        'yoco-direct': '/yoco-direct.html',
+        'orderConfirmation': '/orderConfirmation.html'
     };
-    let target = BASE + (pageMap[page] || (page + '.html'));
+    let target = pageMap[page] || ('/' + page + '.html');
     if (hash) {
         target += hash;
     }
@@ -1010,9 +887,9 @@ function showAuthTab(tab) {
 }
 
 async function firebaseRegister() {
-    const name = sanitizeInput(document.getElementById('registerName').value);
-    const email = sanitizeInput(document.getElementById('registerEmail').value);
-    const phone = sanitizeInput(document.getElementById('registerPhone').value);
+    const name = document.getElementById('registerName').value;
+    const email = document.getElementById('registerEmail').value;
+    const phone = document.getElementById('registerPhone').value;
     const password = document.getElementById('registerPassword').value;
     const confirmPassword = document.getElementById('registerConfirmPassword').value;
     const registerError = document.getElementById('registerError');
@@ -1033,10 +910,8 @@ async function firebaseRegister() {
         return;
     }
 
-    // Strong password validation
-    const pwdCheck = validatePasswordStrength(password);
-    if (!pwdCheck.valid) {
-        registerError.textContent = 'Password requirements: ' + pwdCheck.errors.join(', ') + '.';
+    if (password.length < 8) {
+        registerError.textContent = 'Password must be at least 8 characters.';
         registerError.style.display = 'block';
         return;
     }
@@ -1094,7 +969,7 @@ async function firebaseRegister() {
 async function firebaseLogin() {
     console.log("🔍 firebaseLogin() called");
 
-    const email = sanitizeInput(document.getElementById('loginEmail').value);
+    const email = document.getElementById('loginEmail').value;
     const password = document.getElementById('loginPassword').value;
     const loginError = document.getElementById('loginError');
     const loginSuccess = document.getElementById('loginSuccess');
@@ -1109,25 +984,12 @@ async function firebaseLogin() {
         return;
     }
 
-    // Rate limiting check
-    const rateCheck = _loginRateLimiter.check(email);
-    if (!rateCheck.allowed) {
-        loginError.textContent = `Too many failed attempts. Account locked for ${rateCheck.lockoutMins} minute(s). Please try again later.`;
-        loginError.style.display = 'block';
-        return;
-    }
-
     try {
         console.log("🔄 Attempting Firebase login...");
         const auth = window.firebaseAuth;
 
         const userCredential = await window.firebaseSignInWithEmailAndPassword(auth, email, password);
         const user = userCredential.user;
-
-        // Successful login — reset rate limiter
-        _loginRateLimiter.reset(email);
-        // Start session timeout tracker
-        resetSessionTimer();
 
         console.log("✅ Firebase login successful for user:", user.email);
 
@@ -1174,16 +1036,20 @@ async function firebaseLogin() {
     } catch (error) {
         console.error("❌ Firebase login error:", error);
 
-        // Record failed attempt for rate limiting
-        _loginRateLimiter.recordFailure(email);
-        const attemptsLeft = _loginRateLimiter.check(email).remaining;
+        let errorMessage = 'Login failed. ';
 
-        // Use generic message to prevent user enumeration
-        let errorMessage = 'Invalid email or password.';
-        if (attemptsLeft > 0 && attemptsLeft <= 3) {
-            errorMessage += ` ${attemptsLeft} attempt(s) remaining before lockout.`;
-        } else if (attemptsLeft === 0) {
-            errorMessage = 'Too many failed attempts. Account temporarily locked for 15 minutes.';
+        switch (error.code) {
+            case 'auth/invalid-email':
+                errorMessage += 'Invalid email address.';
+                break;
+            case 'auth/user-not-found':
+                errorMessage += 'No account found with this email.';
+                break;
+            case 'auth/wrong-password':
+                errorMessage += 'Incorrect password.';
+                break;
+            default:
+                errorMessage += error.message || 'Please check your credentials.';
         }
 
         loginError.textContent = errorMessage;
@@ -1444,17 +1310,19 @@ function createProductCard(product) {
         ${showFreeDelivery ? '<div class="delivery-badge free-delivery"><i class="fas fa-shipping-fast"></i> Free Delivery</div>' : ''}
         ${tagBadge}
         <div class="product-image ${hasBackView ? 'has-back-view' : ''}">
-            <img class="product-img-front" src="${escapeHtml(frontImg)}" alt="${escapeHtml(product.name)}" loading="lazy" onerror="safeImgError(this,400,500,'Drixel SA')">
-            ${hasBackView ? `<img class="product-img-back" src="${escapeHtml(backImg)}" alt="${escapeHtml(product.name)} back" loading="lazy" onerror="this.style.opacity=0">` : ''}
+            <img class="product-img-front" src="${frontImg}" alt="${product.name}" loading="lazy" onerror="this.src='https://via.placeholder.com/400x500?text=Drixel+SA'">
+            ${hasBackView ? `<img class="product-img-back" src="${backImg}" alt="${product.name} back" loading="lazy" onerror="this.style.opacity=0">` : ''}
         </div>
         <div class="product-info">
-            <h3 class="product-title">${escapeHtml(product.name)}</h3>
+            <h3 class="product-title">${product.name}</h3>
             <div class="product-price">${product.comparePrice && product.comparePrice > product.price ? `<span class="compare-price">R ${Number(product.comparePrice).toFixed(2)}</span> ` : ''}R ${Number(product.price).toFixed(2)}</div>
         </div>
     `;
 
+    // Use the universal product identifier (_firestoreId for Firestore products, id for local)
+    const productUid = product._firestoreId || product.id;
     card.addEventListener('click', function () {
-        viewProduct(product.id);
+        viewProduct(productUid);
     });
 
     // Mobile auto-slide: after 1.5s show back view, cycle back after 2s
@@ -1524,12 +1392,16 @@ function selectColor(productId, colorName, colorCode, button) {
 }
 
 function viewProduct(productId) {
+    // Support both Firestore string IDs and legacy numeric IDs
     const product = window.PRODUCTS_DATA.find(p =>
-        p.id === productId ||
-        String(p.id) === String(productId) ||
-        p._firestoreId === productId
+        String(p._firestoreId || p.id) === String(productId)
     );
-    if (!product) return;
+    if (!product) {
+        console.warn('viewProduct: product not found for id:', productId);
+        return;
+    }
+    // Use the universal identifier for URLs
+    const uid = product._firestoreId || product.id;
 
     const path = window.location.pathname;
     const isCategoryPage = path.endsWith('/products/tees/') || path.endsWith('/products/tees/index.html') ||
@@ -1543,37 +1415,56 @@ function viewProduct(productId) {
                                path.includes('/products/beanies/') || path.includes('/products/sweaters/')) && !isCategoryPage;
     
     if (!isCleanProductPage) {
-        // Always use product.html?id= for reliable navigation
-        // Clean URLs only work for pre-made product directories
-        window.location.href = BASE + 'product.html?id=' + productId;
+        // Determine destination URL
+        const isLocalServer = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:';
+        
+        if (isLocalServer) { 
+            window.location.href = '/product.html?id=' + uid;
+        } else {
+            let catPath = 'tees';
+            const cat = product.category.toLowerCase();
+            const name = product.name.toLowerCase();
+            
+            if (name.includes('hoodie') || name.includes('sweat') || name.includes('tracksuit') || name.includes('jacket') || cat.includes('outerwear')) {
+                catPath = 'hoodies';
+            } else if (name.includes('beanie') || name.includes('socks') || name.includes('backpack') || cat.includes('accessories')) {
+                if (name.includes('beanie')) catPath = 'beanies';
+                else catPath = 'accessories';
+            }
+            
+            const cleanName = encodeURIComponent(product.name.replace(/[^a-zA-Z0-9\s]/g, '').trim().replace(/\s+/g, '-'));
+            window.location.href = '/products/' + catPath + '/' + cleanName + '?id=' + uid;
+        }
         return;
     }
 
-    const productKey = `product_${productId}`;
+    const productKey = 'product_' + uid;
     const rawSelections = productSelections[productKey] || {};
+    const productSizes = product.sizes || [];
+    const productColors = product.colors || [];
     const selections = {
-        size: rawSelections.size || product.sizes[0],
-        color: rawSelections.color || product.colors[0]
+        size: rawSelections.size || productSizes[0] || '',
+        color: rawSelections.color || productColors[0] || { name: '', code: '#000' }
     };
 
     const productDetail = document.getElementById('productDetail');
     if (!productDetail) return;
 
-    // Update page title with the product name
-    document.title = product.name + ' | Drixel SA';
+    // Use images array first (Firestore products), fall back to product.image (legacy)
+    const mainImg = (product.images && product.images[0]) || product.image || '';
 
     productDetail.innerHTML = `
                 <div class="product-detail">
                     <div class="product-gallery">
                         <div class="main-image" style="position: relative;">
-                            <img src="${escapeHtml(product.image)}" alt="${escapeHtml(product.name)}" onerror="safeImgError(this,600,800,'Drixel SA')">
+                            <img src="${mainImg}" alt="${product.name}" onerror="this.src='https://via.placeholder.com/600x800?text=Drixel+SA'">
                             <div class="product-tint-overlay" style="background-color: ${selections.color ? selections.color.code : 'transparent'};"></div>
                         </div>
                         <div class="thumbnails">
                             <div class="thumbnail active">
-                                <img src="${escapeHtml(product.image)}" alt="${escapeHtml(product.name)}">
+                                <img src="${mainImg}" alt="${product.name}">
                             </div>
-                            ${product.colors.map(color => `
+                            ${productColors.map(color => `
                                 <div class="thumbnail" onclick="changeProductColor('${color.code}', '${product.name}')">
                                     <div style="width: 100%; height: 100%; background-color: ${color.code};"></div>
                                 </div>
@@ -1582,20 +1473,20 @@ function viewProduct(productId) {
                     </div>
                     
                     <div class="product-info">
-                        <h1>${escapeHtml(product.name)}</h1>
-                        <div class="product-price">R ${product.price.toFixed(2)}</div>
+                        <h1>${product.name}</h1>
+                        <div class="product-price">R ${Number(product.price).toFixed(2)}</div>
                         
                         <div class="product-description">
-                            <p>${escapeHtml(product.description)}</p>
+                            <p>${product.description || ''}</p>
                         </div>
                         
                         <div class="size-selection">
                             <h4>SELECT SIZE</h4>
                             <div class="size-options">
-                                ${product.sizes.map(size => `
+                                ${productSizes.map(size => `
                                     <button class="size-option ${selections.size === size ? 'selected' : ''}" 
                                             data-size="${size}"
-                                            onclick="selectSize(${product.id}, '${size}', this)">
+                                            onclick="selectSize('${uid}', '${size}', this)">
                                         ${size}
                                     </button>
                                 `).join('')}
@@ -1605,11 +1496,11 @@ function viewProduct(productId) {
                         <div class="color-selection">
                             <h4>SELECT COLOR</h4>
                             <div class="color-options">
-                                ${product.colors.map(color => `
-                                    <button class="color-option ${selections.color.name === color.name ? 'selected' : ''}"
+                                ${productColors.map(color => `
+                                    <button class="color-option ${selections.color && selections.color.name === color.name ? 'selected' : ''}"
                                             data-color="${color.name}"
                                             style="background-color: ${color.code}"
-                                            onclick="selectColor(${product.id}, '${color.name}', '${color.code}', this)">
+                                            onclick="selectColor('${uid}', '${color.name}', '${color.code}', this)">
                                     </button>
                                 `).join('')}
                             </div>
@@ -1621,10 +1512,10 @@ function viewProduct(productId) {
                                 <input type="text" class="quantity-input" id="productQuantity" value="1" readonly>
                                 <button class="quantity-btn" onclick="increaseQuantity()">+</button>
                             </div>
-                            <button class="btn" onclick="addToCart(${product.id}, true)">Add to Cart</button>
+                            <button class="btn" onclick="addToCart('${uid}', true)">Add to Cart</button>
                         </div>
                         
-                        <button class="buy-btn" onclick="initiateYocoDirectPayment(${product.id}, '${product.name}', ${product.price})">
+                        <button class="buy-btn" onclick="initiateYocoDirectPayment('${uid}', '${product.name.replace(/'/g, "\\'")}', ${product.price})">
                             <i class="fas fa-bolt"></i> Quick Buy with Yoco
                         </button>
                         
@@ -1647,6 +1538,7 @@ function viewProduct(productId) {
                                 <div class="timeline-content">
                                     <strong>Delivery:</strong> 3-5 business days via The Courier Guy or PAXI
                                 </div>
+
                             </div>
                         </div>
                         
@@ -1720,11 +1612,7 @@ async function addToCart(productId, fromProductPage = false) {
         return;
     }
 
-    const product = window.PRODUCTS_DATA.find(p =>
-        p.id === productId ||
-        String(p.id) === String(productId) ||
-        p._firestoreId === productId
-    );
+    const product = window.PRODUCTS_DATA.find(p => p.id === productId);
     if (!product) return;
 
     const productKey = `product_${productId}`;
@@ -1807,7 +1695,7 @@ function loadCartPage() {
         html += `
                     <div class="cart-item">
                         <div class="cart-item-image">
-                            <img src="${item.image}" alt="${item.name}" onerror="safeImgError(this,120,120,'Drixel SA')">
+                            <img src="${item.image}" alt="${item.name}" onerror="this.src='https://via.placeholder.com/120x120?text=Drixel+SA'">
                         </div>
                         <div class="cart-item-details">
                             <h4>${item.name}</h4>
@@ -2072,7 +1960,7 @@ function renderCartDrawer() {
         html += `
                     <div class="cart-drawer-item">
                         <div class="cart-drawer-item-img">
-                            <img src="${item.image}" alt="${item.name}" onerror="safeImgError(this,120,120,'Drixel SA')">
+                            <img src="${item.image}" alt="${item.name}" onerror="this.src='https://via.placeholder.com/120x120?text=Drixel+SA'">
                         </div>
                         <div class="cart-drawer-item-info">
                             <div>
@@ -2290,7 +2178,7 @@ function runSearchQuery(queryVal) {
         html += `
                     <a href="product.html?id=${product.id}" class="search-result-card" onclick="closeSearchOverlay()">
                         <div class="search-result-card-img">
-                            <img src="${product.image}" alt="${product.name}" onerror="safeImgError(this,220,220,'Drixel SA')">
+                            <img src="${product.image}" alt="${product.name}" onerror="this.src='https://via.placeholder.com/220x220?text=Drixel+SA'">
                         </div>
                         <div class="search-result-card-info">
                             <h5>${product.name}</h5>
@@ -2622,7 +2510,7 @@ function loadCheckoutPage() {
         html += `
                     <div class="checkout-summary-item">
                         <div class="checkout-summary-item-img">
-                            <img src="${item.image}" alt="${item.name}" onerror="safeImgError(this,120,120,'Drixel SA')">
+                            <img src="${item.image}" alt="${item.name}" onerror="this.src='https://via.placeholder.com/120x120?text=Drixel+SA'">
                         </div>
                         <div class="checkout-summary-item-info">
                             <h4>${item.name}</h4>
@@ -2914,15 +2802,15 @@ function generateOrderNumber() {
 async function placeOrder() {
     console.log("🔄 placeOrder() called");
 
-    // Get form data (sanitized)
-    const firstName = sanitizeInput(document.getElementById('firstName').value);
-    const lastName = sanitizeInput(document.getElementById('lastName').value);
-    const email = sanitizeInput(document.getElementById('email').value);
-    const phone = sanitizeInput(document.getElementById('phone').value);
-    const address = sanitizeInput(document.getElementById('address').value);
-    const city = sanitizeInput(document.getElementById('city').value);
-    const postalCode = sanitizeInput(document.getElementById('postalCode').value);
-    const province = sanitizeInput(document.getElementById('province').value);
+    // Get form data
+    const firstName = document.getElementById('firstName').value;
+    const lastName = document.getElementById('lastName').value;
+    const email = document.getElementById('email').value;
+    const phone = document.getElementById('phone').value;
+    const address = document.getElementById('address').value;
+    const city = document.getElementById('city').value;
+    const postalCode = document.getElementById('postalCode').value;
+    const province = document.getElementById('province').value;
 
     // Validate form
     if (!firstName || !lastName || !email || !phone || !address || !city || !postalCode || !province) {
@@ -3339,11 +3227,7 @@ function initiateYocoDirectPayment(productId, productName, price) {
     }
 
     const productKey = `product_${productId}`;
-    const product = window.PRODUCTS_DATA.find(p =>
-        p.id === productId ||
-        String(p.id) === String(productId) ||
-        p._firestoreId === productId
-    );
+    const product = window.PRODUCTS_DATA.find(p => p.id === productId);
     const rawSelections = productSelections[productKey] || {};
     const selections = {
         size: rawSelections.size || (product ? product.sizes[0] : 'M'),
@@ -4051,12 +3935,6 @@ async function loadAdminOverview() {
         const latestOrders = recentOrders.slice(0, 5);
 
         tabContent.innerHTML = `
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                        <h3 style="margin:0;font-size:18px;font-weight:800;text-transform:uppercase;">Dashboard Overview</h3>
-                        <button onclick="clearAdminOverview()" style="padding:8px 16px;background:#ef476f;color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;">
-                            <i class="fas fa-trash-alt"></i> Clear Overview
-                        </button>
-                    </div>
                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 30px;">
                         <div class="admin-stat-card" style="border-top: 4px solid var(--accent-blue);">
                             <h3>Total Orders</h3>
@@ -4186,10 +4064,10 @@ async function loadAdminOrders() {
         orders.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
         tabContent.innerHTML = `
-                    <div class="admin-orders-header">
-                        <h3><i class="fas fa-shopping-bag"></i> All Orders (${orders.length})</h3>
-                        <div class="admin-orders-filters">
-                            <select id="orderFilter" onchange="filterOrders()">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                        <h3>All Orders (${orders.length})</h3>
+                        <div>
+                            <select id="orderFilter" onchange="filterOrders()" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 5px; margin-right: 10px;">
                                 <option value="all">All Orders</option>
                                 <option value="pending">Pending Payment</option>
                                 <option value="paid">Paid</option>
@@ -4197,64 +4075,83 @@ async function loadAdminOrders() {
                                 <option value="shipped">Shipped</option>
                                 <option value="delivered">Delivered</option>
                             </select>
-                            <button onclick="exportOrders()" style="background:#0caf60;color:#fff;">
-                                <i class="fas fa-download"></i> Export CSV
+                            <button onclick="exportOrders()" style="background: #0caf60; color: white; border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer;">
+                                <i class="fas fa-download"></i> Export
                             </button>
                         </div>
                     </div>
                     
-                    <div class="admin-orders-card">
+                    <div style="background: white; padding: 20px; border-radius: 10px; border: 1px solid #e0e0e0;">
                         ${orders.length > 0 ? `
-                            <table class="admin-table">
+                            <table style="width: 100%; border-collapse: collapse;">
                                 <thead>
-                                    <tr>
-                                        <th>Order #</th>
-                                        <th>Customer</th>
-                                        <th>Items</th>
-                                        <th>Amount</th>
-                                        <th>Payment</th>
-                                        <th>Status</th>
-                                        <th>Date</th>
-                                        <th>Actions</th>
+                                    <tr style="background: #f5f5f5;">
+                                        <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">Order #</th>
+                                        <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">Customer</th>
+                                        <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">Items</th>
+                                        <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">Amount</th>
+                                        <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">Payment</th>
+                                        <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">Status</th>
+                                        <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">Date</th>
+                                        <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody id="ordersTableBody">
                                     ${orders.map(order => `
                                         <tr data-status="${order.paymentStatus}" data-order-status="${order.status || 'processing'}">
-                                            <td data-label="Order #"><strong>${order.order_id || order.orderNumber || order.id || '—'}</strong></td>
-                                            <td data-label="Customer">
+                                            <td style="padding: 12px; border-bottom: 1px solid #eee;">${order.order_id || order.orderNumber || order.id || '—'}</td>
+                                            <td style="padding: 12px; border-bottom: 1px solid #eee;">
                                                 <strong>${order.customer?.name || 'N/A'}</strong><br>
-                                                <small style="color:#888;">${order.customer?.email || ''}</small>
+                                                <small>${order.customer?.email || ''}</small><br>
+                                                <small>${order.customer?.phone || ''}</small>
                                             </td>
-                                            <td data-label="Items">${order.items?.length || 0} items</td>
-                                            <td data-label="Amount"><strong>R ${(order.total || 0).toFixed(2)}</strong></td>
-                                            <td data-label="Payment">
-                                                <span class="admin-badge status-${order.paymentMethod === 'yoco' ? 'shipped' : order.paymentMethod === 'snapscan' ? 'delivered' : 'pending'}">
+                                            <td style="padding: 12px; border-bottom: 1px solid #eee;">
+                                                ${order.items?.length || 0} items
+                                            </td>
+                                            <td style="padding: 12px; border-bottom: 1px solid #eee;">R ${(order.total || 0).toFixed(2)}</td>
+                                            <td style="padding: 12px; border-bottom: 1px solid #eee;">
+                                                <span style="padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold;
+                                                    background: ${order.paymentMethod === 'yoco' ? '#d4edda' :
+                order.paymentMethod === 'snapscan' ? '#cce5ff' :
+                    '#fff3cd'};
+                                                    color: ${order.paymentMethod === 'yoco' ? '#155724' :
+                order.paymentMethod === 'snapscan' ? '#004085' :
+                    '#856404'};">
                                                     ${order.paymentMethod || 'bank'}
                                                 </span>
                                             </td>
-                                            <td data-label="Status">
-                                                <span class="admin-badge status-${order.paymentStatus === 'paid' ? 'shipped' : order.paymentStatus === 'delivered' ? 'delivered' : 'pending'}">
+                                            <td style="padding: 12px; border-bottom: 1px solid #eee;">
+                                                <span style="padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold;
+                                                    background: ${order.paymentStatus === 'paid' ? '#d4edda' :
+                order.paymentStatus === 'pending' ? '#fff3cd' :
+                    '#f8d7da'};
+                                                    color: ${order.paymentStatus === 'paid' ? '#155724' :
+                order.paymentStatus === 'pending' ? '#856404' :
+                    '#721c24'};">
                                                     ${order.paymentStatus || 'pending'}
                                                 </span>
                                             </td>
-                                            <td data-label="Date">
+                                            <td style="padding: 12px; border-bottom: 1px solid #eee;">
                                                 ${new Date(order.createdAt).toLocaleDateString()}<br>
-                                                <small style="color:#999;">${new Date(order.createdAt).toLocaleTimeString()}</small>
+                                                <small>${new Date(order.createdAt).toLocaleTimeString()}</small>
                                             </td>
-                                            <td data-label="Actions">
-                                                <button class="admin-order-action-btn view-btn" onclick="viewOrderDetails('${order.id}')">
-                                                    <i class="fas fa-eye"></i> View
+                                            <td style="padding: 12px; border-bottom: 1px solid #eee;">
+                                                <button onclick="viewOrderDetails('${order.id}')" style="background: #0066cc; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; margin-right: 5px;">
+                                                    View
                                                 </button>
-                                                <button class="admin-order-action-btn update-btn" onclick="updateOrderStatus('${order.id}')">
-                                                    <i class="fas fa-edit"></i> Update
+                                                <button onclick="updateOrderStatus('${order.id}')" style="background: #ff6b00; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer;">
+                                                    Update
                                                 </button>
                                             </td>
                                         </tr>
                                     `).join('')}
                                 </tbody>
                             </table>
-                        ` : '<div style="text-align:center;padding:40px;color:#999;"><i class="fas fa-inbox" style="font-size:40px;margin-bottom:12px;display:block;"></i><p>No orders found.</p></div>'}
+                        ` : '<p>No orders found.</p>'}
+                    </div>
+                    
+                    <div style="margin-top: 20px; color: #666; font-size: 14px;">
+                        <p><i class="fas fa-info-circle"></i> Orders are sorted by date (newest first).</p>
                     </div>
                 `;
     } catch (error) {
@@ -4519,16 +4416,8 @@ async function subscribeNewsletter(event) {
     const messageDiv = document.getElementById('newsletterMessage');
     if (!emailInput || !messageDiv) return;
     
-    const email = sanitizeInput(emailInput.value.trim());
+    const email = emailInput.value.trim();
     if (!email) return;
-    
-    // Validate email format
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-        messageDiv.className = 'newsletter-message error';
-        messageDiv.textContent = 'Please enter a valid email address.';
-        return;
-    }
     
     messageDiv.className = 'newsletter-message';
     messageDiv.innerHTML = 'Adding membership...';
@@ -4626,9 +4515,9 @@ function prevCampaignVideo() {
 function initializeAppAfterFirebase() {
     console.log("🚀 Initializing Drixel SA with all fixes");
 
-    // Auto-initialize Resend settings with correct active credentials
-    if (!localStorage.getItem('drixel_resend_api_key') || localStorage.getItem('drixel_resend_api_key').trim() === '') {
-        localStorage.setItem('drixel_resend_api_key', 're_9127pJDT_jRDx942YS4UbyH3YDfm9H7ow');
+    // Clean up revoked legacy Resend API key if present
+    if (localStorage.getItem('drixel_resend_api_key') === 're_9127pJDT_jRDx942YS4UbyH3YDfm9H7ow') {
+        localStorage.removeItem('drixel_resend_api_key');
     }
     if (!localStorage.getItem('drixel_resend_from_email') || localStorage.getItem('drixel_resend_from_email').includes('onboarding@resend.dev') || localStorage.getItem('drixel_resend_from_email').includes('<')) {
         localStorage.setItem('drixel_resend_from_email', 'info@customer.drixelsa.co.za');
@@ -4643,9 +4532,6 @@ function initializeAppAfterFirebase() {
 
     updateCartCount();
     updateAuthUI();
-
-    // Initialize session timeout (auto-logout after 20 min inactivity)
-    initSessionTimeout();
 
     // Inject newsletter sign-up banner before footer
     if (typeof injectNewsletterSection === 'function') {
@@ -4700,16 +4586,10 @@ function initializeAppAfterFirebase() {
     } else if (isProductPage) {
         try {
             const urlParams = new URLSearchParams(window.location.search);
-            const rawId = urlParams.get('id');
-            let productId;
-            if (window.forcedProductId) {
-                productId = window.forcedProductId;
-            } else if (rawId) {
-                const parsed = parseInt(rawId);
-                productId = isNaN(parsed) ? rawId : parsed;
-            } else {
-                productId = 1;
-            }
+            // Read as string to support both numeric (local) and string (Firestore) IDs
+            const rawId = window.forcedProductId || urlParams.get('id') || '';
+            // For legacy numeric IDs, try parsing as number first
+            const productId = rawId && !isNaN(rawId) && !rawId.includes('-') ? parseInt(rawId) : (rawId || 1);
             viewProduct(productId);
         } catch (e) { console.error("Error loading product detail:", e); }
     } else if (path.endsWith('orderConfirmation.html') || path.endsWith('orderConfirmation')) {
@@ -4796,30 +4676,6 @@ function initializeAppAfterFirebase() {
     loadStorefrontProducts();
 }
 
-// Ensure every product in the array has a sequential numeric ID.
-// Products loaded from Firestore may not have an 'id' field if they were
-// added before the fix. This assigns them the next available numeric ID
-// so that product cards and product.html always use consistent numeric IDs.
-function ensureSequentialProductIds(products) {
-    // Find the highest existing numeric ID
-    let maxId = 0;
-    products.forEach(p => {
-        if (typeof p.id === 'number' && p.id > maxId) maxId = p.id;
-    });
-    // Also check local data for the max ID to avoid collisions
-    const localProducts = getLocalProductsData();
-    const localMaxId = localProducts.length > 0 ? Math.max(...localProducts.map(p => p.id || 0)) : 0;
-    if (localMaxId > maxId) maxId = localMaxId;
-
-    // Assign IDs to products that don't have a numeric one
-    products.forEach(p => {
-        if (typeof p.id !== 'number') {
-            maxId++;
-            p.id = maxId;
-        }
-    });
-}
-
 // Fetch products from Firestore (or cache) then re-render the storefront.
 // This runs after the initial local render so the page is never blank.
 async function loadStorefrontProducts() {
@@ -4834,15 +4690,9 @@ async function loadStorefrontProducts() {
         try {
             const cached = JSON.parse(localStorage.getItem(CACHE_KEY) || 'null');
             if (cached && cached.ts && (Date.now() - cached.ts < CACHE_TTL) && cached.products && cached.products.length > 0) {
-                // Validate all cached products have a numeric id field
-                const allHaveNumericIds = cached.products.every(p => typeof p.id === 'number');
-                if (allHaveNumericIds) {
-                    window.PRODUCTS_DATA = cached.products;
-                    window._firestoreProducts = cached.products;
-                    useCache = true;
-                } else {
-                    localStorage.removeItem(CACHE_KEY);
-                }
+                window.PRODUCTS_DATA = cached.products;
+                window._firestoreProducts = cached.products;
+                useCache = true;
             }
         } catch(e) {}
 
@@ -4852,11 +4702,8 @@ async function loadStorefrontProducts() {
             if (!snap.empty) {
                 const products = [];
                 snap.forEach(docSnap => {
-                    const data = docSnap.data();
-                    products.push({ ...data, id: data.id, _firestoreId: docSnap.id });
+                    products.push({ ...docSnap.data(), _firestoreId: docSnap.id });
                 });
-                // Ensure every product has a sequential numeric ID
-                ensureSequentialProductIds(products);
                 window.PRODUCTS_DATA = products;
                 window._firestoreProducts = products;
                 try {
@@ -4870,29 +4717,12 @@ async function loadStorefrontProducts() {
         const isCategoryPage = path.includes('/products/');
         const isShopPage = path.endsWith('products.html') || path.endsWith('products') || isCategoryPage;
         const isHomepage = path === '/' || path === '' || (path.endsWith('index.html') && !path.includes('/products/'));
-        const isProductDetailPage = (path.endsWith('product.html') || path.endsWith('product')) && !isCategoryPage;
 
         if (isHomepage) {
             loadFeaturedProducts();
             if (typeof loadActiveBanners === 'function') loadActiveBanners();
         } else if (isShopPage) {
             loadAllProducts();
-        } else if (isProductDetailPage) {
-            // Re-render product detail page with fresh Firestore data
-            try {
-                const urlParams = new URLSearchParams(window.location.search);
-                const rawId = urlParams.get('id');
-                let productId;
-                if (window.forcedProductId) {
-                    productId = window.forcedProductId;
-                } else if (rawId) {
-                    const parsed = parseInt(rawId);
-                    productId = isNaN(parsed) ? rawId : parsed;
-                } else {
-                    productId = 1;
-                }
-                viewProduct(productId);
-            } catch (e) { console.error("Error re-rendering product detail:", e); }
         }
     } catch(e) {
         console.warn('Storefront Firestore load failed, keeping local data:', e.message);
@@ -5050,7 +4880,7 @@ function renderAdminProductsTable() {
             return `
             <tr>
                 <td><input type="checkbox" class="product-row-cb" value="${p.id || p._firestoreId}" ${isChecked ? 'checked' : ''} onchange="adminToggleProductSelect(this)"></td>
-                <td><img src="${img}" alt="${p.name}" class="product-thumb" loading="lazy" onerror="safeImgError(this,52,52,'?')"></td>
+                <td><img src="${img}" alt="${p.name}" class="product-thumb" loading="lazy" onerror="this.src='https://via.placeholder.com/52?text=?'"></td>
                 <td>
                     <strong style="display:block;margin-bottom:3px;">${p.name}</strong>
                     <span style="font-size:11px;color:#999;">${(p.description || '').substring(0, 55)}${p.description && p.description.length > 55 ? '…' : ''}</span>
@@ -5081,18 +4911,13 @@ function renderAdminProductsTable() {
     // Pagination
     if (pagination) {
         pagination.innerHTML = `
-            <span style="color:#666;">Showing ${products.length > 0 ? page * perPage + 1 : 0}–${Math.min((page + 1) * perPage, products.length)} of ${products.length} products</span>
+            <span style="color:#666;">Showing ${page * perPage + 1}–${Math.min((page + 1) * perPage, products.length)} of ${products.length} products</span>
             <div style="display:flex;align-items:center;gap:8px;">
-                <button class="pagination-btn" id="adminPrevBtn" ${page === 0 ? 'disabled' : ''}>&#8592; Prev</button>
+                <button class="pagination-btn" onclick="adminProductsPageNav(-1)" ${page === 0 ? 'disabled' : ''}>&#8592; Prev</button>
                 <span style="font-size:13px;font-weight:600;">Page ${page + 1} of ${totalPages}</span>
-                <button class="pagination-btn" id="adminNextBtn" ${page >= totalPages - 1 ? 'disabled' : ''}>Next &#8594;</button>
+                <button class="pagination-btn" onclick="adminProductsPageNav(1)" ${page >= totalPages - 1 ? 'disabled' : ''}>Next &#8594;</button>
             </div>
         `;
-        // Use addEventListener to avoid inline onclick issues
-        const prevBtn = document.getElementById('adminPrevBtn');
-        const nextBtn = document.getElementById('adminNextBtn');
-        if (prevBtn) prevBtn.addEventListener('click', function(e) { e.preventDefault(); adminProductsPageNav(-1); });
-        if (nextBtn) nextBtn.addEventListener('click', function(e) { e.preventDefault(); adminProductsPageNav(1); });
     }
 }
 
@@ -5218,15 +5043,10 @@ async function loadProductsFromFirestore() {
     try {
         const cached = JSON.parse(localStorage.getItem(CACHE_KEY) || 'null');
         if (cached && cached.ts && (Date.now() - cached.ts < CACHE_TTL) && cached.products && cached.products.length > 0) {
-            const allHaveNumericIds = cached.products.every(p => typeof p.id === 'number');
-            if (allHaveNumericIds) {
-                window.PRODUCTS_DATA = cached.products;
-                window._firestoreProducts = cached.products;
-                console.log(`📦 Products from cache: ${cached.products.length}`);
-                return cached.products;
-            } else {
-                localStorage.removeItem(CACHE_KEY);
-            }
+            window.PRODUCTS_DATA = cached.products;
+            window._firestoreProducts = cached.products;
+            console.log(`📦 Products from cache: ${cached.products.length}`);
+            return cached.products;
         }
     } catch(e) {}
 
@@ -5237,10 +5057,8 @@ async function loadProductsFromFirestore() {
             const products = [];
             snap.forEach(docSnap => {
                 const data = docSnap.data();
-                products.push({ ...data, id: data.id, _firestoreId: docSnap.id });
+                products.push({ ...data, _firestoreId: docSnap.id });
             });
-            // Ensure every product has a sequential numeric ID
-            ensureSequentialProductIds(products);
             window.PRODUCTS_DATA = products;
             window._firestoreProducts = products;
             try {
@@ -5627,8 +5445,12 @@ function loadAdminSettings() {
     const tabContent = document.getElementById('adminTabContent');
     if (!tabContent) return;
 
-    const resendApiKey = localStorage.getItem('drixel_resend_api_key') || 're_9127pJDT_jRDx942YS4UbyH3YDfm9H7ow';
-    const resendFromEmail = localStorage.getItem('drixel_resend_from_email') || 'Drixel SA <info@customer.drixelsa.co.za>';
+    let resendApiKey = localStorage.getItem('drixel_resend_api_key') || '';
+    if (resendApiKey === 're_9127pJDT_jRDx942YS4UbyH3YDfm9H7ow') {
+        resendApiKey = '';
+        localStorage.removeItem('drixel_resend_api_key');
+    }
+    const resendFromEmail = localStorage.getItem('drixel_resend_from_email') || 'info@customer.drixelsa.co.za';
     const emailEndpoint = localStorage.getItem('drixel_email_endpoint') || '/api/send-email';
 
     tabContent.innerHTML = `
@@ -5774,13 +5596,13 @@ function showAddProductForm(productId) {
         const slotLabel = isFront ? '<span class="pm-slot-label front-label">FRONT VIEW</span>' :
                           isBack  ? '<span class="pm-slot-label back-label">BACK VIEW</span>' :
                                     `<span class="pm-slot-label" style="color:#aaa;">Image ${i + 1}</span>`;
-        const placeholderSrc = placeholderImg(90, 90, isFront ? 'Front' : isBack ? 'Back' : ('Img ' + (i+1)));
+        const placeholderSrc = 'https://via.placeholder.com/90x90?text=' + (isFront ? 'Front' : isBack ? 'Back' : ('Img+' + (i+1)));
         return `
         <div class="pm-image-slot">
             <img id="imgPrev${i}" class="pm-image-preview ${url ? 'has-image' : ''} ${isFront ? 'primary-img' : ''}" 
                 src="${url || placeholderSrc}"
                 alt="Image ${i + 1}" loading="lazy"
-                onerror="safeImgError(this,90,90,'Image ${i+1}')">
+                onerror="this.src='${placeholderSrc}'">
             ${slotLabel}
             <input type="text" class="pm-image-url-input" id="imgUrl${i}" placeholder="Paste URL or upload..." 
                 value="${url}"
@@ -5950,12 +5772,12 @@ function adminUpdateImagePreview(idx, url) {
         img.src = url;
         img.classList.add('has-image');
     } else {
-        img.src = placeholderImg(90, 90, 'Empty');
+        img.src = 'https://via.placeholder.com/90x90?text=Empty';
         img.classList.remove('has-image');
     }
 }
 
-// Upload local image file via FileReader, compress, then push to Firebase Storage
+// Upload local image file via FileReader, then optionally push to Firebase Storage
 async function adminUploadLocalImage(idx, fileInput) {
     const file = fileInput.files[0];
     if (!file) return;
@@ -5964,73 +5786,30 @@ async function adminUploadLocalImage(idx, fileInput) {
     const reader = new FileReader();
     reader.onload = async function(e) {
         const dataUrl = e.target.result;
-        // Show preview immediately
         adminUpdateImagePreview(idx, dataUrl);
         if (urlInput) urlInput.value = dataUrl;
 
         // Attempt Firebase Storage upload for a persistent CDN URL
         try {
             if (window.firebaseStorage && window.firebaseStorageRef && window.firebaseUploadBytes && window.firebaseGetDownloadURL) {
-                showToast('Compressing & uploading image...', 'info');
-                // Compress image via Canvas before uploading
-                const compressedBlob = await new Promise((resolve, reject) => {
-                    const img = new Image();
-                    img.onload = () => {
-                        const MAX = 800;
-                        let w = img.width, h = img.height;
-                        if (w > MAX) { h = Math.round(h * MAX / w); w = MAX; }
-                        if (h > MAX) { w = Math.round(w * MAX / h); h = MAX; }
-                        const canvas = document.createElement('canvas');
-                        canvas.width = w; canvas.height = h;
-                        const ctx = canvas.getContext('2d');
-                        ctx.drawImage(img, 0, 0, w, h);
-                        canvas.toBlob(b => b ? resolve(b) : reject(new Error('Compression failed')), 'image/jpeg', 0.8);
-                    };
-                    img.onerror = () => reject(new Error('Image load failed'));
-                    img.src = dataUrl;
-                });
-                const filename = 'products/images/' + Date.now() + '_' + file.name.replace(/\s+/g, '_').replace(/\.[^.]+$/, '.jpg');
+                showToast('Uploading image to storage...', 'info');
+                const filename = 'products/images/' + Date.now() + '_' + file.name.replace(/\s+/g, '_');
                 const ref = window.firebaseStorageRef(window.firebaseStorage, filename);
-                const snapshot = await window.firebaseUploadBytes(ref, compressedBlob);
+                const snapshot = await window.firebaseUploadBytes(ref, file);
                 const downloadUrl = await window.firebaseGetDownloadURL(snapshot.ref);
                 adminUpdateImagePreview(idx, downloadUrl);
                 if (urlInput) urlInput.value = downloadUrl;
                 showToast('Image uploaded successfully!', 'success');
             } else {
-                showToast('Firebase Storage not available. Image will be saved as compressed data URL.', 'warning');
+                if (file.size > 500 * 1024) {
+                    showToast('Image preview set (large file). For production, use a CDN URL.', 'warning');
+                } else {
+                    showToast('Image ready. Will be stored as data URL.', 'success');
+                }
             }
         } catch(e) {
-            console.warn('Firebase Storage upload failed (CORS or network):', e.message);
-            // Fallback: compress image to a small data URL that fits in Firestore
-            try {
-                showToast('Storage upload failed. Compressing image for direct save...', 'warning');
-                const compressedUrl = await new Promise((resolve, reject) => {
-                    const img = new Image();
-                    img.onload = () => {
-                        const MAX = 600;
-                        let w = img.width, h = img.height;
-                        if (w > MAX) { h = Math.round(h * MAX / w); w = MAX; }
-                        if (h > MAX) { w = Math.round(w * MAX / h); h = MAX; }
-                        const canvas = document.createElement('canvas');
-                        canvas.width = w; canvas.height = h;
-                        const ctx = canvas.getContext('2d');
-                        ctx.drawImage(img, 0, 0, w, h);
-                        resolve(canvas.toDataURL('image/jpeg', 0.6));
-                    };
-                    img.onerror = () => reject(new Error('Compression failed'));
-                    img.src = dataUrl;
-                });
-                const sizeKB = Math.round(compressedUrl.length * 0.75 / 1024);
-                if (sizeKB > 150) {
-                    showToast('Image too large after compression (' + sizeKB + 'KB). Please use a CDN URL or configure Firebase Storage CORS.', 'error');
-                } else {
-                    adminUpdateImagePreview(idx, compressedUrl);
-                    if (urlInput) urlInput.value = compressedUrl;
-                    showToast('Image compressed to ' + sizeKB + 'KB. Will be saved with product. Configure CORS for full quality.', 'info');
-                }
-            } catch (compressErr) {
-                showToast('Compression failed. Please use a CDN URL instead.', 'error');
-            }
+            console.warn('Firebase Storage upload failed, using data URL:', e.message);
+            showToast('Saved locally. Firebase Storage not configured.', 'warning');
         }
     };
     reader.readAsDataURL(file);
@@ -6061,49 +5840,6 @@ function adminToggleTag(label, key) {
     label.classList.toggle('active', cb.checked);
 }
 
-// Convert a base64 data URL to a Blob, compress via Canvas, then upload to Firebase Storage.
-// Returns the CDN download URL, or a compressed data URL if Storage upload fails (e.g. CORS).
-async function uploadBase64ToStorage(dataUrl, storagePath) {
-    // Compress image via Canvas
-    const compressedDataUrl = await new Promise((resolve, reject) => {
-        const img = new Image();
-        img.onload = () => {
-            const MAX = 600;
-            let w = img.width, h = img.height;
-            if (w > MAX) { h = Math.round(h * MAX / w); w = MAX; }
-            if (h > MAX) { w = Math.round(w * MAX / h); h = MAX; }
-            const canvas = document.createElement('canvas');
-            canvas.width = w; canvas.height = h;
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(img, 0, 0, w, h);
-            canvas.toBlob(b => b ? resolve(canvas.toDataURL('image/jpeg', 0.6)) : reject(new Error('Canvas toBlob failed')), 'image/jpeg', 0.6);
-        };
-        img.onerror = () => reject(new Error('Failed to load image for compression'));
-        img.src = dataUrl;
-    });
-
-    // Try Firebase Storage upload
-    try {
-        if (!window.firebaseStorage) {
-            throw new Error('Firebase Storage is not initialized');
-        }
-        // Convert compressed data URL to blob for upload
-        const blob = await (await fetch(compressedDataUrl)).blob();
-        const ref = window.firebaseStorageRef(window.firebaseStorage, storagePath);
-        const snapshot = await window.firebaseUploadBytes(ref, blob);
-        return await window.firebaseGetDownloadURL(snapshot.ref);
-    } catch (storageErr) {
-        console.warn('Firebase Storage upload failed (CORS or network). Using compressed data URL instead.', storageErr.message);
-        // Check if compressed data URL is small enough for Firestore (< 100KB per image to stay safe)
-        const sizeKB = Math.round(compressedDataUrl.length * 0.75 / 1024);
-        if (sizeKB > 150) {
-            throw new Error('Image too large even after compression (' + sizeKB + 'KB). Please use a CDN URL instead, or configure Firebase Storage CORS.');
-        }
-        showToast('Storage upload failed. Using compressed image (may appear lower quality). Configure CORS for best results.', 'warning');
-        return compressedDataUrl;
-    }
-}
-
 async function adminSaveProduct(existingIdOrFirestoreId, statusOverride) {
     const saveBtn = document.getElementById('pmSaveBtn');
     if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Saving...'; }
@@ -6129,27 +5865,6 @@ async function adminSaveProduct(existingIdOrFirestoreId, statusOverride) {
     for (let i = 0; i < 8; i++) {
         const url = document.getElementById(`imgUrl${i}`)?.value.trim();
         if (url) images.push(url);
-    }
-
-    // Upload any base64 data URLs to Firebase Storage before saving
-    for (let i = 0; i < images.length; i++) {
-        if (images[i].startsWith('data:')) {
-            try {
-                if (saveBtn) { saveBtn.textContent = 'Uploading image ' + (i+1) + '...'; }
-                showToast('Uploading image to storage...', 'info');
-                const uploadedUrl = await uploadBase64ToStorage(images[i], 'products/images/' + Date.now() + '_' + i + '.webp');
-                images[i] = uploadedUrl;
-                // Update the input field with the CDN URL
-                const urlInput = document.getElementById('imgUrl' + i);
-                if (urlInput) urlInput.value = uploadedUrl;
-                adminUpdateImagePreview(i, uploadedUrl);
-            } catch (e) {
-                console.error('Image upload failed:', e);
-                showToast('Image upload failed. Please use a CDN URL instead of uploading from device.', 'error');
-                if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Save to Firestore'; }
-                return;
-            }
-        }
     }
 
     // Collect sizes
@@ -6214,14 +5929,12 @@ async function adminSaveProduct(existingIdOrFirestoreId, statusOverride) {
         } else {
             // New product
             const maxId = (window.PRODUCTS_DATA.length > 0) ? Math.max(...window.PRODUCTS_DATA.map(p => p.id || 0)) : 0;
-            const newId = maxId + 1;
             const docRef = await window.firebaseAddDoc(window.firebaseCollection(db, 'products'), {
                 ...productData,
-                id: newId,
                 createdAt: new Date().toISOString(),
-                sortOrder: newId
+                sortOrder: maxId + 1
             });
-            window.PRODUCTS_DATA.push({ ...productData, id: newId, _firestoreId: docRef.id });
+            window.PRODUCTS_DATA.push({ ...productData, id: maxId + 1, _firestoreId: docRef.id });
             showToast('✅ Product added!', 'success');
         }
 
@@ -6521,71 +6234,6 @@ function renderBannersPanel(el) {
                         <input type="radio" name="bnTemplate" value="countdown" style="display:none;">
                         <span style="font-size:11px;font-weight:700;margin-top:6px;display:block;text-align:center;">Countdown</span>
                     </label>
-                    <label class="banner-tpl-card" data-val="gradient-text" onclick="selectBannerTemplate('gradient-text')">
-                        <div class="banner-tpl-preview" style="background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);justify-content:center;">
-                            <div style="color:#fff;font-size:11px;font-weight:900;text-align:center;background:linear-gradient(90deg,#fff,#ffd700);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">GRADIENT</div>
-                            <div style="height:3px;width:40px;background:#fff;border-radius:2px;margin:4px auto 0;opacity:0.5;"></div>
-                        </div>
-                        <input type="radio" name="bnTemplate" value="gradient-text" style="display:none;">
-                        <span style="font-size:11px;font-weight:700;margin-top:6px;display:block;text-align:center;">Gradient</span>
-                    </label>
-                    <label class="banner-tpl-card" data-val="product-spotlight" onclick="selectBannerTemplate('product-spotlight')">
-                        <div class="banner-tpl-preview" style="background:#111;display:flex;align-items:center;gap:8px;padding:0 12px;">
-                            <div style="flex:1;"><div style="height:3px;width:30px;background:#fff;border-radius:2px;margin-bottom:4px;"></div><div style="height:3px;width:20px;background:#fff;border-radius:2px;opacity:0.5;"></div></div>
-                            <div style="width:28px;height:28px;border-radius:50%;background:#333;border:2px solid #fff;"></div>
-                        </div>
-                        <input type="radio" name="bnTemplate" value="product-spotlight" style="display:none;">
-                        <span style="font-size:11px;font-weight:700;margin-top:6px;display:block;text-align:center;">Spotlight</span>
-                    </label>
-                    <label class="banner-tpl-card" data-val="minimal" onclick="selectBannerTemplate('minimal')">
-                        <div class="banner-tpl-preview" style="background:#fff;border:1px solid #eee;justify-content:center;">
-                            <div style="color:#111;font-size:12px;font-weight:900;letter-spacing:2px;">MINIMAL</div>
-                            <div style="height:2px;width:20px;background:#111;margin:4px auto;"></div>
-                        </div>
-                        <input type="radio" name="bnTemplate" value="minimal" style="display:none;">
-                        <span style="font-size:11px;font-weight:700;margin-top:6px;display:block;text-align:center;">Minimal</span>
-                    </label>
-                    <label class="banner-tpl-card" data-val="flash-sale" onclick="selectBannerTemplate('flash-sale')">
-                        <div class="banner-tpl-preview" style="background:linear-gradient(135deg,#ff0000 0%,#ff6b00 100%);justify-content:center;align-items:center;">
-                            <div style="color:#fff;font-size:9px;font-weight:900;letter-spacing:1px;">⚡ FLASH SALE</div>
-                            <div style="color:#ffd700;font-size:12px;font-weight:900;margin-top:2px;">50% OFF</div>
-                        </div>
-                        <input type="radio" name="bnTemplate" value="flash-sale" style="display:none;">
-                        <span style="font-size:11px;font-weight:700;margin-top:6px;display:block;text-align:center;">Flash Sale</span>
-                    </label>
-                    <label class="banner-tpl-card" data-val="collection" onclick="selectBannerTemplate('collection')">
-                        <div class="banner-tpl-preview" style="background:#111;display:grid;grid-template-columns:1fr 1fr;gap:2px;padding:6px;">
-                            <div style="background:#333;border-radius:2px;"></div>
-                            <div style="background:#444;border-radius:2px;"></div>
-                            <div style="grid-column:1/-1;display:flex;align-items:center;justify-content:center;"><div style="color:#fff;font-size:7px;font-weight:700;">COLLECTION</div></div>
-                        </div>
-                        <input type="radio" name="bnTemplate" value="collection" style="display:none;">
-                        <span style="font-size:11px;font-weight:700;margin-top:6px;display:block;text-align:center;">Collection</span>
-                    </label>
-                    <label class="banner-tpl-card" data-val="promo-strip" onclick="selectBannerTemplate('promo-strip')">
-                        <div class="banner-tpl-preview" style="background:#111;justify-content:center;align-items:center;flex-direction:row;gap:6px;padding:0 10px;">
-                            <div style="border:1.5px dashed #fff;border-radius:4px;padding:2px 6px;color:#ffd700;font-size:8px;font-weight:900;">SAVE20</div>
-                            <div style="color:#fff;font-size:7px;opacity:0.7;">Use code at checkout</div>
-                        </div>
-                        <input type="radio" name="bnTemplate" value="promo-strip" style="display:none;">
-                        <span style="font-size:11px;font-weight:700;margin-top:6px;display:block;text-align:center;">Promo Strip</span>
-                    </label>
-                    <label class="banner-tpl-card" data-val="neon" onclick="selectBannerTemplate('neon')">
-                        <div class="banner-tpl-preview" style="background:#0a0a0a;justify-content:center;align-items:center;">
-                            <div style="color:#0ff;font-size:11px;font-weight:900;text-shadow:0 0 5px #0ff,0 0 10px #0ff;">NEON</div>
-                            <div style="height:2px;width:30px;background:#0ff;margin:4px auto;box-shadow:0 0 6px #0ff;"></div>
-                        </div>
-                        <input type="radio" name="bnTemplate" value="neon" style="display:none;">
-                        <span style="font-size:11px;font-weight:700;margin-top:6px;display:block;text-align:center;">Neon</span>
-                    </label>
-                    <label class="banner-tpl-card" data-val="diagonal" onclick="selectBannerTemplate('diagonal')">
-                        <div class="banner-tpl-preview" style="background:#111;overflow:hidden;position:relative;">
-                            <div style="position:absolute;top:0;left:0;width:50%;height:100%;background:linear-gradient(135deg,#fff 0%,transparent 100%);opacity:0.1;"></div>
-                            <div style="color:#fff;font-size:9px;font-weight:900;z-index:1;">DIAGONAL</div>
-                        </div>
-                        <input type="radio" name="bnTemplate" value="diagonal" style="display:none;">
-                        <span style="font-size:11px;font-weight:700;margin-top:6px;display:block;text-align:center;">Diagonal</span>
-                    </label>
                 </div>
             </div>
 
@@ -6884,116 +6532,8 @@ async function loadActiveBanners() {
                     setTimeout(tick, 100);
                 }
 
-            } else if (template === 'gradient-text') {
-                bannerEl = document.createElement('div');
-                bannerEl.className = 'promo-banner promo-gradient-text';
-                bannerEl.style.cssText = `background:linear-gradient(135deg, ${bg} 0%, ${adjustHex(bg, 60)} 50%, ${adjustHex(bg, 30)} 100%);color:${fg};`;
-                bannerEl.innerHTML = `
-                    <div class="promo-gradient-text-inner">
-                        <h1 class="promo-gradient-title" style="background:linear-gradient(90deg, ${fg}, ${adjustHex(fg, -40)});-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">${b.title}</h1>
-                        ${b.subtitle ? `<p style="font-size:16px;opacity:0.85;margin:8px 0 20px;">${b.subtitle}</p>` : ''}
-                        <a href="${ctaHref}" class="promo-hero-cta" style="background:${fg};color:${bg};">${ctaText} &rarr;</a>
-                    </div>`;
-
-            } else if (template === 'product-spotlight') {
-                bannerEl = document.createElement('div');
-                bannerEl.className = 'promo-banner promo-product-spotlight';
-                bannerEl.style.cssText = `background:${bg};color:${fg};`;
-                bannerEl.innerHTML = `
-                    <div class="promo-spotlight-content">
-                        <div class="promo-spotlight-badge">FEATURED</div>
-                        <h2 style="font-size:clamp(24px,4vw,42px);font-weight:900;margin:10px 0;">${b.title}</h2>
-                        ${b.subtitle ? `<p style="font-size:15px;opacity:0.8;margin-bottom:20px;">${b.subtitle}</p>` : ''}
-                        <a href="${ctaHref}" style="display:inline-block;padding:12px 32px;background:${fg};color:${bg};border-radius:30px;font-weight:800;text-decoration:none;">${ctaText}</a>
-                    </div>
-                    ${b.imageUrl ? `<div class="promo-spotlight-img"><img src="${b.imageUrl}" alt="${b.title}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;"></div>` : `<div class="promo-spotlight-img" style="background:${adjustHex(bg, 30)};display:flex;align-items:center;justify-content:center;"><i class="fas fa-tshirt" style="font-size:48px;opacity:0.3;"></i></div>`}`;
-
-            } else if (template === 'minimal') {
-                bannerEl = document.createElement('div');
-                bannerEl.className = 'promo-banner promo-minimal';
-                bannerEl.style.cssText = `background:${bg === '#111111' ? '#ffffff' : bg};color:${fg === '#ffffff' ? '#111111' : fg};`;
-                bannerEl.innerHTML = `
-                    <div class="promo-minimal-inner">
-                        <div class="promo-minimal-line"></div>
-                        <h1 style="font-size:clamp(28px,5vw,56px);font-weight:900;letter-spacing:-2px;line-height:1;margin:16px 0;">${b.title}</h1>
-                        ${b.subtitle ? `<p style="font-size:15px;opacity:0.6;margin-bottom:24px;max-width:400px;">${b.subtitle}</p>` : ''}
-                        <a href="${ctaHref}" style="display:inline-block;padding:14px 36px;border:2px solid currentColor;font-weight:800;font-size:13px;letter-spacing:1px;text-transform:uppercase;text-decoration:none;color:inherit;">${ctaText}</a>
-                    </div>`;
-
-            } else if (template === 'flash-sale') {
-                bannerEl = document.createElement('div');
-                bannerEl.className = 'promo-banner promo-flash-sale';
-                const flashBg = bg === '#111111' ? '#ff0000' : bg;
-                bannerEl.style.cssText = `background:linear-gradient(135deg, ${flashBg} 0%, ${adjustHex(flashBg, 40)} 100%);color:${fg};`;
-                bannerEl.innerHTML = `
-                    <div class="promo-flash-sale-inner">
-                        <div class="promo-flash-left">
-                            <div style="font-size:clamp(14px,2vw,18px);font-weight:700;letter-spacing:3px;text-transform:uppercase;opacity:0.9;">⚡ Flash Sale</div>
-                            <h1 style="font-size:clamp(32px,6vw,64px);font-weight:900;line-height:1;margin:8px 0;">${b.title}</h1>
-                            ${b.subtitle ? `<p style="font-size:16px;opacity:0.9;">${b.subtitle}</p>` : ''}
-                        </div>
-                        <div class="promo-flash-right">
-                            <a href="${ctaHref}" style="display:inline-block;padding:16px 40px;background:${fg};color:${flashBg};border-radius:50px;font-weight:900;font-size:16px;text-decoration:none;box-shadow:0 8px 30px rgba(0,0,0,0.3);">${ctaText}</a>
-                        </div>
-                    </div>`;
-
-            } else if (template === 'collection') {
-                bannerEl = document.createElement('div');
-                bannerEl.className = 'promo-banner promo-collection';
-                bannerEl.style.cssText = `background:${bg};color:${fg};`;
-                bannerEl.innerHTML = `
-                    <div class="promo-collection-inner">
-                        <div class="promo-collection-text">
-                            <div style="font-size:11px;font-weight:700;letter-spacing:3px;text-transform:uppercase;opacity:0.5;margin-bottom:10px;">New Collection</div>
-                            <h2 style="font-size:clamp(24px,4vw,44px);font-weight:900;line-height:1.1;margin:0 0 12px;">${b.title}</h2>
-                            ${b.subtitle ? `<p style="font-size:14px;opacity:0.7;margin-bottom:20px;">${b.subtitle}</p>` : ''}
-                            <a href="${ctaHref}" style="display:inline-block;padding:12px 28px;background:${fg};color:${bg};border-radius:6px;font-weight:800;font-size:13px;text-decoration:none;">${ctaText} &rarr;</a>
-                        </div>
-                        <div class="promo-collection-grid">
-                            ${b.imageUrl ? `<div style="grid-column:1/-1;background-image:url('${b.imageUrl}');background-size:cover;background-position:center;border-radius:8px;min-height:120px;"></div>` : `<div style="background:${adjustHex(bg, 20)};border-radius:8px;min-height:60px;"></div><div style="background:${adjustHex(bg, 30)};border-radius:8px;min-height:60px;"></div>`}
-                        </div>
-                    </div>`;
-
-            } else if (template === 'promo-strip') {
-                bannerEl = document.createElement('div');
-                bannerEl.className = 'promo-banner promo-promo-strip';
-                bannerEl.style.cssText = `background:${bg};color:${fg};`;
-                bannerEl.innerHTML = `
-                    <div class="promo-strip-inner">
-                        <div style="display:flex;align-items:center;gap:16px;justify-content:center;flex-wrap:wrap;">
-                            <span style="font-size:clamp(14px,2vw,18px);font-weight:700;">${b.title}</span>
-                            ${b.subtitle ? `<span style="border:2px dashed ${fg};padding:6px 16px;border-radius:6px;font-weight:900;font-size:clamp(16px,2.5vw,22px);letter-spacing:2px;color:${adjustHex(fg, -30)};">${b.subtitle}</span>` : ''}
-                            <a href="${ctaHref}" style="padding:10px 24px;background:${fg};color:${bg};border-radius:6px;font-weight:800;font-size:13px;text-decoration:none;">${ctaText}</a>
-                        </div>
-                    </div>`;
-
-            } else if (template === 'neon') {
-                bannerEl = document.createElement('div');
-                bannerEl.className = 'promo-banner promo-neon';
-                const neonColor = fg === '#ffffff' ? '#00ffff' : fg;
-                bannerEl.style.cssText = `background:#0a0a0a;color:${neonColor};`;
-                bannerEl.innerHTML = `
-                    <div class="promo-neon-inner">
-                        <h1 style="font-size:clamp(28px,5vw,52px);font-weight:900;text-shadow:0 0 10px ${neonColor},0 0 20px ${neonColor},0 0 40px ${neonColor};letter-spacing:2px;margin:0 0 12px;">${b.title}</h1>
-                        ${b.subtitle ? `<p style="font-size:14px;opacity:0.7;text-shadow:0 0 5px ${neonColor};margin-bottom:20px;">${b.subtitle}</p>` : ''}
-                        <a href="${ctaHref}" style="display:inline-block;padding:12px 32px;border:2px solid ${neonColor};color:${neonColor};font-weight:800;font-size:14px;text-decoration:none;text-shadow:0 0 5px ${neonColor};box-shadow:0 0 10px ${neonColor}40,inset 0 0 10px ${neonColor}20;border-radius:4px;">${ctaText}</a>
-                    </div>`;
-
-            } else if (template === 'diagonal') {
-                bannerEl = document.createElement('div');
-                bannerEl.className = 'promo-banner promo-diagonal';
-                bannerEl.style.cssText = `background:${bg};color:${fg};position:relative;overflow:hidden;`;
-                bannerEl.innerHTML = `
-                    <div style="position:absolute;top:0;left:0;width:60%;height:100%;background:linear-gradient(135deg, ${adjustHex(bg, 40)} 0%, transparent 100%);opacity:0.4;"></div>
-                    <div style="position:absolute;bottom:0;right:0;width:40%;height:60%;background:linear-gradient(315deg, ${adjustHex(bg, 20)} 0%, transparent 100%);opacity:0.3;"></div>
-                    <div style="position:relative;z-index:1;padding:clamp(40px,6vw,70px) 6%;">
-                        <h2 style="font-size:clamp(24px,4vw,48px);font-weight:900;margin:0 0 10px;">${b.title}</h2>
-                        ${b.subtitle ? `<p style="font-size:15px;opacity:0.8;margin-bottom:20px;max-width:500px;">${b.subtitle}</p>` : ''}
-                        <a href="${ctaHref}" style="display:inline-block;padding:12px 32px;background:${fg};color:${bg};border-radius:6px;font-weight:800;font-size:14px;text-decoration:none;">${ctaText} &rarr;</a>
-                    </div>`;
-
             } else {
-                // Hero: full-width gradient with glow (default)
+                // Hero: full-width gradient with glow
                 bannerEl = document.createElement('div');
                 bannerEl.className = 'promo-banner promo-hero';
                 bannerEl.style.cssText = `background:linear-gradient(135deg, ${bg} 0%, ${adjustHex(bg, 30)} 100%);color:${fg};${b.imageUrl ? `background-image:linear-gradient(to right, ${bg}ee 50%, transparent 100%), url('${b.imageUrl}');background-size:cover;background-position:center;` : ''}`;
@@ -7017,7 +6557,7 @@ async function loadActiveBanners() {
         } else {
             document.body.prepend(container);
         }
-    } catch(e) { /* Banners blocked by Firestore rules - silent */ }
+    } catch(e) { console.log('Banners not loaded:', e.message); }
 }
 
 // Utility: slightly lighten/darken a hex color
@@ -7033,100 +6573,12 @@ function adjustHex(hex, amount) {
     } catch { return hex || '#333'; }
 }
 
-function clearAdminOverview() {
-    const tabContent = document.getElementById('adminTabContent');
-    if (tabContent) {
-        tabContent.innerHTML = `
-            <div style="text-align:center;padding:60px 20px;">
-                <i class="fas fa-check-circle" style="font-size:48px;color:#0caf60;margin-bottom:16px;"></i>
-                <h3 style="margin-bottom:8px;">Overview Cleared</h3>
-                <p style="color:#666;margin-bottom:24px;">Dashboard data has been cleared from view.</p>
-                <button onclick="loadAdminOverview()" style="padding:12px 28px;background:#0066cc;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;">
-                    <i class="fas fa-redo"></i> Reload Overview
-                </button>
-            </div>`;
-    }
-}
-
 function filterOrders() {
-    const filterVal = document.getElementById('orderFilter')?.value || 'all';
-    const rows = document.querySelectorAll('#ordersTableBody tr');
-    rows.forEach(row => {
-        const status = row.getAttribute('data-status') || '';
-        const orderStatus = row.getAttribute('data-order-status') || '';
-        if (filterVal === 'all') {
-            row.style.display = '';
-        } else if (status === filterVal || orderStatus === filterVal) {
-            row.style.display = '';
-        } else {
-            row.style.display = 'none';
-        }
-    });
+    alert('Filter orders feature coming soon!');
 }
 
 function exportOrders() {
-    const rows = document.querySelectorAll('#ordersTableBody tr');
-    if (rows.length === 0) { showToast('No orders to export.', 'warning'); return; }
-    let csv = 'Order #,Customer,Email,Items,Amount,Payment Method,Status,Date\n';
-    rows.forEach(row => {
-        if (row.style.display === 'none') return;
-        const cells = row.querySelectorAll('td');
-        const vals = Array.from(cells).map(c => '"' + (c.textContent || '').trim().replace(/"/g, '""') + '"');
-        csv += vals.join(',') + '\n';
-    });
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'drixel-orders-' + new Date().toISOString().split('T')[0] + '.csv';
-    a.click();
-    URL.revokeObjectURL(url);
-    showToast('Orders exported successfully!', 'success');
-}
-
-// Load floating coupon widget on storefront
-async function loadCouponWidget() {
-    try {
-        const db = window.firebaseDb;
-        const snap = await window.firebaseGetDocs(window.firebaseCollection(db, 'coupons'));
-        const now = Date.now();
-        let bestCoupon = null;
-        snap.forEach(d => {
-            const c = d.data();
-            const isExpired = c.expiry && new Date(c.expiry).getTime() < now;
-            if (c.active !== false && !isExpired) {
-                if (!bestCoupon || (c.type === 'percent' && c.amount > (bestCoupon.amount || 0))) {
-                    bestCoupon = c;
-                }
-            }
-        });
-        if (!bestCoupon) return;
-        // Don't show on admin pages or cart/checkout
-        if (document.getElementById('adminDashboard')) return;
-        const existing = document.getElementById('couponFloatWidget');
-        if (existing) existing.remove();
-        const widget = document.createElement('div');
-        widget.id = 'couponFloatWidget';
-        widget.className = 'coupon-float-widget';
-        const discountText = bestCoupon.type === 'percent' ? bestCoupon.amount + '% OFF' : 'R' + bestCoupon.amount + ' OFF';
-        widget.innerHTML = `
-            <button class="coupon-widget-close" onclick="document.getElementById('couponFloatWidget').remove();">&times;</button>
-            <span class="coupon-widget-badge">Active Deal</span>
-            <span class="coupon-widget-code">${bestCoupon.code}</span>
-            <p class="coupon-widget-desc">${discountText} — Use at checkout!</p>`;
-        widget.addEventListener('click', function(e) {
-            if (e.target.classList.contains('coupon-widget-close')) return;
-            navigator.clipboard?.writeText(bestCoupon.code).then(() => {
-                showToast('Coupon code ' + bestCoupon.code + ' copied!', 'success');
-            });
-        });
-        document.body.appendChild(widget);
-        // Auto-hide after 15 seconds
-        setTimeout(() => {
-            const w = document.getElementById('couponFloatWidget');
-            if (w) { w.style.transition = 'opacity 0.5s'; w.style.opacity = '0'; setTimeout(() => w.remove(), 500); }
-        }, 15000);
-    } catch(e) { /* silent */ }
+    alert('Export orders feature coming soon!');
 }
 
 
@@ -7188,7 +6640,7 @@ async function viewOrderDetails(orderId) {
                                             <div style="display: flex; padding: 15px; border-bottom: 1px solid #e0e0e0; align-items: center;">
                                                 <img src="${item.image}" alt="${item.name}" 
                                                      style="width: 60px; height: 60px; object-fit: cover; border-radius: 5px; margin-right: 15px;"
-                                                     onerror="safeImgError(this,60,60,'Product')">
+                                                     onerror="this.src='https://via.placeholder.com/60x60?text=Product'">
                                                 <div style="flex: 1;">
                                                     <p style="margin: 0 0 5px 0; font-weight: bold;">${item.name}</p>
                                                     <p style="margin: 0; color: #666; font-size: 14px;">
@@ -7712,21 +7164,13 @@ window.firebaseGoogleLogin = firebaseGoogleLogin;
 
 // ===== CONTACT MESSAGE SUBMISSION =====
 async function sendContactMessage() {
-    const name = sanitizeInput(document.getElementById('contactName')?.value || '');
-    const email = sanitizeInput(document.getElementById('contactEmail')?.value || '');
-    const subject = sanitizeInput(document.getElementById('contactSubject')?.value || '');
-    const message = sanitizeInput(document.getElementById('contactMessage')?.value || '');
+    const name = document.getElementById('contactName')?.value;
+    const email = document.getElementById('contactEmail')?.value;
+    const subject = document.getElementById('contactSubject')?.value;
+    const message = document.getElementById('contactMessage')?.value;
 
     if (!name || !email || !subject || !message) {
         alert('Please fill in all fields before sending your message.');
-        return;
-    }
-
-    // Rate limit: max 3 contact messages per hour
-    const contactKey = 'drixel_contact_rate_' + email.toLowerCase();
-    const recentCount = parseInt(localStorage.getItem(contactKey) || '0');
-    if (recentCount >= 3) {
-        alert('You have sent too many messages. Please try again later.');
         return;
     }
 
@@ -7742,11 +7186,6 @@ async function sendContactMessage() {
                 timestamp: new Date().toISOString()
             });
         }
-
-        // Increment rate limit counter
-        localStorage.setItem(contactKey, String(recentCount + 1));
-        // Clear counter after 1 hour
-        setTimeout(() => localStorage.removeItem(contactKey), 60 * 60 * 1000);
         
         // Clear form
         const form = document.getElementById('contactForm');
@@ -7882,107 +7321,82 @@ window.alert = function(message) {
     showToast(message, type);
 };
 
-// Register global functions safely without eval()
-try {
-    const _globalFnMap = {
-        showPage, checkAuthAndNavigate, firebaseRegister, firebaseLogin,
-        firebaseGoogleLogin, resetPasswordFromLogin, placeOrder, sendContactMessage,
-        initiateYocoCheckout, initiateYocoCheckoutFromCart, confirmSnapScanPayment,
-        copySnapScanReference, showAuthTab,
-        loadAllProducts, loadFeaturedProducts, loadYocoProducts,
-        loadCartPage, loadCheckoutPage, updateCollectionsBarActive, showAdminButton,
-        updateAuthUI, loadUserCart, updateCartCount,
-        removeFromCart, viewProduct,
-        filterCollection, acceptCookies,
-        declineCookies, firebaseLogout, selectColor, selectSize,
-        addToCart, initiateYocoDirectPayment,
-        initCartDrawer, openCartDrawer, closeCartDrawer, renderCartDrawer,
-        injectAnnouncementBar, initAnnouncementSlider,
-        initSearchOverlay, openSearchOverlay, closeSearchOverlay, runSearchQuery, runQuickSearch,
-        setGridLayout,
-        initOrderTracker, openOrderTracker, closeOrderTracker, queryOrderStatus, renderTrackerTimeline,
-        injectTrackerLink, subscribeNewsletter, injectNewsletterSection, nextCampaignVideo, prevCampaignVideo
-    };
-    Object.keys(_globalFnMap).forEach(fnName => {
-        try {
-            const fn = _globalFnMap[fnName];
-            if (typeof fn === 'function') {
-                window[fnName] = fn;
-            }
-        } catch (e) { }
-    });
-} catch (e) {
-    console.error('Error registering global functions:', e);
-}
+const globalFunctions = [
+    'showPage', 'checkAuthAndNavigate', 'firebaseRegister', 'firebaseLogin',
+    'firebaseGoogleLogin', 'resetPasswordFromLogin', 'placeOrder', 'sendContactMessage',
+    'initiateYocoCheckout', 'initiateYocoCheckoutFromCart', 'confirmSnapScanPayment',
+    'copySnapScanReference', 'showAuthTab',
+    'initEmailJSForService', 'loadAllProducts', 'loadFeaturedProducts', 'loadYocoProducts',
+    'loadCartPage', 'loadCheckoutPage', 'updateCollectionsBarActive', 'showAdminButton',
+    'updateAuthUI', 'loadUserCart', 'updateCartCount',
+    'removeFromCart', 'viewProduct',
+    'filterCollection', 'acceptCookies',
+    'declineCookies', 'firebaseLogout', 'selectColor', 'selectSize',
+    'addToCart', 'initiateYocoDirectPayment',
+    'initCartDrawer', 'openCartDrawer', 'closeCartDrawer', 'renderCartDrawer',
+    'injectAnnouncementBar', 'initAnnouncementSlider',
+    'initSearchOverlay', 'openSearchOverlay', 'closeSearchOverlay', 'runSearchQuery', 'runQuickSearch',
+    'setGridLayout',
+    'initOrderTracker', 'openOrderTracker', 'closeOrderTracker', 'queryOrderStatus', 'renderTrackerTimeline',
+    'injectTrackerLink', 'subscribeNewsletter', 'injectNewsletterSection', 'nextCampaignVideo', 'prevCampaignVideo'
+];
+
+globalFunctions.forEach(fnName => {
+    try {
+        const fn = eval(fnName);
+        if (typeof fn === 'function') {
+            window[fnName] = fn;
+        }
+    } catch (e) { }
+});
 
 // ===== EXPLICITLY EXPOSE ALL NEW ADMIN FUNCTIONS =====
-try {
-    window.loadAdminProducts = loadAdminProducts;
-    window.loadAdminCampaigns = loadAdminCampaigns;
-    window.switchCampaignTab = switchCampaignTab;
-    window.renderCouponsPanel = renderCouponsPanel;
-    window.renderBannersPanel = renderBannersPanel;
-    window.renderActivePromotions = renderActivePromotions;
-    window.loadCouponsList = loadCouponsList;
-    window.loadBannersList = loadBannersList;
-    window.adminCreateCoupon = adminCreateCoupon;
-    window.adminToggleCoupon = adminToggleCoupon;
-    window.adminDeleteCoupon = adminDeleteCoupon;
-    window.adminCreateBanner = adminCreateBanner;
-    window.adminToggleBanner = adminToggleBanner;
-    window.adminDeleteBanner = adminDeleteBanner;
-    window.validateCoupon = validateCoupon;
-    window.applyCouponUsage = applyCouponUsage;
-    window.loadActiveBanners = loadActiveBanners;
-    window.loadCouponWidget = loadCouponWidget;
-    window.clearAdminOverview = clearAdminOverview;
-    window.filterOrders = filterOrders;
-    window.exportOrders = exportOrders;
-    window.showAddProductForm = showAddProductForm;
-    window.closeProductModal = closeProductModal;
-    window.adminUpdateImagePreview = adminUpdateImagePreview;
-    window.adminAddColorRow = adminAddColorRow;
-    window.adminRemoveColorRow = adminRemoveColorRow;
-    window.adminToggleTag = adminToggleTag;
-    window.adminSaveProduct = adminSaveProduct;
-    window.deleteProduct = deleteProduct;
-    window.editProduct = editProduct;
-    window.showBrandedConfirm = showBrandedConfirm;
-    window.renderAdminProductsTable = renderAdminProductsTable;
-    window.adminProductsPageNav = adminProductsPageNav;
-    window.adminDebounceSearch = adminDebounceSearch;
-    window.adminFilterProducts = adminFilterProducts;
-    window.adminToggleSelectAll = adminToggleSelectAll;
-    window.adminToggleProductSelect = adminToggleProductSelect;
-    window.adminClearSelection = adminClearSelection;
-    window.adminBulkHide = adminBulkHide;
-    window.adminBulkDelete = adminBulkDelete;
-    window.adminToggleProductVisibility = adminToggleProductVisibility;
-    window.loadProductsFromFirestore = loadProductsFromFirestore;
-    window.invalidateProductsCache = invalidateProductsCache;
-    window.migrateLocalProductsToFirestore = migrateLocalProductsToFirestore;
-    window.loadAdminProductsGrid = loadAdminProductsGrid;
-} catch (e) {
-    console.error('Error exposing admin functions:', e);
-}
+window.loadAdminProducts = loadAdminProducts;
+window.loadAdminCampaigns = loadAdminCampaigns;
+window.switchCampaignTab = switchCampaignTab;
+window.renderCouponsPanel = renderCouponsPanel;
+window.renderBannersPanel = renderBannersPanel;
+window.renderActivePromotions = renderActivePromotions;
+window.loadCouponsList = loadCouponsList;
+window.loadBannersList = loadBannersList;
+window.adminCreateCoupon = adminCreateCoupon;
+window.adminToggleCoupon = adminToggleCoupon;
+window.adminDeleteCoupon = adminDeleteCoupon;
+window.adminCreateBanner = adminCreateBanner;
+window.adminToggleBanner = adminToggleBanner;
+window.adminDeleteBanner = adminDeleteBanner;
+window.validateCoupon = validateCoupon;
+window.applyCouponUsage = applyCouponUsage;
+window.loadActiveBanners = loadActiveBanners;
+window.showAddProductForm = showAddProductForm;
+window.closeProductModal = closeProductModal;
+window.adminUpdateImagePreview = adminUpdateImagePreview;
+window.adminAddColorRow = adminAddColorRow;
+window.adminRemoveColorRow = adminRemoveColorRow;
+window.adminToggleTag = adminToggleTag;
+window.adminSaveProduct = adminSaveProduct;
+window.deleteProduct = deleteProduct;
+window.editProduct = editProduct;
+window.showBrandedConfirm = showBrandedConfirm;
+window.renderAdminProductsTable = renderAdminProductsTable;
+window.adminProductsPageNav = adminProductsPageNav;
+window.adminDebounceSearch = adminDebounceSearch;
+window.adminFilterProducts = adminFilterProducts;
+window.adminToggleSelectAll = adminToggleSelectAll;
+window.adminToggleProductSelect = adminToggleProductSelect;
+window.adminClearSelection = adminClearSelection;
+window.adminBulkHide = adminBulkHide;
+window.adminBulkDelete = adminBulkDelete;
+window.adminToggleProductVisibility = adminToggleProductVisibility;
+window.loadProductsFromFirestore = loadProductsFromFirestore;
+window.invalidateProductsCache = invalidateProductsCache;
+window.migrateLocalProductsToFirestore = migrateLocalProductsToFirestore;
+window.loadAdminProductsGrid = loadAdminProductsGrid;
 
 // Load banners on homepage automatically
 document.addEventListener('DOMContentLoaded', () => {
     setTimeout(() => {
         try { loadActiveBanners(); } catch(e) {}
-        try { loadCouponWidget(); } catch(e) {}
     }, 2000);
-
-    // Set today's date on any date input that has no value (replaces PHP date)
-    const dateInputs = document.querySelectorAll('input[type="date"]');
-    dateInputs.forEach(input => {
-        if (!input.value) {
-            const today = new Date();
-            const yyyy = today.getFullYear();
-            const mm = String(today.getMonth() + 1).padStart(2, '0');
-            const dd = String(today.getDate()).padStart(2, '0');
-            input.value = `${yyyy}-${mm}-${dd}`;
-        }
-    });
 });
 

@@ -1,10 +1,5 @@
-# Node
+.vscode/
 node_modules/
-*.log
-
-# OS
-Thumbs.db
+functions/node_modules/
 .DS_Store
-
-# Editor
-.vscode/settings.json
+Thumbs.db
