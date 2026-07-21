@@ -1612,14 +1612,6 @@ function increaseQuantity() {
 }
 
 // ===== CART STORAGE & FUNCTIONS =====
-function saveCartToStorage() {
-    try {
-        localStorage.setItem('drixel_cart', JSON.stringify(cart));
-    } catch (e) {
-        console.warn("Could not save cart to localStorage:", e);
-    }
-}
-
 function loadCartFromStorage() {
     try {
         const savedCart = localStorage.getItem('drixel_cart');
