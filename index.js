@@ -5652,7 +5652,7 @@ function showAddProductForm(productId) {
         const slotLabel = isFront ? '<span class="pm-slot-label front-label">FRONT VIEW</span>' :
                           isBack  ? '<span class="pm-slot-label back-label">BACK VIEW</span>' :
                                     `<span class="pm-slot-label" style="color:#aaa;">Image ${i + 1}</span>`;
-        const placeholderSrc = 'https://via.placeholder.com/90x90?text=' + (isFront ? 'Front' : isBack ? 'Back' : ('Img+' + (i+1)));
+        const placeholderSrc = getSvgPlaceholder(isFront ? 'FRONT VIEW' : isBack ? 'BACK VIEW' : ('Image ' + (i + 1)));
         return `
         <div class="pm-image-slot">
             <img id="imgPrev${i}" class="pm-image-preview ${url ? 'has-image' : ''} ${isFront ? 'primary-img' : ''}" 
@@ -5821,6 +5821,20 @@ function closeProductModal() {
     }, 350);
 }
 
+function saveProductsToStorage() {
+    try {
+        localStorage.setItem('drixel_products_cache', JSON.stringify(window.PRODUCTS_DATA || []));
+    } catch (e) {
+        console.warn("Could not cache products to localStorage:", e);
+    }
+}
+window.saveProductsToStorage = saveProductsToStorage;
+
+function getSvgPlaceholder(text) {
+    const encodedText = encodeURIComponent(text || 'Empty');
+    return `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="90" height="90" viewBox="0 0 90 90"><rect width="90" height="90" fill="%231a1a1a" rx="6"/><text x="50%" y="50%" fill="%23888888" font-family="sans-serif" font-size="11" font-weight="bold" text-anchor="middle" dy=".3em">${encodedText}</text></svg>`;
+}
+
 function adminUpdateImagePreview(idx, url) {
     const img = document.getElementById('imgPrev' + idx);
     if (!img) return;
@@ -5828,7 +5842,9 @@ function adminUpdateImagePreview(idx, url) {
         img.src = url;
         img.classList.add('has-image');
     } else {
-        img.src = 'https://via.placeholder.com/90x90?text=Empty';
+        const isFront = idx === 0;
+        const isBack = idx === 1;
+        img.src = getSvgPlaceholder(isFront ? 'FRONT VIEW' : isBack ? 'BACK VIEW' : ('Image ' + (idx + 1)));
         img.classList.remove('has-image');
     }
 }
