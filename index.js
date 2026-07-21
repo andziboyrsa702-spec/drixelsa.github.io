@@ -7423,6 +7423,10 @@ window.loadProductsFromFirestore = loadProductsFromFirestore;
 window.invalidateProductsCache = invalidateProductsCache;
 window.migrateLocalProductsToFirestore = migrateLocalProductsToFirestore;
 window.loadAdminProductsGrid = loadAdminProductsGrid;
+window.processYocoPayment = processYocoPayment;
+window.closeYocoPaymentModal = closeYocoPaymentModal;
+window.showYocoPaymentModal = showYocoPaymentModal;
+window.initiateYocoDirectPayment = initiateYocoDirectPayment;
 
 // Auto-initialize app & products immediately on DOM load so products NEVER disappear
 if (document.readyState === 'loading') {
