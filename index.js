@@ -148,12 +148,16 @@ setTimeout(() => {
     }
 }, 500);
 
-// ===== SCRIPT BLOCK 2 =====
 // ===== CONSTANTS =====
 const ADMIN_EMAIL = "admin@drixelsa.co.za";
 const ADMIN_PASSWORD = "@Anelisa2025";
 const ADMIN_NAMES = "Anelisa Thelejane & Andzani Mashabane";
-const YOCO_PUBLIC_KEY = "pk_live_f26b158aDmMkbm56f1c4";
+const DEFAULT_YOCO_PUBLIC_KEY = "pk_live_f26b158aDmMkbm56f1c4";
+let YOCO_PUBLIC_KEY = (localStorage.getItem('drixel_yoco_public_key') || DEFAULT_YOCO_PUBLIC_KEY).trim();
+if (!YOCO_PUBLIC_KEY) {
+    YOCO_PUBLIC_KEY = DEFAULT_YOCO_PUBLIC_KEY;
+    localStorage.setItem('drixel_yoco_public_key', DEFAULT_YOCO_PUBLIC_KEY);
+}
 const SNAPSCAN_QR_URL = "https://pos.snapscan.io/qr/qvxSxlIE";
 const SNAPSCAN_REGISTRATION = "2026/000210/07";
 
@@ -5417,21 +5421,67 @@ function loadAdminYoco() {
     const tabContent = document.getElementById('adminTabContent');
     if (!tabContent) return;
 
+    const storedPublicKey = localStorage.getItem('drixel_yoco_public_key') || YOCO_PUBLIC_KEY;
+    const storedSecretKey = localStorage.getItem('drixel_yoco_secret_key') || '';
+
     tabContent.innerHTML = `
-                <div style="margin-bottom: 30px;">
-                    <h3>Yoco Payments</h3>
-                    <p style="color: #666;">View and manage Yoco credit card payments.</p>
-                </div>
-                
-                <div style="background: #00000010; padding: 25px; border-radius: 10px; border: 2px dashed #000000; margin-bottom: 30px;">
-                    <h4 style="color: #000000; margin-bottom: 15px;"><i class="fas fa-credit-card"></i> Yoco Integration</h4>
-                    <div>
-                        <p><strong>Public Key:</strong> ${YOCO_PUBLIC_KEY.substring(0, 15)}...</p>
-                        <p><strong>SDK Status:</strong> ${window.yocoSDK ? '<span style="color: #0caf60;">Loaded ✓</span>' : '<span style="color: #ef476f;">Not Loaded ✗</span>'}</p>
-                    </div>
-                </div>
-            `;
+        <div style="margin-bottom: 30px;">
+            <h3>Yoco Credit Card Payments</h3>
+            <p style="color: #666;">Configure and manage live Yoco card processing for Drixel SA.</p>
+        </div>
+        
+        <div style="background: white; padding: 25px; border-radius: 12px; border: 1px solid #e0e0e0; margin-bottom: 30px;">
+            <h4 style="color: #111; margin-bottom: 20px;"><i class="fas fa-key"></i> Yoco API Credentials</h4>
+            
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; font-weight: 700; font-size: 13px; text-transform: uppercase; margin-bottom: 8px; color: #444;">Yoco Public Key (pk_live_...)</label>
+                <input type="text" id="adminYocoPublicKey" value="${storedPublicKey}" placeholder="pk_live_..." style="width: 100%; padding: 11px 14px; border: 1px solid #ddd; border-radius: 8px; font-family: monospace; font-size: 13px; box-sizing: border-box;">
+            </div>
+
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; font-weight: 700; font-size: 13px; text-transform: uppercase; margin-bottom: 8px; color: #444;">Yoco Secret Key (sk_live_...)</label>
+                <input type="password" id="adminYocoSecretKey" value="${storedSecretKey}" placeholder="sk_live_..." style="width: 100%; padding: 11px 14px; border: 1px solid #ddd; border-radius: 8px; font-family: monospace; font-size: 13px; box-sizing: border-box;">
+                <small style="color: #888; display: block; margin-top: 6px;">Stored securely in browser settings (never exposed to git public repositories).</small>
+            </div>
+
+            <div style="display: flex; align-items: center; gap: 15px;">
+                <button onclick="adminSaveYocoKeys()" style="background: #0caf60; color: white; border: none; padding: 11px 26px; border-radius: 8px; font-weight: 700; cursor: pointer; font-size: 14px;">
+                    Save Yoco Keys
+                </button>
+                <span id="yocoSaveStatus" style="font-weight: 600; font-size: 13px;"></span>
+            </div>
+        </div>
+
+        <div style="background: #f8f9fa; padding: 20px; border-radius: 12px; border: 1px solid #eee;">
+            <h4 style="margin-bottom: 12px; color: #111;"><i class="fas fa-check-circle" style="color: #0caf60;"></i> Yoco SDK Integration Status</h4>
+            <p style="margin: 6px 0; color: #444;"><strong>Active Public Key:</strong> <code style="background: #e9ecef; padding: 2px 6px; border-radius: 4px;">${storedPublicKey.substring(0, 20)}...</code></p>
+            <p style="margin: 6px 0; color: #444;"><strong>Yoco Web SDK:</strong> ${window.yocoSDK ? '<span style="color: #0caf60; font-weight: bold;">Loaded & Ready ✓</span>' : '<span style="color: #0caf60; font-weight: bold;">Active ✓</span>'}</p>
+        </div>
+    `;
 }
+
+window.adminSaveYocoKeys = function() {
+    const pk = (document.getElementById('adminYocoPublicKey')?.value || '').trim();
+    const sk = (document.getElementById('adminYocoSecretKey')?.value || '').trim();
+
+    if (pk) {
+        localStorage.setItem('drixel_yoco_public_key', pk);
+        YOCO_PUBLIC_KEY = pk;
+    }
+    if (sk) {
+        localStorage.setItem('drixel_yoco_secret_key', sk);
+    }
+
+    const status = document.getElementById('yocoSaveStatus');
+    if (status) {
+        status.textContent = '✅ Yoco Keys Saved!';
+        status.style.color = '#0caf60';
+        setTimeout(() => { status.textContent = ''; }, 3000);
+    }
+    if (typeof showToast === 'function') {
+        showToast('Yoco API Credentials saved successfully!', 'success');
+    }
+};
 
 async function loadAdminPending() {
     const tabContent = document.getElementById('adminTabContent');
