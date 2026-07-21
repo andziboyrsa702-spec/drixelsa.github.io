@@ -46,17 +46,12 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 let analytics = null;
-try {
-    analytics = getAnalytics(app);
-} catch (e) {
-    console.warn("Firebase Analytics failed to initialize:", e);
-}
 
 // Make Firebase available globally with ALL functions
 window.firebaseApp = app;
 window.firebaseAuth = auth;
 window.firebaseDb = db;
-window.firebaseAnalytics = analytics;
+window.firebaseAnalytics = null;
 
 // Make all functions available globally
 window.firebaseInitializeApp = initializeApp;
