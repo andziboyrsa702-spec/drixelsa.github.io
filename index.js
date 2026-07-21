@@ -2743,34 +2743,55 @@ function copySnapScanReference() {
     });
 }
 
+function redirectToOrderConfirmation(orderData) {
+    const orderNum = orderData.orderNumber || orderData.order_id || orderData.id || 'ORDER';
+    
+    // Store latest order for orderConfirmation.html page render
+    try {
+        localStorage.setItem('drixel_latest_order', JSON.stringify(orderData));
+    } catch(e) {}
+
+    const path = window.location.pathname;
+    if (path.endsWith('orderConfirmation.html') || path.endsWith('orderConfirmation')) {
+        if (typeof renderOrderConfirmation === 'function') {
+            renderOrderConfirmation(orderData);
+        }
+        window.location.hash = `#order=${orderNum}`;
+    } else {
+        window.location.href = `orderConfirmation.html?orderId=${encodeURIComponent(orderNum)}`;
+    }
+}
+window.redirectToOrderConfirmation = redirectToOrderConfirmation;
+
 async function confirmSnapScanPayment() {
     if (!currentSnapScanOrder) {
         alert('No SnapScan order found. Please select SnapScan payment method first.');
         return;
     }
 
-    const firstName = document.getElementById('firstName').value;
-    const lastName = document.getElementById('lastName').value;
-    const email = document.getElementById('email').value;
-    const phone = document.getElementById('phone').value;
-    const address = document.getElementById('address').value;
-    const city = document.getElementById('city').value;
-    const postalCode = document.getElementById('postalCode').value;
+    const firstName = document.getElementById('firstName').value.trim();
+    const lastName = document.getElementById('lastName').value.trim();
+    const email = document.getElementById('email').value.trim();
+    const phone = document.getElementById('phone').value.trim();
+    const address = document.getElementById('address').value.trim();
+    const city = document.getElementById('city').value.trim();
+    const postalCode = document.getElementById('postalCode').value.trim();
     const province = document.getElementById('province').value;
 
     if (!firstName || !lastName || !email || !phone || !address || !city || !postalCode || !province) {
-        alert('Please fill in all required shipping information before confirming payment.');
+        alert('Please fill in all shipping details before confirming SnapScan payment.');
         return;
     }
 
-    showConfirm(
+    showCustomConfirm(
+        'Confirm SnapScan Payment',
         `Have you completed the payment of R${currentSnapScanOrder.amount.toFixed(2)} using SnapScan?\n\nReference: ${currentSnapScanOrder.reference}\n\nClick Yes to confirm your payment.`,
-        async () => {
+        async function() {
             try {
                 console.log("✅ Processing SnapScan payment confirmation...");
 
                 const orderNumber = generateOrderNumber();
-                const subscribed = document.getElementById('newsletterSubscription').checked;
+                const subscribed = document.getElementById('newsletterSubscription')?.checked || false;
 
                 const orderData = {
                     order_id: orderNumber,
@@ -2811,30 +2832,21 @@ async function confirmSnapScanPayment() {
 
                 console.log("💾 Saving order to Firebase...");
                 const orderRef = await window.firebaseAddDoc(window.firebaseCollection(db, 'orders'), orderData);
+                orderData.id = orderRef.id;
                 console.log("✅ Order saved with ID:", orderRef.id);
 
                 cart = [];
                 updateCartCount();
+                try { localStorage.removeItem('drixel_cart'); } catch(e) {}
 
-                // Send Order Confirmation email for SnapScan in background (non-blocking)
-                sendOrderConfirmationEmail(orderData).catch(e => console.error("Email error:", e));
+                // Send Order Confirmation email for SnapScan
+                await sendOrderConfirmationEmail(orderData).catch(e => console.error("Customer Email error:", e));
                 // Notify admin of new order
-                sendAdminOrderNotificationEmail(orderData).catch(e => console.error("Admin notification email error:", e));
-
-                const orderNumElem = document.getElementById('orderNumber');
-                if (orderNumElem) orderNumElem.textContent = orderNumber;
-                const deliveryFeeInfo = document.getElementById('deliveryFeeInfo');
-                if (deliveryFeeInfo) {
-                    if (orderData.shipping === 0) {
-                        deliveryFeeInfo.textContent = 'Delivery: FREE (Order over R1000)';
-                    } else {
-                        deliveryFeeInfo.textContent = `Delivery Fee: R${orderData.shipping.toFixed(2)}`;
-                    }
-                }
+                await sendAdminOrderNotificationEmail(orderData).catch(e => console.error("Admin Email error:", e));
 
                 alert(`✅ Payment confirmed!\n\nOrder #${orderNumber} has been created.\nA confirmation email has been sent to ${email}.`);
 
-                showPage('orderConfirmation', `#order=${orderNumber}`);
+                redirectToOrderConfirmation(orderData);
 
             } catch (error) {
                 console.error("❌ Error processing SnapScan payment:", error);
@@ -3196,35 +3208,20 @@ async function completeYocoPayment(tokenId, receiptEmail) {
             });
         }
 
-        // Send email based on payment method rules
-        if (orderData.paymentMethod === 'yoco' || orderData.paymentMethod === 'snapscan') {
-            await sendOrderConfirmationEmail(orderData).catch(e => console.error("Email error:", e));
-        } else if (orderData.paymentMethod === 'bank') {
-            await sendOrderReceivedEmail(orderData).catch(e => console.error("Email error:", e));
-        }
-        // Always notify admin of new order
-        sendAdminOrderNotificationEmail(orderData).catch(e => console.error("Admin notification email error:", e));
+        // Send Customer Email & Admin Email
+        await sendOrderConfirmationEmail(orderData).catch(e => console.error("Customer Email error:", e));
+        await sendAdminOrderNotificationEmail(orderData).catch(e => console.error("Admin notification email error:", e));
 
         // Clear cart
         cart = [];
-        updateCartCount();
-
-        // Show order confirmation page
-        const orderNumElem = document.getElementById('orderNumber');
-        if (orderNumElem) orderNumElem.textContent = orderData.orderNumber;
-        const deliveryFeeInfo = document.getElementById('deliveryFeeInfo');
-        if (deliveryFeeInfo) {
-            if (orderData.shipping === 0) {
-                deliveryFeeInfo.textContent = 'Delivery: FREE (Order over R1000)';
-            } else {
-                deliveryFeeInfo.textContent = `Delivery Fee: R${orderData.shipping.toFixed(2)}`;
-            }
-        }
+        if (typeof updateCartCount === 'function') updateCartCount();
+        try { localStorage.removeItem('drixel_cart'); } catch(e) {}
 
         // Clear pending order data
         window.pendingOrderData = null;
 
-        showPage('orderConfirmation', `#order=${orderData.orderNumber}`);
+        // Redirect user to Order Confirmation Page
+        redirectToOrderConfirmation(orderData);
 
     } catch (error) {
         console.error("❌ Error completing Yoco payment:", error);
