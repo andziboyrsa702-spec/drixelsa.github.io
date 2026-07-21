@@ -158,11 +158,13 @@ const SNAPSCAN_QR_URL = "https://pos.snapscan.io/qr/qvxSxlIE";
 const SNAPSCAN_REGISTRATION = "2026/000210/07";
 
 // ===== RESEND & BACKEND EMAIL CONFIGURATION & HELPER =====
+const DEFAULT_RESEND_API_KEY = 're_HSq1yYdh_DBU1dwEwwtb6di7C9tLRLUUx';
+
 async function sendEmailViaResend({ to, cc, subject, html }) {
-    let storedApiKey = (localStorage.getItem('drixel_resend_api_key') || '').trim();
-    if (storedApiKey === 're_9127pJDT_jRDx942YS4UbyH3YDfm9H7ow') {
-        storedApiKey = '';
-        localStorage.removeItem('drixel_resend_api_key');
+    let storedApiKey = (localStorage.getItem('drixel_resend_api_key') || DEFAULT_RESEND_API_KEY).trim();
+    if (storedApiKey === 're_9127pJDT_jRDx942YS4UbyH3YDfm9H7ow' || !storedApiKey) {
+        storedApiKey = DEFAULT_RESEND_API_KEY;
+        localStorage.setItem('drixel_resend_api_key', DEFAULT_RESEND_API_KEY);
     }
 
     let fromEmail = localStorage.getItem('drixel_resend_from_email') || 'info@customer.drixelsa.co.za';
@@ -180,35 +182,59 @@ async function sendEmailViaResend({ to, cc, subject, html }) {
     console.log("   • Recipient(s):", recipientList.join(', '));
     console.log("   • Subject:", subject);
 
-    // Method 1: Resend API Key (If configured in Admin Settings)
+    // Method 1: Resend API Key Direct & Proxy Delivery
     if (storedApiKey && storedApiKey.startsWith('re_')) {
-        console.log("📨 [Method 1] Attempting Resend API key dispatch...");
-        try {
-            const response = await fetch('https://api.resend.com/emails', {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${storedApiKey}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    from: fromEmail,
-                    to: recipientList,
-                    ...(ccList.length > 0 ? { cc: ccList } : {}),
-                    subject: subject,
-                    html: html
-                })
-            });
+        console.log("📨 [Method 1] Sending via Resend API key...");
+        const sendPayload = {
+            from: fromEmail,
+            to: recipientList,
+            ...(ccList.length > 0 ? { cc: ccList } : {}),
+            subject: subject,
+            html: html
+        };
 
-            if (response.ok) {
-                const data = await response.json().catch(() => ({}));
-                console.log("✅ [Method 1 SUCCESS] Email sent via Resend API:", data);
-                return { success: true, data };
-            } else {
-                const errText = await response.text();
-                console.warn("⚠️ [Method 1 Failed] Resend API status:", response.status, errText);
+        const fetchAttempts = [
+            // Direct fetch (works on server/backend/modern browser CORS)
+            async () => {
+                return await fetch('https://api.resend.com/emails', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${storedApiKey}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(sendPayload)
+                });
+            },
+            // Fallback from-address if custom domain header issues occur
+            async () => {
+                return await fetch('https://api.resend.com/emails', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${storedApiKey}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        ...sendPayload,
+                        from: 'onboarding@resend.dev'
+                    })
+                });
             }
-        } catch (err) {
-            console.warn("⚠️ [Method 1 Exception]:", err.message);
+        ];
+
+        for (const fetchFn of fetchAttempts) {
+            try {
+                const response = await fetchFn();
+                if (response.ok) {
+                    const data = await response.json().catch(() => ({}));
+                    console.log("✅ [Method 1 SUCCESS] Email sent via Resend API! Response:", data);
+                    return { success: true, data };
+                } else {
+                    const errText = await response.text();
+                    console.warn("⚠️ [Method 1 Attempt Returned Status]:", response.status, errText);
+                }
+            } catch (err) {
+                console.warn("⚠️ [Method 1 Exception]:", err.message);
+            }
         }
     }
 
