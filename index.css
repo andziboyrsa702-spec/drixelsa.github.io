@@ -6209,3 +6209,145 @@
         transform: translateY(-20px) scale(0.95);
     }
 }
+
+/* ===== LUXURY DRIXEL SA PRODUCT CARD HOVER FLIP ===== */
+.product-card {
+    cursor: pointer;
+    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s ease;
+}
+
+.product-image {
+    position: relative;
+    width: 100%;
+    overflow: hidden;
+    background-color: #161616;
+    border-radius: 8px;
+}
+
+.product-img-front,
+.product-img-back {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    transition: opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1), transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.product-img-back {
+    position: absolute;
+    top: 0;
+    left: 0;
+    opacity: 0;
+    pointer-events: none;
+}
+
+/* Hover flip effect for front/back views */
+.product-card:hover .has-back-view .product-img-front {
+    opacity: 0 !important;
+}
+
+.product-card:hover .has-back-view .product-img-back,
+.product-card.show-back .has-back-view .product-img-back {
+    opacity: 1 !important;
+    transform: scale(1.04);
+}
+
+.product-card:hover .product-img-front {
+    transform: scale(1.04);
+}
+
+/* ===== PROMO BANNER TEMPLATES & ANIMATIONS ===== */
+.promobanners-container {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
+.promo-banner {
+    width: 100%;
+    position: relative;
+    overflow: hidden;
+    box-sizing: border-box;
+    transition: all 0.3s ease;
+}
+
+.promo-announcement {
+    padding: 10px 20px;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.promo-announcement-inner {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.promo-announce-cta {
+    padding: 3px 10px;
+    border: 1px solid;
+    border-radius: 20px;
+    text-decoration: none;
+    font-size: 11px;
+    text-transform: uppercase;
+    transition: background 0.2s ease, color 0.2s ease;
+}
+
+.promo-split {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    min-height: 280px;
+}
+
+.promo-split-text {
+    padding: 40px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.promo-split-title {
+    font-size: 28px;
+    font-weight: 800;
+    margin: 10px 0;
+    text-transform: uppercase;
+}
+
+.promo-split-cta {
+    display: inline-block;
+    padding: 12px 24px;
+    border-radius: 6px;
+    font-weight: 700;
+    text-decoration: none;
+    margin-top: 16px;
+    width: fit-content;
+}
+
+.promo-hero {
+    padding: 60px 40px;
+    text-align: center;
+}
+
+.promo-hero-title {
+    font-size: 36px;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin: 12px 0;
+}
+
+.promo-hero-cta {
+    display: inline-block;
+    padding: 14px 32px;
+    border-radius: 30px;
+    font-weight: 800;
+    text-decoration: none;
+    text-transform: uppercase;
+    margin-top: 20px;
+}

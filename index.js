@@ -5959,17 +5959,22 @@ async function adminSaveProduct(existingIdOrFirestoreId, statusOverride) {
             showToast('✅ Product saved to Firestore!', 'success');
         } else {
             // New product
-            const maxId = (window.PRODUCTS_DATA.length > 0) ? Math.max(...window.PRODUCTS_DATA.map(p => p.id || 0)) : 0;
+            const maxId = (window.PRODUCTS_DATA.length > 0) ? Math.max(...window.PRODUCTS_DATA.map(p => Number(p.id) || 0)) : 0;
+            const newId = maxId + 1;
             const docRef = await window.firebaseAddDoc(window.firebaseCollection(db, 'products'), {
                 ...productData,
+                id: newId,
                 createdAt: new Date().toISOString(),
-                sortOrder: maxId + 1
+                sortOrder: newId
             });
-            window.PRODUCTS_DATA.push({ ...productData, id: maxId + 1, _firestoreId: docRef.id });
-            showToast('✅ Product added!', 'success');
+            window.PRODUCTS_DATA.push({ ...productData, id: newId, _firestoreId: docRef.id });
+            showToast(`✅ Product #${newId} added!`, 'success');
         }
 
+        saveProductsToStorage();
         invalidateProductsCache();
+        try { loadAllProducts(); } catch (e) {}
+        try { loadFeaturedProducts(); } catch (e) {}
         closeProductModal();
         setTimeout(() => renderAdminProductsTable(), 300);
     } catch(e) {
@@ -6006,9 +6011,12 @@ function deleteProduct(localId, firestoreId, btnOrName) {
                     String(p._firestoreId) === String(firestoreId)
                 );
                 if (idx !== -1) window.PRODUCTS_DATA.splice(idx, 1);
+                saveProductsToStorage();
                 invalidateProductsCache();
+                try { loadAllProducts(); } catch (e) {}
+                try { loadFeaturedProducts(); } catch (e) {}
                 renderAdminProductsTable();
-                showToast('Product deleted.', 'success');
+                showToast('Product deleted from store.', 'success');
             } catch(e) {
                 showToast('Delete failed: ' + e.message, 'error');
             }
@@ -7435,10 +7443,12 @@ if (document.readyState === 'loading') {
     initializeAppAfterFirebase();
 }
 
-// Load banners on homepage automatically
-document.addEventListener('DOMContentLoaded', () => {
-    setTimeout(() => {
+// Load banners automatically
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
         try { loadActiveBanners(); } catch(e) {}
-    }, 2000);
-});
+    });
+} else {
+    try { loadActiveBanners(); } catch(e) {}
+}
 
