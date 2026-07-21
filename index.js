@@ -5833,42 +5833,81 @@ function adminUpdateImagePreview(idx, url) {
     }
 }
 
+// ===== HTML5 CANVAS IMAGE OPTIMIZER & COMPRESSOR =====
+function compressImageFile(file, maxWidth = 1200, maxHeight = 1200, quality = 0.75) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            compressBase64Image(e.target.result, maxWidth, maxHeight, quality)
+                .then(resolve)
+                .catch(reject);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+    });
+}
+
+function compressBase64Image(base64Str, maxWidth = 1200, maxHeight = 1200, quality = 0.75) {
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.crossOrigin = 'Anonymous';
+        img.onload = () => {
+            let width = img.width;
+            let height = img.height;
+
+            if (width > maxWidth || height > maxHeight) {
+                if (width > height) {
+                    height = Math.round((height * maxWidth) / width);
+                    width = maxWidth;
+                } else {
+                    width = Math.round((width * maxHeight) / height);
+                    height = maxHeight;
+                }
+            }
+
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+
+            const compressed = canvas.toDataURL('image/jpeg', quality);
+            console.log(`🖼️ [Image Optimized] Original: ${Math.round(base64Str.length / 1024)}KB -> Compressed: ${Math.round(compressed.length / 1024)}KB`);
+            resolve(compressed);
+        };
+        img.onerror = (err) => reject(err);
+        img.src = base64Str;
+    });
+}
+
 // Upload local image file via FileReader, then optionally push to Firebase Storage
 async function adminUploadLocalImage(idx, fileInput) {
     const file = fileInput.files[0];
     if (!file) return;
     const urlInput = document.getElementById('imgUrl' + idx);
 
-    const reader = new FileReader();
-    reader.onload = async function(e) {
-        const dataUrl = e.target.result;
-        adminUpdateImagePreview(idx, dataUrl);
-        if (urlInput) urlInput.value = dataUrl;
+    try {
+        if (typeof showToast === 'function') showToast('Optimizing image...', 'info');
+        const compressedDataUrl = await compressImageFile(file, 1200, 1200, 0.75);
+        adminUpdateImagePreview(idx, compressedDataUrl);
+        if (urlInput) urlInput.value = compressedDataUrl;
 
         // Attempt Firebase Storage upload for a persistent CDN URL
-        try {
-            if (window.firebaseStorage && window.firebaseStorageRef && window.firebaseUploadBytes && window.firebaseGetDownloadURL) {
-                showToast('Uploading image to storage...', 'info');
-                const filename = 'products/images/' + Date.now() + '_' + file.name.replace(/\s+/g, '_');
-                const ref = window.firebaseStorageRef(window.firebaseStorage, filename);
-                const snapshot = await window.firebaseUploadBytes(ref, file);
-                const downloadUrl = await window.firebaseGetDownloadURL(snapshot.ref);
-                adminUpdateImagePreview(idx, downloadUrl);
-                if (urlInput) urlInput.value = downloadUrl;
-                showToast('Image uploaded successfully!', 'success');
-            } else {
-                if (file.size > 500 * 1024) {
-                    showToast('Image preview set (large file). For production, use a CDN URL.', 'warning');
-                } else {
-                    showToast('Image ready. Will be stored as data URL.', 'success');
-                }
-            }
-        } catch(e) {
-            console.warn('Firebase Storage upload failed, using data URL:', e.message);
-            showToast('Saved locally. Firebase Storage not configured.', 'warning');
+        if (window.firebaseStorage && window.firebaseStorageRef && window.firebaseUploadBytes && window.firebaseGetDownloadURL) {
+            if (typeof showToast === 'function') showToast('Uploading image to storage...', 'info');
+            const filename = 'products/images/' + Date.now() + '_' + file.name.replace(/\s+/g, '_');
+            const ref = window.firebaseStorageRef(window.firebaseStorage, filename);
+            const snapshot = await window.firebaseUploadBytes(ref, file);
+            const downloadUrl = await window.firebaseGetDownloadURL(snapshot.ref);
+            adminUpdateImagePreview(idx, downloadUrl);
+            if (urlInput) urlInput.value = downloadUrl;
+            if (typeof showToast === 'function') showToast('Image uploaded to Storage!', 'success');
+        } else {
+            if (typeof showToast === 'function') showToast('✅ Image optimized & ready!', 'success');
         }
-    };
-    reader.readAsDataURL(file);
+    } catch(e) {
+        console.warn('Local image upload/compression warning:', e.message);
+    }
 }
 window.adminUploadLocalImage = adminUploadLocalImage;
 
@@ -5917,10 +5956,26 @@ async function adminSaveProduct(existingIdOrFirestoreId, statusOverride) {
     }
 
     // Collect images
-    const images = [];
+    const rawImages = [];
     for (let i = 0; i < 8; i++) {
         const url = document.getElementById(`imgUrl${i}`)?.value.trim();
-        if (url) images.push(url);
+        if (url) rawImages.push(url);
+    }
+
+    // Compress raw base64 images before saving to Firestore to enforce < 1MB document limit
+    if (typeof showToast === 'function') showToast('Optimizing images for Firestore...', 'info');
+    const images = [];
+    for (let url of rawImages) {
+        if (url.startsWith('data:image/') && url.length > 120000) {
+            try {
+                const optUrl = await compressBase64Image(url, 1000, 1000, 0.70);
+                images.push(optUrl);
+            } catch (e) {
+                images.push(url);
+            }
+        } else {
+            images.push(url);
+        }
     }
 
     // Collect sizes
