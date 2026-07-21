@@ -1606,29 +1606,54 @@ function increaseQuantity() {
     quantityInput.value = quantity + 1;
 }
 
-// ===== CART FUNCTIONS =====
+// ===== CART STORAGE & FUNCTIONS =====
+function saveCartToStorage() {
+    try {
+        localStorage.setItem('drixel_cart', JSON.stringify(cart));
+    } catch (e) {
+        console.warn("Could not save cart to localStorage:", e);
+    }
+}
+
+function loadCartFromStorage() {
+    try {
+        const savedCart = localStorage.getItem('drixel_cart');
+        if (savedCart) {
+            cart = JSON.parse(savedCart) || [];
+            updateCartCount();
+        }
+    } catch (e) {
+        console.warn("Could not load cart from localStorage:", e);
+    }
+}
+
 async function addToCart(productId, fromProductPage = false) {
-    const currentUser = window.currentFirebaseUser;
-    if (!currentUser) {
-        alert('Please login or create an account to add items to your cart. You need an account to shop with us.');
-        showPage('auth');
+    console.log("🛒 addToCart called for productId:", productId);
+
+    if (!window.PRODUCTS_DATA || !Array.isArray(window.PRODUCTS_DATA)) {
+        window.PRODUCTS_DATA = typeof getLocalProductsData === 'function' ? getLocalProductsData() : [];
+    }
+
+    let product = window.PRODUCTS_DATA.find(p => p.id === productId || String(p.id) === String(productId));
+    if (!product && typeof productId === 'string') {
+        product = window.PRODUCTS_DATA.find(p => p.name.toLowerCase().replace(/\s+/g, '-') === productId.toLowerCase());
+    }
+
+    if (!product) {
+        console.error("❌ Product not found for addToCart:", productId);
+        if (typeof showToast === 'function') {
+            showToast('Product details could not be found.', 'error');
+        } else {
+            alert('Product details could not be found.');
+        }
         return;
     }
 
-    const product = window.PRODUCTS_DATA.find(p => p.id === productId);
-    if (!product) return;
-
-    const productKey = `product_${productId}`;
-    const rawSelections = productSelections[productKey] || {};
-    const selections = {
-        size: rawSelections.size || product.sizes[0],
-        color: rawSelections.color || product.colors[0]
-    };
-
-    if (!selections.size || !selections.color) {
-        alert('Please select both size and color before adding to cart.');
-        return;
-    }
+    const productKey = `product_${product.id}`;
+    const rawSelections = (typeof productSelections !== 'undefined' && productSelections[productKey]) ? productSelections[productKey] : {};
+    
+    const size = rawSelections.size || (product.sizes && product.sizes.length > 0 ? product.sizes[0] : 'M');
+    const color = rawSelections.color || (product.colors && product.colors.length > 0 ? product.colors[0] : { name: 'Black', code: '#000000' });
 
     let quantity = 1;
     if (fromProductPage) {
@@ -1638,10 +1663,13 @@ async function addToCart(productId, fromProductPage = false) {
         }
     }
 
+    const colorName = typeof color === 'string' ? color : (color.name || 'Default');
+    const colorCode = typeof color === 'object' && color.code ? color.code : '#000000';
+
     const existingItemIndex = cart.findIndex(item =>
-        item.id === productId &&
-        item.size === selections.size &&
-        item.color === selections.color.name
+        item.id === product.id &&
+        item.size === size &&
+        item.color === colorName
     );
 
     if (existingItemIndex !== -1) {
@@ -1650,19 +1678,23 @@ async function addToCart(productId, fromProductPage = false) {
         cart.push({
             id: product.id,
             name: product.name,
-            price: product.price,
+            price: Number(product.price) || 0,
             image: product.image,
-            size: selections.size,
-            color: selections.color.name,
-            colorCode: selections.color.code,
+            size: size,
+            color: colorName,
+            colorCode: colorCode,
             quantity: quantity,
             addedAt: new Date().toISOString()
         });
     }
 
+    saveCartToStorage();
     updateCartCount();
 
-    // Open the sliding cart drawer
+    if (typeof showToast === 'function') {
+        showToast(`✅ Added ${quantity} × ${product.name} to cart!`, 'success');
+    }
+
     if (typeof openCartDrawer === 'function') {
         openCartDrawer();
     }
@@ -4531,6 +4563,7 @@ function initializeAppAfterFirebase() {
 
     console.log("📦 Products loaded:", window.PRODUCTS_DATA.length);
 
+    loadCartFromStorage();
     updateCartCount();
     updateAuthUI();
 
