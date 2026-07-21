@@ -5657,8 +5657,7 @@ function showAddProductForm(productId) {
         <div class="pm-image-slot">
             <img id="imgPrev${i}" class="pm-image-preview ${url ? 'has-image' : ''} ${isFront ? 'primary-img' : ''}" 
                 src="${url || placeholderSrc}"
-                alt="Image ${i + 1}" loading="lazy"
-                onerror="this.src='${placeholderSrc}'">
+                alt="Image ${i + 1}" loading="lazy">
             ${slotLabel}
             <input type="text" class="pm-image-url-input" id="imgUrl${i}" placeholder="Paste URL or upload..." 
                 value="${url}"
@@ -5831,8 +5830,9 @@ function saveProductsToStorage() {
 window.saveProductsToStorage = saveProductsToStorage;
 
 function getSvgPlaceholder(text) {
-    const encodedText = encodeURIComponent(text || 'Empty');
-    return `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="90" height="90" viewBox="0 0 90 90"><rect width="90" height="90" fill="%231a1a1a" rx="6"/><text x="50%" y="50%" fill="%23888888" font-family="sans-serif" font-size="11" font-weight="bold" text-anchor="middle" dy=".3em">${encodedText}</text></svg>`;
+    const label = text || 'IMAGE';
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="90" height="90" viewBox="0 0 90 90"><rect width="90" height="90" fill="#1a1a1a" rx="6"/><text x="50%" y="50%" fill="#888888" font-family="sans-serif" font-size="10" font-weight="bold" text-anchor="middle" dy=".3em">${label}</text></svg>`;
+    return 'data:image/svg+xml;base64,' + btoa(svg);
 }
 
 function adminUpdateImagePreview(idx, url) {
