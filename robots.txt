@@ -3,4 +3,5 @@ Allow: /
 Disallow: /cart.html
 Disallow: /checkout.html
 
+Sitemap: https://drixelsa.co.za/sitemap.xml
 Sitemap: https://www.drixelsa.co.za/sitemap.xml
