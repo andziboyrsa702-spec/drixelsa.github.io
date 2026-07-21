@@ -1137,9 +1137,9 @@ function loadYocoSDK() {
     console.log("🔄 Loading Yoco SDK...");
 
     const sdkSources = [
-        'https://plugins.yoco.com/v1/yoco-sdk-web.js',
-        'https://js.yoco.com/sdk/v1/yoco-sdk-web.js',
-        'https://static.yoco.com/sdk/v1/yoco-sdk-web.js'
+        'https://static.yoco.com/sdk/v1/yoco-sdk-web.js',
+        'https://js.yoco.com/sdk/v2/yoco-sdk-web.js',
+        'https://js.yoco.com/sdk/yoco-sdk-web.js'
     ];
 
     let currentIdx = 0;
@@ -1881,10 +1881,16 @@ function removeFromCart(index) {
 
 function updateCartCount() {
     const totalItems = cart.reduce((total, item) => total + item.quantity, 0);
+    
     const cartCountElem = document.getElementById('cartCount');
     if (cartCountElem) {
         cartCountElem.textContent = totalItems;
     }
+
+    // Sync all bag icon badges across all pages and navbars
+    document.querySelectorAll('#cartCount, .cart-count, .cart-badge, .nav-cart-count, .badge, .cart-icon span').forEach(badge => {
+        badge.textContent = totalItems;
+    });
 
     // Sync to storage
     saveCartToStorage();
@@ -1894,6 +1900,7 @@ function updateCartCount() {
         renderCartDrawer();
     }
 }
+window.updateCartCount = updateCartCount;
 
 function updateCartSummary() {
     const subtotal = cart.reduce((total, item) => total + (item.price * item.quantity), 0);
@@ -4106,62 +4113,6 @@ async function loadAdminOverview() {
     }
 }
 
-async function adminDeleteOrder(orderId) {
-    if (!orderId) return;
-    showCustomConfirm(
-        'Delete Order Record',
-        `Are you sure you want to delete order ID: ${orderId}? This record will be permanently removed.`,
-        async function() {
-            try {
-                const db = window.firebaseDb;
-                if (db) {
-                    await window.firebaseDeleteDoc(window.firebaseDoc(db, 'orders', orderId));
-                }
-                showToast('Order deleted successfully!', 'success');
-                if (typeof switchAdminTab === 'function') {
-                    switchAdminTab('orders');
-                }
-            } catch (e) {
-                console.error("Error deleting order:", e);
-                showToast('Failed to delete order: ' + e.message, 'error');
-            }
-        }
-    );
-}
-window.adminDeleteOrder = adminDeleteOrder;
-
-async function adminPurgeAllOrders() {
-    showCustomConfirm(
-        '⚠️ CLEAR ALL STORE ORDERS',
-        'Are you sure you want to PERMANENTLY PURGE all orders and reset overview metrics? This action cannot be undone.',
-        async function() {
-            try {
-                showToast('Purging all orders data...', 'info');
-                const db = window.firebaseDb;
-                if (db) {
-                    const snapshot = await window.firebaseGetDocs(window.firebaseCollection(db, 'orders'));
-                    const deletePromises = [];
-                    snapshot.forEach(docSnap => {
-                        deletePromises.push(window.firebaseDeleteDoc(window.firebaseDoc(db, 'orders', docSnap.id)));
-                    });
-                    await Promise.all(deletePromises);
-                }
-                try {
-                    localStorage.removeItem('drixel_latest_order');
-                    localStorage.removeItem('drixel_orders_cache');
-                } catch(e) {}
-
-                showToast('✅ All order records successfully purged!', 'success');
-                if (typeof switchAdminTab === 'function') switchAdminTab('overview');
-            } catch (e) {
-                console.error("Error purging orders:", e);
-                showToast('Failed to purge orders: ' + e.message, 'error');
-            }
-        }
-    );
-}
-window.adminPurgeAllOrders = adminPurgeAllOrders;
-
 async function loadAdminOrders() {
     const tabContent = document.getElementById('adminTabContent');
     if (!tabContent) return;
@@ -4182,10 +4133,10 @@ async function loadAdminOrders() {
         orders.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
         tabContent.innerHTML = `
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                         <h3>All Orders (${orders.length})</h3>
-                        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-                            <select id="orderFilter" onchange="filterOrders()" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px;">
+                        <div>
+                            <select id="orderFilter" onchange="filterOrders()" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 5px; margin-right: 10px;">
                                 <option value="all">All Orders</option>
                                 <option value="pending">Pending Payment</option>
                                 <option value="paid">Paid</option>
@@ -4193,18 +4144,15 @@ async function loadAdminOrders() {
                                 <option value="shipped">Shipped</option>
                                 <option value="delivered">Delivered</option>
                             </select>
-                            <button onclick="exportOrders()" style="background: #0caf60; color: white; border: none; padding: 8px 16px; border-radius: 6px; font-weight: 700; cursor: pointer;">
+                            <button onclick="exportOrders()" style="background: #0caf60; color: white; border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer;">
                                 <i class="fas fa-download"></i> Export
-                            </button>
-                            <button onclick="adminPurgeAllOrders()" style="background: #dc3545; color: white; border: none; padding: 8px 16px; border-radius: 6px; font-weight: 700; cursor: pointer;">
-                                <i class="fas fa-trash-alt"></i> Purge All Orders
                             </button>
                         </div>
                     </div>
                     
-                    <div class="admin-table-wrapper" style="background: white; padding: 20px; border-radius: 12px; border: 1px solid #e0e0e0; overflow-x: auto;">
+                    <div style="background: white; padding: 20px; border-radius: 10px; border: 1px solid #e0e0e0;">
                         ${orders.length > 0 ? `
-                            <table class="admin-table" style="width: 100%; border-collapse: collapse; min-width: 700px;">
+                            <table style="width: 100%; border-collapse: collapse;">
                                 <thead>
                                     <tr style="background: #f5f5f5;">
                                         <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">Order #</th>
@@ -4223,38 +4171,52 @@ async function loadAdminOrders() {
                                             <td style="padding: 12px; border-bottom: 1px solid #eee;">${order.order_id || order.orderNumber || order.id || '—'}</td>
                                             <td style="padding: 12px; border-bottom: 1px solid #eee;">
                                                 <strong>${order.customer?.name || 'N/A'}</strong><br>
-                                                <small style="color: #666;">${order.customer?.email || ''}</small><br>
-                                                <small style="color: #666;">${order.customer?.phone || ''}</small>
+                                                <small>${order.customer?.email || ''}</small><br>
+                                                <small>${order.customer?.phone || ''}</small>
                                             </td>
                                             <td style="padding: 12px; border-bottom: 1px solid #eee;">
                                                 ${order.items?.length || 0} items
                                             </td>
-                                            <td style="padding: 12px; border-bottom: 1px solid #eee; font-weight: bold;">R ${(order.total || 0).toFixed(2)}</td>
+                                            <td style="padding: 12px; border-bottom: 1px solid #eee;">R ${(order.total || 0).toFixed(2)}</td>
                                             <td style="padding: 12px; border-bottom: 1px solid #eee;">
                                                 <span style="padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold;
-                                                     background: ${order.paymentMethod === 'yoco' ? '#d4edda' : order.paymentMethod === 'snapscan' ? '#cce5ff' : '#fff3cd'};
-                                                     color: ${order.paymentMethod === 'yoco' ? '#155724' : order.paymentMethod === 'snapscan' ? '#004085' : '#856404'};">
+                                                    background: ${order.paymentMethod === 'yoco' ? '#d4edda' :
+                order.paymentMethod === 'snapscan' ? '#cce5ff' :
+                    '#fff3cd'};
+                                                    color: ${order.paymentMethod === 'yoco' ? '#155724' :
+                order.paymentMethod === 'snapscan' ? '#004085' :
+                    '#856404'};">
                                                     ${order.paymentMethod || 'bank'}
                                                 </span>
                                             </td>
                                             <td style="padding: 12px; border-bottom: 1px solid #eee;">
                                                 <span style="padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold;
-                                                     background: ${order.paymentStatus === 'paid' ? '#d4edda' : order.paymentStatus === 'pending' ? '#fff3cd' : '#f8d7da'};
-                                                     color: ${order.paymentStatus === 'paid' ? '#155724' : order.paymentStatus === 'pending' ? '#856404' : '#721c24'};">
+                                                    background: ${order.paymentStatus === 'paid' ? '#d4edda' :
+                order.paymentStatus === 'pending' ? '#fff3cd' :
+                    '#f8d7da'};
+                                                    color: ${order.paymentStatus === 'paid' ? '#155724' :
+                order.paymentStatus === 'pending' ? '#856404' :
+                    '#721c24'};">
                                                     ${order.paymentStatus || 'pending'}
                                                 </span>
                                             </td>
                                             <td style="padding: 12px; border-bottom: 1px solid #eee;">
                                                 ${new Date(order.createdAt).toLocaleDateString()}<br>
-                                                <small style="color: #888;">${new Date(order.createdAt).toLocaleTimeString()}</small>
+                                                <small>${new Date(order.createdAt).toLocaleTimeString()}</small>
                                             </td>
-                                            <td style="padding: 12px; border-bottom: 1px solid #eee; white-space: nowrap;">
-                                                <button onclick="viewOrderDetails('${order.id}')" style="background: #0066cc; color: white; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; margin-right: 4px;">
+                                            <td style="padding: 12px; border-bottom: 1px solid #eee;">
+                                                <button onclick="viewOrderDetails('${order.id}')" style="background: #0066cc; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; margin-right: 5px;">
                                                     View
                                                 </button>
-                                                <button onclick="updateOrderStatus('${order.id}')" style="background: #ff6b00; color: white; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; margin-right: 4px;">
+                                                <button onclick="updateOrderStatus('${order.id}')" style="background: #ff6b00; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer;">
                                                     Update
                                                 </button>
+                                            </td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        ` : '<p>No orders found.</p>'}
                     </div>
                     
                     <div style="margin-top: 20px; color: #666; font-size: 14px;">
