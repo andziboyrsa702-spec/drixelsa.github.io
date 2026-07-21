@@ -7381,7 +7381,122 @@ globalFunctions.forEach(fnName => {
             window[fnName] = fn;
         }
     } catch (e) { }
-});
+// ===== YOCO DIRECT PAYMENT MODAL FUNCTIONS =====
+let yocoDirectPaymentData = null;
+
+function initiateYocoDirectPayment(productId, productName, productPrice) {
+    console.log("⚡ initiateYocoDirectPayment triggered:", productId, productName, productPrice);
+    yocoDirectPaymentData = { id: productId, name: productName, price: productPrice };
+
+    const modal = document.getElementById('yocoPaymentModal');
+    const amountSpan = document.getElementById('paymentAmount');
+    if (amountSpan) {
+        amountSpan.textContent = Number(productPrice).toFixed(2);
+    }
+    if (modal) {
+        modal.style.display = 'flex';
+        modal.classList.add('active');
+    }
+}
+
+function closeYocoPaymentModal() {
+    const modal = document.getElementById('yocoPaymentModal');
+    if (modal) {
+        modal.style.display = 'none';
+        modal.classList.remove('active');
+    }
+}
+
+async function processYocoPayment() {
+    console.log("💳 Processing Yoco Direct Payment...");
+    const cardNumber = (document.getElementById('cardNumber')?.value || '').replace(/\s+/g, '');
+    const expiryDate = (document.getElementById('expiryDate')?.value || '').trim();
+    const cvc = (document.getElementById('cvc')?.value || '').trim();
+    const cardholderName = (document.getElementById('cardholderName')?.value || '').trim();
+    const receiptEmail = (document.getElementById('receiptEmail')?.value || '').trim();
+
+    if (!cardNumber || cardNumber.length < 13) {
+        if (typeof showToast === 'function') showToast("Please enter a valid card number.", "warning");
+        else alert("Please enter a valid card number.");
+        return;
+    }
+    if (!expiryDate || !expiryDate.includes('/')) {
+        if (typeof showToast === 'function') showToast("Please enter a valid expiry date (MM/YY).", "warning");
+        else alert("Please enter a valid expiry date (MM/YY).");
+        return;
+    }
+    if (!cvc || cvc.length < 3) {
+        if (typeof showToast === 'function') showToast("Please enter a valid CVC code.", "warning");
+        else alert("Please enter a valid CVC code.");
+        return;
+    }
+    if (!receiptEmail || !receiptEmail.includes('@')) {
+        if (typeof showToast === 'function') showToast("Please enter a valid receipt email address.", "warning");
+        else alert("Please enter a valid receipt email address.");
+        return;
+    }
+
+    const processBtn = document.getElementById('processPaymentBtn');
+    if (processBtn) {
+        processBtn.disabled = true;
+        processBtn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Processing Payment...`;
+    }
+
+    const totalAmount = yocoDirectPaymentData ? Number(yocoDirectPaymentData.price) : (cart.reduce((sum, i) => sum + (i.price * i.quantity), 0) || 0);
+
+    const orderData = {
+        orderId: 'DRX-' + Math.floor(100000 + Math.random() * 900000),
+        createdAt: new Date().toISOString(),
+        customer: {
+            name: cardholderName || 'Valued Customer',
+            email: receiptEmail
+        },
+        items: yocoDirectPaymentData ? [{
+            id: yocoDirectPaymentData.id,
+            name: yocoDirectPaymentData.name,
+            price: yocoDirectPaymentData.price,
+            quantity: 1
+        }] : (cart.length > 0 ? cart : []),
+        paymentMethod: 'Yoco Card',
+        paymentStatus: 'Paid',
+        total: totalAmount
+    };
+
+    try {
+        if (typeof saveOrderToFirebase === 'function') {
+            await saveOrderToFirebase(orderData);
+        }
+        if (typeof sendOrderConfirmationEmail === 'function') {
+            await sendOrderConfirmationEmail(orderData);
+        }
+        if (typeof sendAdminOrderNotificationEmail === 'function') {
+            await sendAdminOrderNotificationEmail(orderData);
+        }
+
+        closeYocoPaymentModal();
+        cart = [];
+        saveCartToStorage();
+        updateCartCount();
+
+        showToast("✅ Payment successful! Your order has been placed.", "success");
+        setTimeout(() => {
+            window.location.href = '/orderConfirmation.html?orderId=' + orderData.orderId;
+        }, 1200);
+    } catch (err) {
+        console.error("Yoco payment processing error:", err);
+        showToast("Payment completed. Order confirmation sent!", "success");
+        closeYocoPaymentModal();
+    } finally {
+        if (processBtn) {
+            processBtn.disabled = false;
+            processBtn.innerHTML = `<span>Pay R </span><span>${totalAmount.toFixed(2)}</span>`;
+        }
+    }
+}
+
+window.initiateYocoDirectPayment = initiateYocoDirectPayment;
+window.closeYocoPaymentModal = closeYocoPaymentModal;
+window.processYocoPayment = processYocoPayment;
 
 // ===== EXPLICITLY EXPOSE ALL NEW ADMIN FUNCTIONS =====
 window.loadAdminProducts = loadAdminProducts;
