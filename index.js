@@ -191,10 +191,12 @@ async function sendEmailViaResend({ to, cc, subject, html }) {
             html: html
         };
 
+        const targetUrl = 'https://api.resend.com/emails';
+
         const fetchAttempts = [
-            // Direct fetch (works on server/backend/modern browser CORS)
+            // 1. Direct fetch (works on server / Node.js backend)
             async () => {
-                return await fetch('https://api.resend.com/emails', {
+                return await fetch(targetUrl, {
                     method: 'POST',
                     headers: {
                         'Authorization': `Bearer ${storedApiKey}`,
@@ -203,9 +205,31 @@ async function sendEmailViaResend({ to, cc, subject, html }) {
                     body: JSON.stringify(sendPayload)
                 });
             },
-            // Fallback from-address if custom domain header issues occur
+            // 2. High-Speed CORS Proxy Relay (bypasses browser CORS preflight blocking)
             async () => {
-                return await fetch('https://api.resend.com/emails', {
+                return await fetch('https://corsproxy.io/?' + encodeURIComponent(targetUrl), {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${storedApiKey}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(sendPayload)
+                });
+            },
+            // 3. Fallback CORS Relay
+            async () => {
+                return await fetch('https://api.allorigins.win/raw?url=' + encodeURIComponent(targetUrl), {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${storedApiKey}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(sendPayload)
+                });
+            },
+            // 4. Fallback with onboarding domain via CORS proxy
+            async () => {
+                return await fetch('https://corsproxy.io/?' + encodeURIComponent(targetUrl), {
                     method: 'POST',
                     headers: {
                         'Authorization': `Bearer ${storedApiKey}`,
@@ -236,37 +260,39 @@ async function sendEmailViaResend({ to, cc, subject, html }) {
         }
     }
 
-    // Method 2: Firebase / Backend Cloud Function (/api/send-email)
-    console.log("📨 [Method 2] Attempting Cloud Function endpoint:", endpoint);
-    try {
-        const response = await fetch(endpoint, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                from: fromEmail,
-                to: recipientList,
-                ...(ccList.length > 0 ? { cc: ccList } : {}),
-                subject: subject,
-                html: html
-            })
-        });
+    // Method 2: Custom Serverless Endpoint (if configured and valid URL)
+    if (endpoint && endpoint.startsWith('http')) {
+        console.log("📨 [Method 2] Attempting Cloud Function endpoint:", endpoint);
+        try {
+            const response = await fetch(endpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    from: fromEmail,
+                    to: recipientList,
+                    ...(ccList.length > 0 ? { cc: ccList } : {}),
+                    subject: subject,
+                    html: html
+                })
+            });
 
-        if (response.ok) {
-            const data = await response.json().catch(() => ({}));
-            console.log("✅ [Method 2 SUCCESS] Email sent via Cloud Function:", data);
-            return { success: true, data };
-        } else {
-            const errText = await response.text();
-            console.warn("⚠️ [Method 2 Failed] Endpoint returned status:", response.status, errText);
+            if (response.ok) {
+                const data = await response.json().catch(() => ({}));
+                console.log("✅ [Method 2 SUCCESS] Email sent via Cloud Function:", data);
+                return { success: true, data };
+            } else {
+                const errText = await response.text();
+                console.warn("⚠️ [Method 2 Failed] Endpoint returned status:", response.status, errText);
+            }
+        } catch (err) {
+            console.warn("⚠️ [Method 2 Exception]:", err.message);
         }
-    } catch (err) {
-        console.warn("⚠️ [Method 2 Exception]:", err.message);
     }
 
     console.error("❌ [Email Dispatcher] Resend API delivery failed for recipient:", recipientList);
     return {
         success: false,
-        message: 'Email delivery failed. Please enter your Resend API Key (re_...) in Admin Settings.'
+        message: 'Email delivery failed. Please check your Resend API Key in Admin Settings.'
     };
 }
 window.sendEmailViaResend = sendEmailViaResend;
