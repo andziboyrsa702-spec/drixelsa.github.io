@@ -1136,28 +1136,48 @@ function updateAuthUI() {
 function loadYocoSDK() {
     console.log("🔄 Loading Yoco SDK...");
 
-    const script = document.createElement('script');
-    script.src = 'https://js.yoco.com/sdk/v1/yoco-sdk-web.js';
+    const sdkSources = [
+        'https://static.yoco.com/sdk/v1/yoco-sdk-web.js',
+        'https://js.yoco.com/sdk/v2/yoco-sdk-web.js',
+        'https://js.yoco.com/sdk/yoco-sdk-web.js'
+    ];
 
-    script.onload = function () {
-        console.log("✅ Yoco SDK loaded");
-        if (window.YocoSDK) {
-            try {
-                window.yocoSDK = new window.YocoSDK({
-                    publicKey: YOCO_PUBLIC_KEY
-                });
-                console.log("✅ Yoco SDK initialized");
-            } catch (error) {
-                console.error("❌ Failed to initialize Yoco SDK:", error);
-            }
+    let currentIdx = 0;
+
+    function tryNextScript() {
+        if (currentIdx >= sdkSources.length) {
+            console.warn("⚠️ All Yoco SDK CDNs exhausted. Gateway fallback enabled.");
+            return;
         }
-    };
 
-    script.onerror = function () {
-        console.error("❌ Failed to load Yoco SDK");
-    };
+        const src = sdkSources[currentIdx++];
+        const script = document.createElement('script');
+        script.src = src;
 
-    document.head.appendChild(script);
+        script.onload = function () {
+            console.log("✅ Yoco SDK loaded from:", src);
+            if (window.YocoSDK) {
+                try {
+                    window.yocoSDK = new window.YocoSDK({
+                        publicKey: YOCO_PUBLIC_KEY
+                    });
+                    console.log("✅ Yoco SDK initialized");
+                } catch (error) {
+                    console.error("❌ Failed to initialize Yoco SDK:", error);
+                }
+            }
+        };
+
+        script.onerror = function () {
+            console.warn("⚠️ Failed to load Yoco SDK from:", src, "- Trying next CDN...");
+            script.remove();
+            tryNextScript();
+        };
+
+        document.head.appendChild(script);
+    }
+
+    tryNextScript();
 }
 
 // ===== PRODUCT FUNCTIONS =====
