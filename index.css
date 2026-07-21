@@ -6351,3 +6351,402 @@
     text-transform: uppercase;
     margin-top: 20px;
 }
+
+/* ===== LUXURY DRIXEL SA PRODUCT EDITOR MODAL DESIGN ===== */
+.product-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.75);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    z-index: 99998;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.product-modal-overlay.visible {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.product-modal-panel {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -46%) scale(0.96);
+    width: min(920px, 94vw);
+    max-height: 88vh;
+    background: #0f0f0f;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 16px;
+    box-shadow: 0 25px 60px rgba(0, 0, 0, 0.85);
+    z-index: 99999;
+    display: flex;
+    flex-direction: column;
+    color: #ffffff;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease, transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    overflow: hidden;
+}
+
+.product-modal-panel.visible {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translate(-50%, -50%) scale(1);
+}
+
+.product-modal-header {
+    padding: 20px 28px;
+    background: #141414;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.product-modal-header h3 {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    color: #ffffff;
+}
+
+.product-modal-close {
+    background: transparent;
+    border: none;
+    color: #888888;
+    font-size: 22px;
+    line-height: 1;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 6px;
+    transition: color 0.2s, background 0.2s;
+}
+
+.product-modal-close:hover {
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.product-modal-body {
+    padding: 24px 28px;
+    overflow-y: auto;
+    flex: 1;
+}
+
+.pm-section {
+    background: #161616;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    padding: 20px 24px;
+    margin-bottom: 20px;
+}
+
+.pm-section-title {
+    font-size: 13px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #ff6e00;
+    margin-bottom: 14px;
+}
+
+.pm-row {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+}
+
+.pm-field {
+    margin-bottom: 14px;
+    display: flex;
+    flex-direction: column;
+}
+
+.pm-field label {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #aaaaaa;
+    margin-bottom: 6px;
+}
+
+.pm-field input,
+.pm-field select,
+.pm-field textarea {
+    background: #0a0a0a;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 8px;
+    padding: 10px 14px;
+    color: #ffffff;
+    font-size: 14px;
+    font-family: inherit;
+    transition: border-color 0.2s;
+    outline: none;
+}
+
+.pm-field input:focus,
+.pm-field select:focus,
+.pm-field textarea:focus {
+    border-color: #ff6e00;
+}
+
+.pm-image-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+}
+
+@media (max-width: 768px) {
+    .pm-image-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    .pm-row {
+        grid-template-columns: 1fr;
+    }
+}
+
+.pm-image-slot {
+    background: #0a0a0a;
+    border: 1px dashed rgba(255, 255, 255, 0.15);
+    border-radius: 10px;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    position: relative;
+    transition: border-color 0.2s;
+}
+
+.pm-image-slot:hover {
+    border-color: rgba(255, 255, 255, 0.3);
+}
+
+.pm-image-preview {
+    width: 80px;
+    height: 80px;
+    object-fit: cover;
+    border-radius: 6px;
+    background: #111;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    margin-bottom: 6px;
+}
+
+.pm-slot-label {
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    margin-bottom: 6px;
+    display: inline-block;
+}
+
+.pm-slot-label.front-label {
+    background: rgba(255, 110, 0, 0.2);
+    color: #ff6e00;
+    border: 1px solid #ff6e00;
+}
+
+.pm-slot-label.back-label {
+    background: rgba(255, 255, 255, 0.1);
+    color: #ffffff;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.pm-image-url-input {
+    width: 100%;
+    font-size: 11px;
+    background: #141414;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: #ffffff;
+    padding: 6px 8px;
+    border-radius: 6px;
+    margin-bottom: 6px;
+    box-sizing: border-box;
+}
+
+.pm-upload-btn {
+    background: #ff6e00;
+    color: #000000;
+    padding: 5px 10px;
+    border-radius: 6px;
+    font-weight: 700;
+    font-size: 10px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    transition: transform 0.2s, background 0.2s;
+}
+
+.pm-upload-btn:hover {
+    background: #ffa040;
+    transform: translateY(-1px);
+}
+
+.pm-sizes-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.pm-size-chip {
+    padding: 8px 14px;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    background: #0a0a0a;
+    color: #aaaaaa;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.pm-size-chip.selected {
+    background: #ffffff;
+    color: #000000;
+    border-color: #ffffff;
+    font-weight: 800;
+}
+
+.pm-color-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.pm-color-swatch {
+    width: 36px;
+    height: 36px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 6px;
+    background: transparent;
+    cursor: pointer;
+    padding: 0;
+}
+
+.pm-color-name-input {
+    flex: 1;
+    background: #0a0a0a;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 8px;
+    padding: 8px 12px;
+    color: #ffffff;
+    font-size: 13px;
+}
+
+.pm-remove-color-btn {
+    background: rgba(220, 53, 69, 0.2);
+    color: #ff4d4d;
+    border: 1px solid rgba(220, 53, 69, 0.4);
+    border-radius: 6px;
+    width: 32px;
+    height: 32px;
+    font-size: 18px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.pm-add-color-btn {
+    background: transparent;
+    color: #ff6e00;
+    border: 1px dashed #ff6e00;
+    border-radius: 6px;
+    padding: 8px 16px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    margin-top: 6px;
+}
+
+.pm-tags-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.pm-tag-toggle {
+    padding: 8px 16px;
+    border-radius: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    background: #0a0a0a;
+    color: #aaaaaa;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s ease;
+}
+
+.pm-tag-toggle input {
+    display: none;
+}
+
+.pm-tag-toggle.active {
+    background: #ff6e00;
+    color: #000000;
+    border-color: #ff6e00;
+    font-weight: 800;
+}
+
+.product-modal-footer {
+    padding: 16px 28px;
+    background: #141414;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+}
+
+.pm-btn-cancel {
+    background: rgba(255, 255, 255, 0.08);
+    color: #aaaaaa;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.pm-btn-draft {
+    background: #222222;
+    color: #ffffff;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.pm-btn-save {
+    background: #ff6e00;
+    color: #000000;
+    border: none;
+    padding: 10px 24px;
+    border-radius: 8px;
+    font-weight: 800;
+    font-size: 13px;
+    cursor: pointer;
+    transition: background 0.2s ease;
+}
+
+.pm-btn-save:hover {
+    background: #ffa040;
+}
