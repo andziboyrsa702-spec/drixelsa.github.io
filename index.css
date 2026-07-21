@@ -4801,13 +4801,7 @@
 }
 
 .secure-checkout-badge {
-    font-size: 12px;
-    color: #0caf60;
-    font-weight: 600;
-    background: rgba(12, 175, 96, 0.08);
-    padding: 3px 10px;
-    border-radius: 20px;
-    border: 1px solid rgba(12, 175, 96, 0.15);
+    display: none !important;
 }
 
 /* Responsive Footer */

@@ -5,8 +5,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Drixel SA | Premium South African Streetwear</title>
-    <meta name="description" content="Shop Drixel SA - South Africa's premier luxury streetwear brand. Discover heavyweight graphic tees, oversized hoodies, beanies, and sweaters with nationwide delivery.">
-    <meta name="keywords" content="Drixel SA, South Africa Streetwear, Streetwear Johannesburg, Heavyweight Tees, Oversized Hoodies, Beanies, South African Fashion">
+    <meta name="description"
+        content="Shop Drixel SA - South Africa's premier luxury streetwear brand. Discover heavyweight graphic tees, oversized hoodies, beanies, and sweaters with nationwide delivery.">
+    <meta name="keywords"
+        content="Drixel SA, South Africa Streetwear, Streetwear Johannesburg, Heavyweight Tees, Oversized Hoodies, Beanies, South African Fashion">
     <meta name="robots" content="index, follow">
     <link rel="canonical" href="https://www.drixelsa.co.za/">
 
@@ -14,13 +16,15 @@
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://www.drixelsa.co.za/">
     <meta property="og:title" content="Drixel SA | Premium South African Streetwear">
-    <meta property="og:description" content="Premium South African streetwear that blends urban culture with luxury aesthetics. Shop the latest drop.">
+    <meta property="og:description"
+        content="Premium South African streetwear that blends urban culture with luxury aesthetics. Shop the latest drop.">
     <meta property="og:image" content="https://www.drixelsa.co.za/assets/logo.png">
 
     <!-- Twitter Card Meta Tags -->
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="Drixel SA | Premium South African Streetwear">
-    <meta name="twitter:description" content="Premium South African streetwear that blends urban culture with luxury aesthetics. Shop the latest drop.">
+    <meta name="twitter:description"
+        content="Premium South African streetwear that blends urban culture with luxury aesthetics. Shop the latest drop.">
     <!-- Favicon & App Icons -->
     <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
     <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
@@ -33,7 +37,7 @@
     <!-- QR Code Library -->
     <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-    
+
 
 
 
@@ -73,17 +77,17 @@
             {
               "@type": "MenuItem",
               "name": "T-Shirts",
-              "url": "https://www.drixelsa.co.za/products.html"
+              "url": "https://www.drixelsa.co.za/products/tees"
             },
             {
               "@type": "MenuItem",
               "name": "Outerwear",
-              "url": "https://www.drixelsa.co.za/products.html"
+              "url": "https://www.drixelsa.co.za/products/hoodies"
             },
             {
               "@type": "MenuItem",
               "name": "Accessories",
-              "url": "https://www.drixelsa.co.za/products.html"
+              "url": "https://www.drixelsa.co.za/products/beanies"
             }
           ]
         }
@@ -96,7 +100,7 @@
     <!-- Beautiful Toast Notification System -->
     <div id="toastContainer" class="toast-container"></div>
     <script>
-        window.showToast = function(message, type = 'info') {
+        window.showToast = function (message, type = 'info') {
             let container = document.getElementById('toastContainer');
             if (!container) {
                 container = document.createElement('div');
@@ -107,7 +111,7 @@
 
             const toast = document.createElement('div');
             toast.className = 'toast toast-' + type;
-            
+
             let iconClass = 'fa-info-circle';
             if (type === 'success') iconClass = 'fa-check-circle';
             else if (type === 'error') iconClass = 'fa-times-circle';
@@ -145,11 +149,11 @@
         };
 
         // Global override of the native browser alert()
-        window.alert = function(message) {
+        window.alert = function (message) {
             if (!message) return;
             let type = 'info';
             const lowerMessage = message.toLowerCase();
-            
+
             if (lowerMessage.includes('success') || lowerMessage.includes('confirmed') || lowerMessage.includes('sent') || lowerMessage.includes('âœ“') || lowerMessage.includes('?') || lowerMessage.includes('thank')) {
                 type = 'success';
             } else if (lowerMessage.includes('error') || lowerMessage.includes('fail') || lowerMessage.includes('invalid') || lowerMessage.includes('âŒ') || lowerMessage.includes('disabled') || lowerMessage.includes('not found')) {
@@ -157,11 +161,11 @@
             } else if (lowerMessage.includes('warning') || lowerMessage.includes('please') || lowerMessage.includes('required') || lowerMessage.includes('empty')) {
                 type = 'warning';
             }
-            
+
             window.showToast(message, type);
         };
     </script>
-    
+
     <!-- Cookie Consent Modal -->
     <div class="cookie-consent" id="cookieConsent">
         <div class="cookie-content">
@@ -296,8 +300,11 @@
             <div class="container">
                 <h1>YOUR STREETS. YOUR RULES.</h1>
                 <p>A premium South African streetwear drop tailored for those who make their own rules.</p>
-                <a href="/products.html" class="btn" style="border-radius:30px; font-weight:600; padding:12px 30px;">Shop Collection</a>
-                <a href="#" onclick="window.openOrderTracker(); return false;" class="btn btn-outline mt-20" style="border-radius:30px; font-weight:600; padding:12px 30px; margin-left:15px; border-color:#ffffff; color:#ffffff;">Track Order</a>
+                <a href="/products.html" class="btn"
+                    style="border-radius:30px; font-weight:600; padding:12px 30px;">Shop Collection</a>
+                <a href="#" onclick="window.openOrderTracker(); return false;" class="btn btn-outline mt-20"
+                    style="border-radius:30px; font-weight:600; padding:12px 30px; margin-left:15px; border-color:#ffffff; color:#ffffff;">Track
+                    Order</a>
             </div>
         </div>
 
@@ -305,19 +312,32 @@
             <div class="container">
                 <h2 class="section-title">Seasonal Campaigns</h2>
                 <div class="editorial-grid">
-                    <div class="editorial-card"><img src="/WhatsApp Image 2026-07-09 at 04.58.25 (3).jpeg" alt="Campaign Image 1"></div>
-                    <div class="editorial-card"><img src="/WhatsApp Image 2026-07-09 at 04.58.25 (4).jpeg" alt="Campaign Image 2"></div>
-                    <div class="editorial-card"><img src="/WhatsApp Image 2026-07-09 at 04.58.25 (5).jpeg" alt="Campaign Image 3"></div>
-                    <div class="editorial-card"><img src="/WhatsApp Image 2026-07-09 at 04.58.25 (6).jpeg" alt="Campaign Image 4"></div>
-                    <div class="editorial-card"><img src="/WhatsApp Image 2026-07-09 at 04.58.25 (7).jpeg" alt="Campaign Image 5"></div>
-                    <div class="editorial-card"><img src="/WhatsApp Image 2026-07-09 at 04.58.25 (8).jpeg" alt="Campaign Image 6"></div>
-                    <div class="editorial-card"><img src="/WhatsApp Image 2026-07-09 at 04.58.25 (9).jpeg" alt="Campaign Image 7"></div>
-                    <div class="editorial-card"><img src="/WhatsApp Image 2026-07-09 at 04.58.25 (10).jpeg" alt="Campaign Image 8"></div>
-                    <div class="editorial-card"><img src="/WhatsApp Image 2026-07-09 at 04.58.25 (11).jpeg" alt="Campaign Image 9"></div>
-                    <div class="editorial-card"><img src="/WhatsApp Image 2026-07-09 at 05.25.04.jpeg" alt="Campaign Image 10"></div>
-                    <div class="editorial-card"><img src="/WhatsApp Image 2026-07-09 at 05.25.04 (1).jpeg" alt="Campaign Image 11"></div>
-                    <div class="editorial-card"><img src="/WhatsApp Image 2026-07-09 at 05.25.04 (2).jpeg" alt="Campaign Image 12"></div>
-                    <div class="editorial-card"><img src="/WhatsApp Image 2026-07-09 at 05.25.04 (3).jpeg" alt="Campaign Image 13"></div>
+                    <div class="editorial-card"><img src="/WhatsApp Image 2026-07-09 at 04.58.25 (3).jpeg"
+                            alt="Campaign Image 1"></div>
+                    <div class="editorial-card"><img src="/WhatsApp Image 2026-07-09 at 04.58.25 (4).jpeg"
+                            alt="Campaign Image 2"></div>
+                    <div class="editorial-card"><img src="/WhatsApp Image 2026-07-09 at 04.58.25 (5).jpeg"
+                            alt="Campaign Image 3"></div>
+                    <div class="editorial-card"><img src="/WhatsApp Image 2026-07-09 at 04.58.25 (6).jpeg"
+                            alt="Campaign Image 4"></div>
+                    <div class="editorial-card"><img src="/WhatsApp Image 2026-07-09 at 04.58.25 (7).jpeg"
+                            alt="Campaign Image 5"></div>
+                    <div class="editorial-card"><img src="/WhatsApp Image 2026-07-09 at 04.58.25 (8).jpeg"
+                            alt="Campaign Image 6"></div>
+                    <div class="editorial-card"><img src="/WhatsApp Image 2026-07-09 at 04.58.25 (9).jpeg"
+                            alt="Campaign Image 7"></div>
+                    <div class="editorial-card"><img src="/WhatsApp Image 2026-07-09 at 04.58.25 (10).jpeg"
+                            alt="Campaign Image 8"></div>
+                    <div class="editorial-card"><img src="/WhatsApp Image 2026-07-09 at 04.58.25 (11).jpeg"
+                            alt="Campaign Image 9"></div>
+                    <div class="editorial-card"><img src="/WhatsApp Image 2026-07-09 at 05.25.04.jpeg"
+                            alt="Campaign Image 10"></div>
+                    <div class="editorial-card"><img src="/WhatsApp Image 2026-07-09 at 05.25.04 (1).jpeg"
+                            alt="Campaign Image 11"></div>
+                    <div class="editorial-card"><img src="/WhatsApp Image 2026-07-09 at 05.25.04 (2).jpeg"
+                            alt="Campaign Image 12"></div>
+                    <div class="editorial-card"><img src="/WhatsApp Image 2026-07-09 at 05.25.04 (3).jpeg"
+                            alt="Campaign Image 13"></div>
                 </div>
 
                 <h2 class="section-title" style="margin-top: 80px;">Drixel Campaign Reels</h2>
@@ -360,8 +380,10 @@
                             </div>
                         </div>
                     </div>
-                    <button class="carousel-control prev" onclick="window.prevCampaignVideo()"><i class="fas fa-chevron-left"></i></button>
-                    <button class="carousel-control next" onclick="window.nextCampaignVideo()"><i class="fas fa-chevron-right"></i></button>
+                    <button class="carousel-control prev" onclick="window.prevCampaignVideo()"><i
+                            class="fas fa-chevron-left"></i></button>
+                    <button class="carousel-control next" onclick="window.nextCampaignVideo()"><i
+                            class="fas fa-chevron-right"></i></button>
                 </div>
 
                 <h2 class="section-title" style="margin-top: 80px;">Featured Streetwear</h2>
@@ -428,20 +450,27 @@
     <!-- Shop Page -->
 
     <!-- Footer -->
-        <footer class="site-footer">
+    <footer class="site-footer">
         <div class="container">
             <div class="footer-top-grid">
                 <!-- Brand Column -->
                 <div class="footer-brand-col">
                     <a href="/index.html" class="footer-logo">DRIXEL<span>SA</span></a>
-                    <p class="footer-tagline">South Africa's premium streetwear brand. High-grade fabrics, custom oversized cuts, and state-of-the-art urban aesthetics.</p>
+                    <p class="footer-tagline">South Africa's premium streetwear brand. High-grade fabrics, custom
+                        oversized cuts, and state-of-the-art urban aesthetics.</p>
                     <div class="social-links-wrapper">
-                        <a href="http://instagram.drixelsa.co.za/" target="_blank" aria-label="Instagram"><i class="fab fa-instagram"></i></a>
-                        <a href="http://facebook.drixelsa.co.za/" target="_blank" aria-label="Facebook"><i class="fab fa-facebook-f"></i></a>
-                        <a href="http://tiktok.drixelsa.co.za/" target="_blank" aria-label="TikTok"><i class="fab fa-tiktok"></i></a>
-                        <a href="http://twiitter.drixelsa.co.za/" target="_blank" aria-label="Twitter"><i class="fab fa-twitter"></i></a>
-                        <a href="http://LinkedIn.drixelsa.co.za/" target="_blank" aria-label="LinkedIn"><i class="fab fa-linkedin-in"></i></a>
-                        <a href="http://youtube.drixelsa.co.za/" target="_blank" aria-label="YouTube"><i class="fab fa-youtube"></i></a>
+                        <a href="http://instagram.drixelsa.co.za/" target="_blank" aria-label="Instagram"><i
+                                class="fab fa-instagram"></i></a>
+                        <a href="http://facebook.drixelsa.co.za/" target="_blank" aria-label="Facebook"><i
+                                class="fab fa-facebook-f"></i></a>
+                        <a href="http://tiktok.drixelsa.co.za/" target="_blank" aria-label="TikTok"><i
+                                class="fab fa-tiktok"></i></a>
+                        <a href="http://twiitter.drixelsa.co.za/" target="_blank" aria-label="Twitter"><i
+                                class="fab fa-twitter"></i></a>
+                        <a href="http://LinkedIn.drixelsa.co.za/" target="_blank" aria-label="LinkedIn"><i
+                                class="fab fa-linkedin-in"></i></a>
+                        <a href="http://youtube.drixelsa.co.za/" target="_blank" aria-label="YouTube"><i
+                                class="fab fa-youtube"></i></a>
                     </div>
                 </div>
 
@@ -461,7 +490,10 @@
                 <div class="footer-nav-col">
                     <h3>Support & Info</h3>
                     <ul class="footer-links-list">
-                        <li><a href="#" onclick="window.openOrderTracker(); return false;"><i class="fas fa-truck-moving" style="margin-right: 6px; font-size: 12px; color: var(--accent-orange);"></i> Track Your Order</a></li>
+                        <li><a href="#" onclick="window.openOrderTracker(); return false;"><i
+                                    class="fas fa-truck-moving"
+                                    style="margin-right: 6px; font-size: 12px; color: var(--accent-orange);"></i> Track
+                                Your Order</a></li>
                         <li><a href="/about.html">About Drixel Labs</a></li>
                         <li><a href="/contact.html">Get in Touch</a></li>
                         <li><a href="/help/a/shipping-policy/index.html">Shipping Details</a></li>
@@ -504,7 +536,8 @@
             <!-- Footer Bottom -->
             <div class="footer-bottom-row">
                 <div class="footer-bottom-left">
-                    <p>&copy; 2026 Drixel SA. All rights reserved. | Powered by <a href="mailto:drixelsa@gmail.com" style="color: var(--nike-white); font-weight: 600;">Drixel Labs Inc.</a></p>
+                    <p>&copy; 2026 Drixel SA. All rights reserved. | Powered by <a href="mailto:drixelsa@gmail.com"
+                            style="color: var(--nike-white); font-weight: 600;">Drixel Labs Inc.</a></p>
                     <div class="footer-legal-links">
                         <a href="/help/a/privacy-policy/index.html">Privacy Policy</a>
                         <span class="legal-separator">â€¢</span>
@@ -518,7 +551,6 @@
                         <i class="fab fa-cc-mastercard" title="Mastercard"></i>
                         <span class="snapscan-icon-badge" title="SnapScan">SnapScan</span>
                         <span class="yoco-icon-badge" title="Yoco">Yoco Pay</span>
-                        <span class="secure-checkout-badge"><i class="fas fa-lock"></i> SSL Secured</span>
                     </div>
                 </div>
             </div>
@@ -667,6 +699,3 @@
 </body>
 
 </html>
-
-
-

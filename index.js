@@ -1204,19 +1204,21 @@ function loadAllProducts() {
     );
     
     // 1. Category Filter
-    const category = window.currentCollectionFilter || 'all';
+    const category = (window.currentCollectionFilter || 'all').toLowerCase();
     if (category !== 'all') {
         filtered = filtered.filter(product => {
-            const cat = product.category.toLowerCase();
-            const name = product.name.toLowerCase();
-            if (category === 'essentials') {
-                return cat === 'tees' || cat === 't-shirts' || cat === 'essentials';
-            } else if (category === 'outerwear') {
-                return cat === 'hoodies' || cat === 'outerwear' || name.includes('hoodie') || name.includes('sweat') || name.includes('tracksuit') || name.includes('jacket');
-            } else if (category === 'accessories') {
-                return cat === 'beanies' || cat === 'accessories' || name.includes('beanie') || name.includes('socks') || name.includes('backpack');
+            const cat = (product.category || '').toLowerCase();
+            const name = (product.name || '').toLowerCase();
+            if (category === 'essentials' || category === 'tees' || category === 't-shirts') {
+                return cat === 'tees' || cat === 't-shirts' || cat === 'essentials' || name.includes('tee') || name.includes('t-shirt');
+            } else if (category === 'outerwear' || category === 'hoodies') {
+                return cat === 'hoodies' || cat === 'outerwear' || name.includes('hoodie') || name.includes('jacket') || name.includes('crop hoodie');
+            } else if (category === 'accessories' || category === 'beanies') {
+                return cat === 'beanies' || cat === 'accessories' || name.includes('beanie');
+            } else if (category === 'sweaters') {
+                return cat === 'sweaters' || name.includes('sweater') || name.includes('turtleneck') || name.includes('v-neck');
             }
-            return cat === category;
+            return cat === category || name.includes(category);
         });
     }
     
@@ -1279,10 +1281,13 @@ function updateCollectionsBarActive(category) {
     container.querySelectorAll('.collection-chip').forEach(chip => {
         chip.classList.remove('active');
     });
-    
+
+    const targetCategory = (category === 'essentials' ? 'tees' : (category === 'outerwear' ? 'hoodies' : (category === 'accessories' ? 'beanies' : category))).toLowerCase();
+
     const activeChip = Array.from(container.querySelectorAll('.collection-chip')).find(chip => {
-        const onclickAttr = chip.getAttribute('onclick') || '';
-        return onclickAttr.includes(`'${category}'`) || onclickAttr.includes(`"${category}"`);
+        const onclickAttr = (chip.getAttribute('onclick') || '').toLowerCase();
+        return onclickAttr.includes(`'${category}'`) || onclickAttr.includes(`"${category}"`) ||
+               onclickAttr.includes(`'${targetCategory}'`) || onclickAttr.includes(`"${targetCategory}"`);
     });
     
     if (activeChip) {
