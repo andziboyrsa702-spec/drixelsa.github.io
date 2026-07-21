@@ -7381,6 +7381,8 @@ globalFunctions.forEach(fnName => {
             window[fnName] = fn;
         }
     } catch (e) { }
+});
+
 // ===== YOCO DIRECT PAYMENT MODAL FUNCTIONS =====
 let yocoDirectPaymentData = null;
 
