@@ -4602,22 +4602,24 @@ function initializeAppAfterFirebase() {
     const isHomepage = path === '/' || path === '' || (path.endsWith('index.html') && !path.includes('/products/'));
 
     if (isHomepage) {
-        try { loadFeaturedProducts(); } catch (e) { }
+        try { loadFeaturedProducts(); } catch (e) { console.error("Error loading featured products:", e); }
     } else if (isShopPage) {
         try {
             // Apply collection filter based on the sub-directory path
             if (path.includes('/products/tees')) {
-                window.currentCollectionFilter = 'essentials'; // Tees map to Essentials collection
+                window.currentCollectionFilter = 'tees';
             } else if (path.includes('/products/hoodies') || path.includes('/products/outerwear')) {
-                window.currentCollectionFilter = 'outerwear';
+                window.currentCollectionFilter = 'hoodies';
             } else if (path.includes('/products/beanies') || path.includes('/products/accessories')) {
-                window.currentCollectionFilter = 'accessories';
+                window.currentCollectionFilter = 'beanies';
             } else if (path.includes('/products/sweaters')) {
                 window.currentCollectionFilter = 'sweaters';
+            } else {
+                window.currentCollectionFilter = window.currentCollectionFilter || 'all';
             }
             loadAllProducts();
             updateCollectionsBarActive(window.currentCollectionFilter || 'all');
-        } catch (e) { }
+        } catch (e) { console.error("Error loading shop products:", e); }
     } else if (path.endsWith('cart.html') || path.endsWith('cart')) {
         try { loadCartPage(); } catch (e) { }
     } else if (path.endsWith('checkout.html') || path.endsWith('checkout')) {
@@ -7431,6 +7433,13 @@ window.loadProductsFromFirestore = loadProductsFromFirestore;
 window.invalidateProductsCache = invalidateProductsCache;
 window.migrateLocalProductsToFirestore = migrateLocalProductsToFirestore;
 window.loadAdminProductsGrid = loadAdminProductsGrid;
+
+// Auto-initialize app & products immediately on DOM load so products NEVER disappear
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeAppAfterFirebase);
+} else {
+    initializeAppAfterFirebase();
+}
 
 // Load banners on homepage automatically
 document.addEventListener('DOMContentLoaded', () => {
