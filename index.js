@@ -263,39 +263,10 @@ async function sendEmailViaResend({ to, cc, subject, html }) {
         console.warn("⚠️ [Method 2 Exception]:", err.message);
     }
 
-    // Method 3: FormSubmit AJAX Client Relay (Direct browser submission)
-    console.log("📨 [Method 3] Attempting FormSubmit Browser Client Relay...");
-    try {
-        const formSubmitEndpoint = `https://formsubmit.co/ajax/${encodeURIComponent(recipientList[0])}`;
-        const formData = new FormData();
-        formData.append('_subject', subject);
-        formData.append('_replyto', fromEmail);
-        formData.append('_captcha', 'false');
-        formData.append('_template', 'table');
-        formData.append('message', html);
-
-        const fsResponse = await fetch(formSubmitEndpoint, {
-            method: 'POST',
-            headers: { 'Accept': 'application/json' },
-            body: formData
-        });
-
-        if (fsResponse.ok) {
-            const data = await fsResponse.json().catch(() => ({}));
-            console.log("✅ [Method 3 SUCCESS] Email delivered via FormSubmit Relay:", data);
-            return { success: true, data };
-        } else {
-            const errText = await fsResponse.text();
-            console.warn("⚠️ [Method 3 Failed] FormSubmit status:", fsResponse.status, errText);
-        }
-    } catch (err) {
-        console.warn("⚠️ [Method 3 Exception]:", err.message);
-    }
-
-    console.error("❌ [Email Dispatcher] All delivery methods failed for recipient:", recipientList);
+    console.error("❌ [Email Dispatcher] Resend API delivery failed for recipient:", recipientList);
     return {
         success: false,
-        message: 'Email delivery failed across all channels. Please check recipient address or configure a Resend API Key in Admin Settings.'
+        message: 'Email delivery failed. Please enter your Resend API Key (re_...) in Admin Settings.'
     };
 }
 window.sendEmailViaResend = sendEmailViaResend;
@@ -3531,6 +3502,52 @@ const DEFAULT_EMAIL_TEMPLATES = {
         <p style="margin: 0 0 10px; color: #888;">&copy; 2026 Drixel SA. All rights reserved. | Powered by Drixel Labs Inc.</p>
     </div>
 </div>`
+    },
+    admin_order_notification: {
+        subject: "🚨 NEW ORDER RECEIVED - #{orderNumber} ({totalAmount})",
+        body: `<div style="font-family: 'Outfit', 'Inter', sans-serif, Arial; color: #111; max-width: 600px; margin: 0 auto; background-color: #fafafa; border: 1px solid #eee; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.03);">
+    <div style="background-color: #000000; padding: 30px; text-align: center; border-bottom: 2px solid #ff6e00;">
+        <h1 style="color: #ffffff; margin: 0; font-size: 28px; letter-spacing: 2px; font-weight: 900; text-decoration: none;">DRIXEL<span style="color: #ff6e00;">SA</span></h1>
+        <p style="color: #888888; margin: 5px 0 0; font-size: 12px; text-transform: uppercase; letter-spacing: 1.5px;">Admin Store Alert</p>
+    </div>
+    <div style="padding: 40px; background-color: #ffffff;">
+        <h2 style="font-size: 20px; font-weight: 800; margin-bottom: 20px; text-transform: uppercase; color: #ff6e00;">🚨 New Customer Order Received!</h2>
+        <p>A new order <strong>#{orderNumber}</strong> has been placed on Drixel SA website.</p>
+        
+        <div style="background-color: #fafafa; border: 1px solid #eee; border-radius: 6px; padding: 20px; margin: 25px 0;">
+            <h3 style="margin-top: 0; font-size: 14px; text-transform: uppercase; color: #111; border-bottom: 1px solid #eee; padding-bottom: 8px;">Customer & Order Information</h3>
+            <p style="margin: 6px 0; font-size: 14px; color: #666;">Customer Name: <strong>{customerName}</strong></p>
+            <p style="margin: 6px 0; font-size: 14px; color: #666;">Customer Email: <strong>{customerEmail}</strong></p>
+            <p style="margin: 6px 0; font-size: 14px; color: #666;">Order Date: <strong>{orderDate}</strong></p>
+            <p style="margin: 6px 0; font-size: 14px; color: #666;">Payment Method: <strong>{paymentMethod}</strong></p>
+            <p style="margin: 6px 0; font-size: 14px; color: #666;">Payment Status: <strong>{paymentStatus}</strong></p>
+            <p style="margin: 6px 0; font-size: 14px; color: #666;">Delivery Address: <strong>{deliveryAddress}</strong></p>
+        </div>
+
+        <h3 style="font-size: 15px; margin-bottom: 15px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 2px solid #eee; padding-bottom: 8px; color: #111;">Order Items</h3>
+        <table style="width: 100%; border-collapse: collapse; font-size: 14px; margin-bottom: 25px;">
+            <thead>
+                <tr style="border-bottom: 2px solid #eee; text-align: left; font-size: 12px; text-transform: uppercase; color: #666;">
+                    <th style="padding: 8px 0;">Item</th>
+                    <th style="padding: 8px 0; text-align: center;">Qty</th>
+                    <th style="padding: 8px 0; text-align: right;">Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                {itemsTable}
+            </tbody>
+        </table>
+
+        <div style="border-top: 1px solid #eee; padding-top: 15px; font-size: 14px; text-align: right; line-height: 1.6;">
+            <p style="margin: 3px 0; color: #666;">Subtotal: <strong style="color: #111;">{subtotal}</strong></p>
+            <p style="margin: 3px 0; color: #666;">Delivery: <strong style="color: #111;">{shipping}</strong></p>
+            <p style="margin: 5px 0; font-size: 16px; color: #ff6e00; font-weight: 700;">Total: {totalAmount}</p>
+        </div>
+    </div>
+    <div style="background-color: #080808; padding: 30px; text-align: center; color: #666; font-size: 12px; border-top: 1px solid #1a1a1a;">
+        <p style="margin: 0 0 10px; color: #888;">&copy; 2026 Drixel SA. All rights reserved. | Admin Store Alert</p>
+    </div>
+</div>`
     }
 };
 
@@ -5176,7 +5193,8 @@ function loadAdminEmailManagement() {
         { key: 'order_received', label: '✅ Order Received' },
         { key: 'out_for_delivery', label: '🚚 Out for Delivery' },
         { key: 'order_delivered', label: '📦 Order Delivered' },
-        { key: 'order_cancelled', label: '❌ Order Cancelled' }
+        { key: 'order_cancelled', label: '❌ Order Cancelled' },
+        { key: 'admin_order_notification', label: '🔔 Admin Order Alert' }
     ];
 
     const firstKey = 'order_confirmation';
@@ -5273,7 +5291,14 @@ window.adminSelectEmailTemplate = function(key) {
     window._adminCurrentEmailTemplateKey = key;
     const savedTemplates = JSON.parse(localStorage.getItem('drixel_email_templates') || '{}');
     const template = savedTemplates[key] || DEFAULT_EMAIL_TEMPLATES[key];
-    const labels = { order_confirmation: '📧 Order Confirmation', order_received: '✅ Order Received', out_for_delivery: '🚚 Out for Delivery', order_delivered: '📦 Order Delivered', order_cancelled: '❌ Order Cancelled' };
+    const labels = {
+        order_confirmation: '📧 Order Confirmation',
+        order_received: '✅ Order Received',
+        out_for_delivery: '🚚 Out for Delivery',
+        order_delivered: '📦 Order Delivered',
+        order_cancelled: '❌ Order Cancelled',
+        admin_order_notification: '🔔 Admin Order Alert'
+    };
 
     document.getElementById('email-template-subject').value = template.subject;
     document.getElementById('email-template-body').value = template.body;
@@ -5281,7 +5306,7 @@ window.adminSelectEmailTemplate = function(key) {
     document.getElementById('email-save-status').textContent = '';
 
     // Update tab buttons
-    const templateKeys = ['order_confirmation','order_received','out_for_delivery','order_delivered','order_cancelled'];
+    const templateKeys = ['order_confirmation', 'order_received', 'out_for_delivery', 'order_delivered', 'order_cancelled', 'admin_order_notification'];
     templateKeys.forEach(k => {
         const btn = document.getElementById('tmpl-tab-' + k);
         if (btn) {
