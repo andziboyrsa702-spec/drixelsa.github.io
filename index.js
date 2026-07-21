@@ -160,7 +160,6 @@ const SNAPSCAN_REGISTRATION = "2026/000210/07";
 // ===== RESEND & BACKEND EMAIL CONFIGURATION & HELPER =====
 async function sendEmailViaResend({ to, cc, subject, html }) {
     let storedApiKey = (localStorage.getItem('drixel_resend_api_key') || '').trim();
-    // Auto-clean known invalid/revoked keys
     if (storedApiKey === 're_9127pJDT_jRDx942YS4UbyH3YDfm9H7ow') {
         storedApiKey = '';
         localStorage.removeItem('drixel_resend_api_key');
@@ -177,8 +176,44 @@ async function sendEmailViaResend({ to, cc, subject, html }) {
     const recipientList = Array.isArray(to) ? to : [to];
     const ccList = cc && cc.length > 0 ? (Array.isArray(cc) ? cc : [cc]) : [];
 
-    // Strategy 1: Attempt Firebase / Backend Cloud Function endpoint (/api/send-email)
-    console.log("📨 Attempting to send email via Cloud Function / API endpoint:", endpoint);
+    console.log("📧 [Email Dispatcher] Starting email send process...");
+    console.log("   • Recipient(s):", recipientList.join(', '));
+    console.log("   • Subject:", subject);
+
+    // Method 1: Resend API Key (If configured in Admin Settings)
+    if (storedApiKey && storedApiKey.startsWith('re_')) {
+        console.log("📨 [Method 1] Attempting Resend API key dispatch...");
+        try {
+            const response = await fetch('https://api.resend.com/emails', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${storedApiKey}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    from: fromEmail,
+                    to: recipientList,
+                    ...(ccList.length > 0 ? { cc: ccList } : {}),
+                    subject: subject,
+                    html: html
+                })
+            });
+
+            if (response.ok) {
+                const data = await response.json().catch(() => ({}));
+                console.log("✅ [Method 1 SUCCESS] Email sent via Resend API:", data);
+                return { success: true, data };
+            } else {
+                const errText = await response.text();
+                console.warn("⚠️ [Method 1 Failed] Resend API status:", response.status, errText);
+            }
+        } catch (err) {
+            console.warn("⚠️ [Method 1 Exception]:", err.message);
+        }
+    }
+
+    // Method 2: Firebase / Backend Cloud Function (/api/send-email)
+    console.log("📨 [Method 2] Attempting Cloud Function endpoint:", endpoint);
     try {
         const response = await fetch(endpoint, {
             method: 'POST',
@@ -194,107 +229,49 @@ async function sendEmailViaResend({ to, cc, subject, html }) {
 
         if (response.ok) {
             const data = await response.json().catch(() => ({}));
-            console.log("✅ Email sent successfully via Cloud Function:", data);
+            console.log("✅ [Method 2 SUCCESS] Email sent via Cloud Function:", data);
             return { success: true, data };
         } else {
-            const errorText = await response.text();
-            console.warn("⚠️ Cloud Function endpoint returned error:", response.status, errorText);
+            const errText = await response.text();
+            console.warn("⚠️ [Method 2 Failed] Endpoint returned status:", response.status, errText);
         }
-    } catch (error) {
-        console.warn("⚠️ Network error sending email via Cloud Function endpoint:", error.message);
+    } catch (err) {
+        console.warn("⚠️ [Method 2 Exception]:", err.message);
     }
 
-    // Strategy 2: If a user-supplied valid Resend API key is present, try Resend directly or via CORS proxies
-    if (storedApiKey && storedApiKey.startsWith('re_')) {
-        console.log("📨 Attempting to send email via Resend API Key...");
-        
-        const proxies = [
-            async () => {
-                return await fetch('https://api.resend.com/emails', {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${storedApiKey}`,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        from: fromEmail,
-                        to: recipientList,
-                        ...(ccList.length > 0 ? { cc: ccList } : {}),
-                        subject: subject,
-                        html: html
-                    })
-                });
-            },
-            async () => {
-                const authHeader = 'Bearer ' + storedApiKey;
-                const contentTypeHeader = 'application/json';
-                const proxyUrl = `https://corsproxy.io/?url=${encodeURIComponent('https://api.resend.com/emails')}` +
-                                 `&reqHeaders=authorization:${encodeURIComponent(authHeader)}` +
-                                 `&reqHeaders=content-type:${encodeURIComponent(contentTypeHeader)}`;
-                return await fetch(proxyUrl, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'text/plain' },
-                    body: JSON.stringify({
-                        from: fromEmail,
-                        to: recipientList,
-                        ...(ccList.length > 0 ? { cc: ccList } : {}),
-                        subject: subject,
-                        html: html
-                    })
-                });
-            }
-        ];
-
-        for (const proxyFn of proxies) {
-            try {
-                const response = await proxyFn();
-                if (response.ok) {
-                    const data = await response.json().catch(() => ({}));
-                    console.log("✅ Email sent successfully via Resend:", data);
-                    return { success: true, data };
-                } else {
-                    const errorText = await response.text();
-                    console.warn("⚠️ Resend attempt returned status:", response.status, errorText);
-                    if (response.status === 401) {
-                        console.error("❌ Resend API Key is invalid or revoked.");
-                        break;
-                    }
-                }
-            } catch (err) {
-                console.warn("⚠️ Resend proxy attempt failed:", err.message);
-            }
-        }
-    }
-
-    // Strategy 3: Client Backup Email Dispatch (Web3Forms API)
-    console.log("📨 Attempting to send email via Backup Web3Forms Email Relay...");
+    // Method 3: FormSubmit AJAX Client Relay (Direct browser submission)
+    console.log("📨 [Method 3] Attempting FormSubmit Browser Client Relay...");
     try {
-        const backupResponse = await fetch('https://api.web3forms.com/submit', {
+        const formSubmitEndpoint = `https://formsubmit.co/ajax/${encodeURIComponent(recipientList[0])}`;
+        const formData = new FormData();
+        formData.append('_subject', subject);
+        formData.append('_replyto', fromEmail);
+        formData.append('_captcha', 'false');
+        formData.append('_template', 'table');
+        formData.append('message', html);
+
+        const fsResponse = await fetch(formSubmitEndpoint, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                access_key: 'b14ca74c-83b3-4f9e-9d2a-43d9a0d84f86',
-                to: recipientList.join(', '),
-                subject: subject,
-                from_name: 'Drixel SA Store',
-                replyto: fromEmail,
-                message: html.replace(/<[^>]*>?/gm, ''),
-                html: html
-            })
+            headers: { 'Accept': 'application/json' },
+            body: formData
         });
 
-        if (backupResponse.ok) {
-            const data = await backupResponse.json().catch(() => ({}));
-            console.log("✅ Email delivered via Backup Mail Relay Service:", data);
+        if (fsResponse.ok) {
+            const data = await fsResponse.json().catch(() => ({}));
+            console.log("✅ [Method 3 SUCCESS] Email delivered via FormSubmit Relay:", data);
             return { success: true, data };
+        } else {
+            const errText = await fsResponse.text();
+            console.warn("⚠️ [Method 3 Failed] FormSubmit status:", fsResponse.status, errText);
         }
-    } catch (fallbackErr) {
-        console.warn("⚠️ Backup mail service failed:", fallbackErr.message);
+    } catch (err) {
+        console.warn("⚠️ [Method 3 Exception]:", err.message);
     }
 
+    console.error("❌ [Email Dispatcher] All delivery methods failed for recipient:", recipientList);
     return {
         success: false,
-        message: 'Could not deliver email. Please configure a valid Resend API Key in Admin Settings or deploy Firebase Cloud Functions.'
+        message: 'Email delivery failed across all channels. Please check recipient address or configure a Resend API Key in Admin Settings.'
     };
 }
 window.sendEmailViaResend = sendEmailViaResend;
@@ -2891,32 +2868,25 @@ async function placeOrder() {
     }
 
     try {
-        // Save order to Firebase
+        // Save order to Firebase for ALL payment methods
         const orderId = await saveOrderToFirebase(orderData);
+        orderData.id = orderId;
 
-        // Send appropriate emails based on payment method
+        console.log("🚀 [Checkout] Dispatching order emails...");
+        // Send order confirmation to customer
+        const customerEmailPromise = sendOrderConfirmationEmail(orderData).catch(e => console.error("Customer email dispatch error:", e));
+        // Send order notification to admin
+        const adminEmailPromise = sendAdminOrderNotificationEmail(orderData).catch(e => console.error("Admin email dispatch error:", e));
+
+        await Promise.allSettled([customerEmailPromise, adminEmailPromise]);
+
         if (paymentMethod === 'bank') {
-            await sendOrderConfirmationEmail(orderData).catch(e => console.error("Email error:", e));
-            sendAdminOrderNotificationEmail(orderData).catch(e => console.error("Admin notification email error:", e));
             alert(`Order placed successfully!\n\nOrder #${orderNumber}\n\nPayment Details:\nBank: Standard Bank\nAccount: 071337873\nReference: ${orderNumber}\n\nPlease make payment and your order will be processed.`);
-
-        } else if (paymentMethod === 'yoco') {
-            alert('⚠️ Yoco card payments are currently disabled on this website because the old client-only flow is no longer supported. Please choose SnapScan or Bank Transfer for now.');
-            if (placeOrderBtn) {
-                placeOrderBtn.innerHTML = originalBtnText;
-                placeOrderBtn.disabled = false;
-            }
-            return;
         } else if (paymentMethod === 'snapscan') {
-            alert('Please complete the SnapScan payment using the QR code or reference number, then click "I\'ve Paid with SnapScan" to confirm your payment.');
-            if (placeOrderBtn) {
-                placeOrderBtn.innerHTML = originalBtnText;
-                placeOrderBtn.disabled = false;
-            }
-            return;
+            alert(`Order #${orderNumber} created!\n\nPlease complete your SnapScan payment using reference "${orderNumber}". Order details have been sent to your email (${email}).`);
         }
 
-        // Clear cart for bank transfers
+        // Clear cart
         cart = [];
         updateCartCount();
 
@@ -2938,6 +2908,11 @@ async function placeOrder() {
     } catch (error) {
         console.error("❌ Error placing order:", error);
         alert('There was an error processing your order. Please try again.');
+    } finally {
+        if (placeOrderBtn) {
+            placeOrderBtn.innerHTML = originalBtnText;
+            placeOrderBtn.disabled = false;
+        }
     }
 }
 
@@ -3598,10 +3573,10 @@ function renderEmailTemplate(templateKey, orderData, extraData = {}) {
 }
 
 async function sendOrderConfirmationEmail(orderData) {
-    console.log("📧 Sending Order Confirmation Email via Resend...");
-    const email = orderData?.customer?.email || orderData?.customer_email || '';
+    console.log("📧 Sending Order Confirmation Email...", orderData);
+    const email = orderData?.customer?.email || orderData?.customer_email || orderData?.email || orderData?.receiptEmail || '';
     if (!email || !email.includes('@')) {
-        console.error("❌ Invalid email address:", email);
+        console.error("❌ Invalid email address for Order Confirmation:", email, orderData);
         return { success: false, message: 'Invalid email address' };
     }
     try {
@@ -3614,10 +3589,10 @@ async function sendOrderConfirmationEmail(orderData) {
 }
 
 async function sendOrderReceivedEmail(orderData) {
-    console.log("📧 Sending Order Received Email via Resend...");
-    const email = orderData?.customer?.email || orderData?.customer_email || '';
+    console.log("📧 Sending Order Received Email...", orderData);
+    const email = orderData?.customer?.email || orderData?.customer_email || orderData?.email || orderData?.receiptEmail || '';
     if (!email || !email.includes('@')) {
-        console.error("❌ Invalid email address:", email);
+        console.error("❌ Invalid email address for Order Received:", email, orderData);
         return { success: false, message: 'Invalid email address' };
     }
     try {
