@@ -1626,7 +1626,12 @@ async function addToCart(productId, fromProductPage = false) {
         window.PRODUCTS_DATA = typeof getLocalProductsData === 'function' ? getLocalProductsData() : [];
     }
 
-    let product = window.PRODUCTS_DATA.find(p => p.id === productId || String(p.id) === String(productId));
+    let product = window.PRODUCTS_DATA.find(p =>
+        String(p.id) === String(productId) ||
+        String(p._firestoreId) === String(productId) ||
+        p.id === productId ||
+        p._firestoreId === productId
+    );
     if (!product && typeof productId === 'string') {
         product = window.PRODUCTS_DATA.find(p => p.name.toLowerCase().replace(/\s+/g, '-') === productId.toLowerCase());
     }
@@ -3252,7 +3257,12 @@ function initiateYocoDirectPayment(productId, productName, price) {
     }
 
     const productKey = `product_${productId}`;
-    const product = window.PRODUCTS_DATA.find(p => p.id === productId);
+    const product = window.PRODUCTS_DATA.find(p =>
+        String(p.id) === String(productId) ||
+        String(p._firestoreId) === String(productId) ||
+        p.id === productId ||
+        p._firestoreId === productId
+    );
     const rawSelections = productSelections[productKey] || {};
     const selections = {
         size: rawSelections.size || (product ? product.sizes[0] : 'M'),
