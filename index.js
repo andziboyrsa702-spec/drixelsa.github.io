@@ -372,6 +372,21 @@ function getInitialProductsData() {
 }
 window.getInitialProductsData = getInitialProductsData;
 
+function getGuaranteedProducts() {
+    if (Array.isArray(window.PRODUCTS_DATA) && window.PRODUCTS_DATA.length > 0) {
+        return window.PRODUCTS_DATA;
+    }
+    const initial = typeof getInitialProductsData === 'function' ? getInitialProductsData() : [];
+    if (Array.isArray(initial) && initial.length > 0) {
+        window.PRODUCTS_DATA = initial;
+        return initial;
+    }
+    const local = typeof getLocalProductsData === 'function' ? getLocalProductsData() : [];
+    window.PRODUCTS_DATA = local;
+    return local;
+}
+window.getGuaranteedProducts = getGuaranteedProducts;
+
         function getLocalProductsData() {
             return [
                 // ===== 5 HOODIES =====
@@ -1203,14 +1218,13 @@ function loadFeaturedProducts() {
 
     featuredContainer.innerHTML = '';
 
-    // Only show active products (not hidden or draft)
-    const featuredProducts = (window.PRODUCTS_DATA || []).filter(p =>
+    const allProducts = getGuaranteedProducts();
+    let featuredProducts = allProducts.filter(p =>
         p.status !== 'hidden' && p.status !== 'draft'
     );
 
     if (featuredProducts.length === 0) {
-        featuredContainer.innerHTML = '<p style="text-align:center;color:#999;padding:40px;">No products available yet.</p>';
-        return;
+        featuredProducts = allProducts.slice(0, 8);
     }
 
     featuredProducts.forEach(product => {
@@ -1228,10 +1242,13 @@ function loadAllProducts() {
 
     productsContainer.innerHTML = '';
 
-    // Only show active products (not hidden or draft)
-    let filtered = (window.PRODUCTS_DATA || []).filter(p =>
+    const allProducts = getGuaranteedProducts();
+    let filtered = allProducts.filter(p =>
         p.status !== 'hidden' && p.status !== 'draft'
     );
+    if (filtered.length === 0) {
+        filtered = allProducts;
+    }
     
     // 1. Category Filter
     const category = (window.currentCollectionFilter || 'all').toLowerCase();
