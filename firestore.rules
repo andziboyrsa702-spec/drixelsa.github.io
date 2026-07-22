@@ -1,0 +1,48 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper function to check if requesting user is authorized admin
+    function isAdmin() {
+      return request.auth != null && (
+        request.auth.token.email == 'admin@drixelsa.co.za' || 
+        request.auth.token.email == 'drixelsa@gmail.com'
+      );
+    }
+    
+    // Products Collection: Public read, Admin write
+    match /products/{productId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    
+    // Banners Collection: Public read, Admin write
+    match /banners/{bannerId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    
+    // Coupons Collection: Public read, Admin write
+    match /coupons/{couponId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    
+    // Settings Collection: Public read, Admin write
+    match /settings/{settingId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Orders Collection: Public create (customers creating order), Admin full access
+    match /orders/{orderId} {
+      allow create: if true;
+      allow read, update, delete: if isAdmin() || (request.auth != null && resource.data.customer.email == request.auth.token.email);
+    }
+    
+    // Users Collection: Users read/write own data, Admin full access
+    match /users/{userId} {
+      allow read, write: if request.auth != null && (request.auth.uid == userId || isAdmin());
+    }
+  }
+}

@@ -2568,10 +2568,29 @@ function loadYocoProducts() {
     });
 }
 
-// ===== CHECKOUT FUNCTIONS =====
+function validateCartPrices() {
+    if (!Array.isArray(cart) || cart.length === 0) return;
+    if (!window.PRODUCTS_DATA || !Array.isArray(window.PRODUCTS_DATA) || window.PRODUCTS_DATA.length === 0) return;
+    cart.forEach(item => {
+        const catalogItem = window.PRODUCTS_DATA.find(p => String(p._firestoreId || p.id) === String(item.id));
+        if (catalogItem && catalogItem.price && !isNaN(parseFloat(catalogItem.price))) {
+            item.price = parseFloat(catalogItem.price);
+        }
+    });
+}
+
 function loadCheckoutPage() {
     const checkoutSummary = document.getElementById('checkoutSummary');
     if (!checkoutSummary) return;
+
+    validateCartPrices();
+
+    if (!Array.isArray(cart) || cart.length === 0) {
+        if (typeof showToast === 'function') showToast('Your cart is empty. Please add items to your cart first.', 'warning');
+        const isFileProtocol = window.location.protocol === 'file:';
+        window.location.href = isFileProtocol ? 'products.html' : '/products.html';
+        return;
+    }
 
     const subtotal = cart.reduce((total, item) => total + (item.price * item.quantity), 0);
     const shipping = calculateDeliveryFee(subtotal);
@@ -3901,6 +3920,15 @@ function showAdminButton() {
 }
 
 function showAdminDashboard() {
+    const user = auth && auth.currentUser;
+    const userEmail = (user && user.email ? user.email : '').toLowerCase();
+    const isAdmin = user && (userEmail === ADMIN_EMAIL.toLowerCase() || userEmail === 'drixelsa@gmail.com');
+    if (!isAdmin) {
+        if (typeof showToast === 'function') showToast('Access Denied: Admin privileges required.', 'error');
+        alert('Access Denied: Admin privileges required.');
+        return;
+    }
+
     const dashboardHTML = `
         <div id="adminDashboard">
             <div class="admin-dashboard-wrapper">
@@ -4696,6 +4724,14 @@ function initializeAppAfterFirebase() {
                 } else if (window.location.hash.length > 1) {
                     orderNumber = decodeURIComponent(window.location.hash.substring(1));
                 }
+            }
+            if (!orderNumber) {
+                if (typeof showToast === 'function') showToast('No order reference found. Redirecting to home...', 'warning');
+                setTimeout(() => {
+                    const isFileProtocol = window.location.protocol === 'file:';
+                    window.location.href = isFileProtocol ? 'index.html' : '/';
+                }, 2000);
+                return;
             }
             if (orderNumber) {
                 const orderNumElem = document.getElementById('orderNumber');
