@@ -156,6 +156,21 @@ if (!YOCO_PUBLIC_KEY) {
 const SNAPSCAN_QR_URL = "https://pos.snapscan.io/qr/qvxSxlIE";
 const SNAPSCAN_REGISTRATION = "2026/000210/07";
 
+// ===== CYBERSECURITY UTILITIES & XSS SANITIZATION =====
+function sanitizeInput(str) {
+    if (typeof str !== 'string') return str || '';
+    return str.replace(/[&<>"']/g, function(m) {
+        return {
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#39;'
+        }[m];
+    }).trim();
+}
+window.sanitizeInput = sanitizeInput;
+
 // ===== RESEND & BACKEND EMAIL CONFIGURATION & HELPER =====
 async function sendEmailViaResend({ to, cc, subject, html }) {
     let storedApiKey = (localStorage.getItem('drixel_resend_api_key') || '').trim();
