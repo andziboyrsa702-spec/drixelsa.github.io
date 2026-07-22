@@ -7351,6 +7351,16 @@ function showConfirm(message, onConfirm) {
 }
 window.showConfirm = showConfirm;
 
+function showCustomConfirm(title, message, onConfirm) {
+    if (typeof showConfirm === 'function') {
+        const fullMessage = (title ? `${title}\n\n` : '') + message;
+        showConfirm(fullMessage, onConfirm);
+    } else if (confirm(`${title ? title + '\n\n' : ''}${message}`)) {
+        if (typeof onConfirm === 'function') onConfirm();
+    }
+}
+window.showCustomConfirm = showCustomConfirm;
+
 // ===== GOOGLE AUTHENTICATION =====
 async function firebaseGoogleLogin() {
     try {
