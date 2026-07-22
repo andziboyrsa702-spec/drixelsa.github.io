@@ -348,6 +348,16 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    // Load products data immediately from cache or local fallback
+    window.PRODUCTS_DATA = getInitialProductsData();
+
+    // Initialize the app after Firebase is ready
+    setTimeout(() => {
+        initializeAppAfterFirebase();
+    }, 1000);
+});
+
+// ===== GUARANTEED PRODUCT LOADING =====
 function getInitialProductsData() {
     try {
         const cachedRaw = localStorage.getItem('drixel_products_cache');
@@ -359,19 +369,10 @@ function getInitialProductsData() {
             }
         }
     } catch(e) {}
-    return getLocalProductsData();
+    return typeof getLocalProductsData === 'function' ? getLocalProductsData() : [];
 }
+window.getInitialProductsData = getInitialProductsData;
 
-    // Load products data immediately from cache or local fallback
-    window.PRODUCTS_DATA = getInitialProductsData();
-
-    // Initialize the app after Firebase is ready
-    setTimeout(() => {
-        initializeAppAfterFirebase();
-    }, 1000);
-});
-
-// ===== GUARANTEED PRODUCT LOADING =====
         function getLocalProductsData() {
             return [
                 // ===== 5 HOODIES =====
