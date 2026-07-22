@@ -5700,7 +5700,7 @@ function loadAdminSettings() {
             `;
 }
 
-function saveSettings() {
+async function saveSettings() {
     const newDeliveryFee = parseFloat(document.getElementById('deliveryFee').value);
     const newFreeThreshold = parseFloat(document.getElementById('freeDeliveryThreshold').value);
     const newResendApiKey = document.getElementById('resendApiKey').value.trim();
