@@ -218,7 +218,7 @@
                     </div>
                     
                     <!-- Login Form -->
-                    <form id="loginForm" class="auth-form active" onsubmit="event.preventDefault(); firebaseLogin();">
+                    <form id="loginForm" class="auth-form active" onsubmit="event.preventDefault(); if (typeof window.firebaseLogin === 'function') { window.firebaseLogin(); } else if (typeof firebaseLogin === 'function') { firebaseLogin(); }">
                         <div class="form-group">
                             <label for="loginEmail">Email Address</label>
                             <input type="email" id="loginEmail" required placeholder="your@email.com">
@@ -269,7 +269,7 @@
                     </form>
                     
                     <!-- Registration Form -->
-                    <form id="registerForm" class="auth-form" onsubmit="event.preventDefault(); firebaseRegister();">
+                    <form id="registerForm" class="auth-form" onsubmit="event.preventDefault(); if (typeof window.firebaseRegister === 'function') { window.firebaseRegister(); } else if (typeof firebaseRegister === 'function') { firebaseRegister(); }">
                         <div class="form-group">
                             <label for="registerName">Full Name *</label>
                             <input type="text" id="registerName" required placeholder="John Doe">

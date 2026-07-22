@@ -976,6 +976,7 @@ async function firebaseRegister() {
         registerError.style.display = 'block';
     }
 }
+window.firebaseRegister = firebaseRegister;
 
 async function firebaseLogin() {
     console.log("🔍 firebaseLogin() called");
@@ -1067,6 +1068,7 @@ async function firebaseLogin() {
         loginError.style.display = 'block';
     }
 }
+window.firebaseLogin = firebaseLogin;
 
 async function firebaseLogout() {
     try {
