@@ -259,33 +259,32 @@ async function sendEmailViaResend({ to, cc, subject, html }) {
         }
     }
 
-    // Method 2: Custom Serverless Endpoint (if configured and valid URL)
-    if (endpoint && endpoint.startsWith('http')) {
-        console.log("📨 [Method 2] Attempting Cloud Function endpoint:", endpoint);
-        try {
-            const response = await fetch(endpoint, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    from: fromEmail,
-                    to: recipientList,
-                    ...(ccList.length > 0 ? { cc: ccList } : {}),
-                    subject: subject,
-                    html: html
-                })
-            });
+    // Method 2: Custom Serverless Endpoint & Firebase Cloud Function (/api/send-email)
+    const cloudEndpoint = endpoint || '/api/send-email';
+    console.log("📧 [Method 2] Attempting Cloud Function endpoint:", cloudEndpoint);
+    try {
+        const response = await fetch(cloudEndpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                from: fromEmail,
+                to: recipientList,
+                ...(ccList.length > 0 ? { cc: ccList } : {}),
+                subject: subject,
+                html: html
+            })
+        });
 
-            if (response.ok) {
-                const data = await response.json().catch(() => ({}));
-                console.log("✅ [Method 2 SUCCESS] Email sent via Cloud Function:", data);
-                return { success: true, data };
-            } else {
-                const errText = await response.text();
-                console.warn("⚠️ [Method 2 Failed] Endpoint returned status:", response.status, errText);
-            }
-        } catch (err) {
-            console.warn("⚠️ [Method 2 Exception]:", err.message);
+        if (response.ok) {
+            const data = await response.json().catch(() => ({}));
+            console.log("✅ [Method 2 SUCCESS] Email sent via Cloud Function:", data);
+            return { success: true, data };
+        } else {
+            const errText = await response.text();
+            console.warn("⚠️ [Method 2 Failed] Endpoint returned status:", response.status, errText);
         }
+    } catch (err) {
+        console.warn("⚠️ [Method 2 Exception]:", err.message);
     }
 
     console.error("❌ [Email Dispatcher] Resend API delivery failed for recipient:", recipientList);
@@ -4617,6 +4616,10 @@ function initializeAppAfterFirebase() {
 
     console.log("📦 Products loaded:", window.PRODUCTS_DATA.length);
 
+    if (typeof loadStoreSettingsFromFirestore === 'function') {
+        try { loadStoreSettingsFromFirestore(); } catch(e) {}
+    }
+
     loadCartFromStorage();
     updateCartCount();
     updateAuthUI();
@@ -5680,8 +5683,47 @@ function saveSettings() {
     localStorage.setItem('drixel_resend_from_email', newResendFromEmail);
     localStorage.setItem('drixel_email_endpoint', newEmailEndpoint);
 
-    alert('Settings saved successfully!');
+    try {
+        if (db) {
+            await window.firebaseSetDoc(window.firebaseDoc(db, 'settings', 'store_config'), {
+                resendApiKey: newResendApiKey,
+                resendFromEmail: newResendFromEmail,
+                emailEndpoint: newEmailEndpoint,
+                deliveryFee: newDeliveryFee,
+                freeDeliveryThreshold: newFreeThreshold,
+                updatedAt: new Date().toISOString()
+            }, { merge: true });
+        }
+    } catch(e) {
+        console.warn('Could not sync settings to Firestore:', e.message);
+    }
+
+    alert('Settings saved successfully and synced to database!');
 }
+
+async function loadStoreSettingsFromFirestore() {
+    try {
+        if (!db) return;
+        const settingsDoc = await window.firebaseGetDoc(window.firebaseDoc(db, 'settings', 'store_config'));
+        if (settingsDoc.exists()) {
+            const data = settingsDoc.data();
+            if (data.resendApiKey) localStorage.setItem('drixel_resend_api_key', data.resendApiKey);
+            if (data.resendFromEmail) localStorage.setItem('drixel_resend_from_email', data.resendFromEmail);
+            if (data.emailEndpoint) localStorage.setItem('drixel_email_endpoint', data.emailEndpoint);
+            if (data.deliveryFee && !isNaN(parseFloat(data.deliveryFee))) {
+                DELIVERY_FEE = parseFloat(data.deliveryFee);
+                localStorage.setItem('drixel_delivery_fee', data.deliveryFee);
+            }
+            if (data.freeDeliveryThreshold && !isNaN(parseFloat(data.freeDeliveryThreshold))) {
+                FREE_DELIVERY_THRESHOLD = parseFloat(data.freeDeliveryThreshold);
+                localStorage.setItem('drixel_free_delivery_threshold', data.freeDeliveryThreshold);
+            }
+        }
+    } catch(e) {
+        console.warn('Failed to load store settings from Firestore:', e.message);
+    }
+}
+window.loadStoreSettingsFromFirestore = loadStoreSettingsFromFirestore;
 
 async function sendTestEmail() {
     const recipient = document.getElementById('testEmailRecipient').value.trim();
