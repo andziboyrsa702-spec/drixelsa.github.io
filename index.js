@@ -2689,7 +2689,9 @@ function generateSnapScanQRCode(amount, reference) {
 
     qrContainer.innerHTML = '';
 
-    const snapScanLink = `${SNAPSCAN_QR_URL}?amount=${amount}&reference=${reference}`;
+    // SnapScan API requires amount in cents (e.g., R1050.00 = 105000 cents)
+    const amountInCents = Math.round(Number(amount) * 100);
+    const snapScanLink = `${SNAPSCAN_QR_URL}?amount=${amountInCents}&reference=${encodeURIComponent(reference)}`;
 
     console.log("🔗 SnapScan Link:", snapScanLink);
 
