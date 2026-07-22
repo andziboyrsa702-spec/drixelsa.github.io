@@ -348,8 +348,22 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    // Load products data
-    window.PRODUCTS_DATA = getLocalProductsData();
+function getInitialProductsData() {
+    try {
+        const cachedRaw = localStorage.getItem('drixel_products_cache');
+        if (cachedRaw) {
+            const cached = JSON.parse(cachedRaw);
+            const products = Array.isArray(cached) ? cached : (cached.products || null);
+            if (Array.isArray(products) && products.length > 0) {
+                return products;
+            }
+        }
+    } catch(e) {}
+    return getLocalProductsData();
+}
+
+    // Load products data immediately from cache or local fallback
+    window.PRODUCTS_DATA = getInitialProductsData();
 
     // Initialize the app after Firebase is ready
     setTimeout(() => {
@@ -1425,37 +1439,15 @@ function viewProduct(productId) {
     // Use the universal identifier for URLs
     const uid = product._firestoreId || product.id;
 
-    const path = window.location.pathname;
-    const isCategoryPage = path.endsWith('/products/tees/') || path.endsWith('/products/tees/index.html') ||
-                           path.endsWith('/products/hoodies/') || path.endsWith('/products/hoodies/index.html') ||
-                           path.endsWith('/products/beanies/') || path.endsWith('/products/beanies/index.html') ||
-                           path.endsWith('/products/sweaters/') || path.endsWith('/products/sweaters/index.html');
-                           
-    const isCleanProductPage = (path.endsWith('product.html') || path.endsWith('product') || 
-                               path.includes('/products/tees/') || path.includes('/products/outerwear/') || 
-                               path.includes('/products/accessories/') || path.includes('/products/hoodies/') || 
-                               path.includes('/products/beanies/') || path.includes('/products/sweaters/')) && !isCategoryPage;
+    // Check if the current page has the #productDetail container
+    const hasProductDetail = !!document.getElementById('productDetail');
     
-    if (!isCleanProductPage) {
-        // Determine destination URL
-        const isLocalServer = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:';
-        
-        if (isLocalServer) { 
-            window.location.href = '/product.html?id=' + uid;
+    if (!hasProductDetail) {
+        const isFileProtocol = window.location.protocol === 'file:';
+        if (isFileProtocol) {
+            window.location.href = 'product.html?id=' + encodeURIComponent(uid);
         } else {
-            let catPath = 'tees';
-            const cat = product.category.toLowerCase();
-            const name = product.name.toLowerCase();
-            
-            if (name.includes('hoodie') || name.includes('sweat') || name.includes('tracksuit') || name.includes('jacket') || cat.includes('outerwear')) {
-                catPath = 'hoodies';
-            } else if (name.includes('beanie') || name.includes('socks') || name.includes('backpack') || cat.includes('accessories')) {
-                if (name.includes('beanie')) catPath = 'beanies';
-                else catPath = 'accessories';
-            }
-            
-            const cleanName = encodeURIComponent(product.name.replace(/[^a-zA-Z0-9\s]/g, '').trim().replace(/\s+/g, '-'));
-            window.location.href = '/products/' + catPath + '/' + cleanName + '?id=' + uid;
+            window.location.href = '/product.html?id=' + encodeURIComponent(uid);
         }
         return;
     }
@@ -1472,31 +1464,41 @@ function viewProduct(productId) {
     const productDetail = document.getElementById('productDetail');
     if (!productDetail) return;
 
-    // Use images array first (Firestore products), fall back to product.image (legacy)
-    const mainImg = (product.images && product.images[0]) || product.image || '';
+    // Determine Front View and Back View images
+    const images = product.images || [];
+    const frontImg = images[0] || product.image || '';
+    let backImg = (images[1] && images[1] !== frontImg) ? images[1] : (product.imageBack && product.imageBack !== frontImg ? product.imageBack : '');
+
+    const viewImages = [
+        { label: 'Front View', url: frontImg }
+    ];
+    if (backImg) {
+        viewImages.push({ label: 'Back View', url: backImg });
+    }
+
+    const mainImg = frontImg;
 
     productDetail.innerHTML = `
-                <div class="product-detail">
-                    <div class="product-gallery">
-                        <div class="main-image" style="position: relative;">
-                            <img src="${mainImg}" alt="${product.name}" onerror="this.src='https://via.placeholder.com/600x800?text=Drixel+SA'">
+                <div class="product-detail" style="max-width: 100%; gap: 40px !important; box-sizing: border-box;">
+                    <div class="product-gallery" style="max-width: 100%; box-sizing: border-box;">
+                        <div class="main-image" style="position: relative; max-width: 100%; height: 420px !important; max-height: 420px !important; box-sizing: border-box;">
+                            <img src="${mainImg}" alt="${product.name}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.src='https://via.placeholder.com/600x800?text=Drixel+SA'">
                             <div class="product-tint-overlay" style="background-color: ${selections.color ? selections.color.code : 'transparent'};"></div>
                         </div>
-                        <div class="thumbnails">
-                            <div class="thumbnail active">
-                                <img src="${mainImg}" alt="${product.name}">
-                            </div>
-                            ${productColors.map(color => `
-                                <div class="thumbnail" onclick="changeProductColor('${color.code}', '${product.name}')">
-                                    <div style="width: 100%; height: 100%; background-color: ${color.code};"></div>
+                        <div class="thumbnails" style="display: flex; gap: 12px; max-width: 100%; box-sizing: border-box; margin-top: 12px;">
+                            ${viewImages.map((vImg, idx) => `
+                                <div class="thumbnail ${idx === 0 ? 'active' : ''}" onclick="changeMainProductImage('${vImg.url}', this)" title="${vImg.label}" style="width: 65px !important; height: 65px !important; flex-shrink: 0;">
+                                    <img src="${vImg.url}" alt="${product.name} ${vImg.label}" style="width: 100%; height: 100%; object-fit: cover; display: block;">
                                 </div>
                             `).join('')}
                         </div>
                     </div>
                     
-                    <div class="product-info">
+                    <div class="product-info" style="max-width: 100%; box-sizing: border-box;">
                         <h1>${product.name}</h1>
-                        <div class="product-price">R ${Number(product.price).toFixed(2)}</div>
+                        <div class="product-price">
+                            ${product.comparePrice && Number(product.comparePrice) > Number(product.price) ? `<span class="compare-price">R ${Number(product.comparePrice).toFixed(2)}</span> ` : ''}R ${Number(product.price).toFixed(2)}
+                        </div>
                         
                         <div class="product-description">
                             <p>${product.description || ''}</p>
@@ -1571,6 +1573,19 @@ function viewProduct(productId) {
                 </div>
             `;
 }
+
+function changeMainProductImage(imgSrc, thumbnailElem) {
+    const mainImg = document.querySelector('.product-detail .main-image img');
+    if (mainImg) {
+        mainImg.src = imgSrc;
+    }
+    const thumbnails = document.querySelectorAll('.product-detail .thumbnail');
+    thumbnails.forEach(t => t.classList.remove('active'));
+    if (thumbnailElem) {
+        thumbnailElem.classList.add('active');
+    }
+}
+window.changeMainProductImage = changeMainProductImage;
 
 function changeProductColor(colorCode, productName) {
     console.log(`Changing ${productName} color to ${colorCode}`);
@@ -4594,7 +4609,7 @@ function initializeAppAfterFirebase() {
 
     if (!window.PRODUCTS_DATA || !Array.isArray(window.PRODUCTS_DATA)) {
         console.error("❌ PRODUCTS_DATA is not defined or not an array!");
-        window.PRODUCTS_DATA = getLocalProductsData();
+        window.PRODUCTS_DATA = getInitialProductsData();
     }
 
     console.log("📦 Products loaded:", window.PRODUCTS_DATA.length);
