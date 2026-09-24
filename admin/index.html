@@ -1,33 +1,15 @@
 <!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="robots" content="noindex,nofollow">
-  <title>Drixel Admin</title>
-  <link rel="stylesheet" href="../src/admin/admin.css">
-</head>
-<body>
-  <div id="adminGate" class="gate">
-    <div class="gate-card"><div class="wordmark">DRIXEL</div><p>Verifying administrator access…</p></div>
-  </div>
-  <div id="adminApp" class="admin-shell" hidden>
-    <aside class="sidebar">
-      <a class="brand" href="../index.html" aria-label="Drixel storefront">DRIXEL</a>
-      <nav id="adminNav" aria-label="Admin">
-        <p class="nav-label">Overview</p><button data-view="dashboard" class="nav-item active">Dashboard</button>
-        <p class="nav-label">Commerce</p><button data-view="orders" class="nav-item">Orders</button><button data-view="products" class="nav-item">Products</button><button data-view="inventory" class="nav-item">Inventory</button><button data-view="customers" class="nav-item">Customers</button>
-        <p class="nav-label">Content</p><button data-view="storefront" class="nav-item">Storefront</button><p class="nav-label">Marketing</p><button data-view="campaigns" class="nav-item">Campaigns</button><button data-view="discounts" class="nav-item">Discounts</button><button data-view="newsletter" class="nav-item">Newsletter</button>
-        <p class="nav-label">Operations</p><button data-view="payments" class="nav-item">Payments</button><button data-view="shipping" class="nav-item">Shipping</button>
-        <p class="nav-label">System</p><button data-view="settings" class="nav-item">Settings</button>
-      </nav>
-      <div class="sidebar-foot"><a href="../index.html">View storefront</a><button id="signOutBtn">Sign out</button></div>
-    </aside>
-    <main class="workspace">
-      <header class="topbar"><div><p class="eyebrow">Drixel Commerce</p><h1 id="viewTitle">Dashboard</h1></div><div class="top-actions"><button id="refreshBtn" class="quiet">Refresh</button><span id="adminIdentity"></span></div></header>
-      <section id="view" class="view" aria-live="polite"></section>
-    </main>
-  </div>
-  <script type="module" src="../src/admin/admin.js"></script>
-</body>
-</html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>Drixel Admin</title><link rel="stylesheet" href="../src/admin/admin.css"></head>
+<body><div id="adminGate" class="gate"><div class="gate-card"><div class="wordmark">DRIXEL</div><p>Verifying administrator access…</p></div></div>
+<div id="adminApp" class="admin-shell" hidden><aside class="sidebar"><a class="brand" href="../index.html">DRIXEL</a><nav id="adminNav" aria-label="Admin">
+<p class="nav-label">Home</p><button data-view="dashboard" class="nav-item active">Dashboard</button>
+<p class="nav-label">Commerce</p><button data-view="orders" class="nav-item">Orders</button><button data-view="products" class="nav-item">Products</button><button data-view="inventory" class="nav-item">Inventory</button><button data-view="collections" class="nav-item">Collections</button><button data-view="customers" class="nav-item">Customers</button><button data-view="returns" class="nav-item">Returns</button>
+<p class="nav-label">Content</p><button data-view="storefront" class="nav-item">Storefront</button><button data-view="media" class="nav-item">Media</button>
+<p class="nav-label">Marketing</p><button data-view="newsletter" class="nav-item">Email</button><button data-view="subscribers" class="nav-item">Subscribers</button><button data-view="campaigns" class="nav-item">Campaign Content</button><button data-view="discounts" class="nav-item">Discounts</button>
+<p class="nav-label">Analytics</p><button data-view="analytics" class="nav-item">Overview</button>
+<p class="nav-label">Operations</p><button data-view="payments" class="nav-item">Payments</button><button data-view="shipping" class="nav-item">Shipping</button>
+<p class="nav-label">System</p><button data-view="settings" class="nav-item">Store Settings</button><button data-view="audit" class="nav-item">Audit Log</button>
+</nav><div class="sidebar-foot"><a href="../index.html">View storefront</a><button id="signOutBtn">Sign out</button></div></aside>
+<main class="workspace"><header class="topbar"><div><p class="eyebrow">Drixel Commerce</p><h1 id="viewTitle">Dashboard</h1></div><div class="top-actions"><button id="commandBtn" class="quiet">Search /</button><button id="refreshBtn" class="quiet">Refresh</button><span id="adminIdentity"></span></div></header><section id="view" class="view" aria-live="polite"></section></main></div>
+<div id="commandPalette" class="command-backdrop" hidden><div class="command-box"><input id="commandSearch" placeholder="Search admin…" autocomplete="off"><div id="commandResults"></div><small>Press Esc to close</small></div></div>
+<script type="module" src="../src/admin/admin.js"></script></body></html>
