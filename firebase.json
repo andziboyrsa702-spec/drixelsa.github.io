@@ -65,6 +65,10 @@
         "function": "createOrder"
       },
       {
+        "source": "/api/payments/yoco/verify",
+        "function": "verifyYocoPayment"
+      },
+      {
         "source": "/api/subscribe",
         "function": "subscribeNewsletter"
       },
