@@ -3844,7 +3844,7 @@ function showAdminButton() {
     adminBtn.title = 'Admin Dashboard';
     adminBtn.onclick = function (e) {
         e.preventDefault();
-        showAdminDashboard();
+        window.location.href = '/admin/';
     };
 
     document.body.appendChild(adminBtn);
@@ -3852,42 +3852,7 @@ function showAdminButton() {
 }
 
 function showAdminDashboard() {
-    const user = auth && auth.currentUser;
-    const userEmail = (user && user.email ? user.email : '').toLowerCase();
-    const isAdmin = user && (userEmail === ADMIN_EMAIL.toLowerCase() || userEmail === 'drixelsa@gmail.com');
-    if (!isAdmin) {
-        if (typeof showToast === 'function') showToast('Access Denied: Admin privileges required.', 'error');
-        alert('Access Denied: Admin privileges required.');
-        return;
-    }
-
-    const dashboardHTML = `
-        <div id="adminDashboard">
-            <div class="admin-dashboard-wrapper">
-                <div class="admin-header">
-                    <h2><i class="fas fa-crown"></i> Admin Dashboard</h2>
-                    <button class="admin-close-btn" onclick="closeAdminDashboard()">&#x2715; Close</button>
-                </div>
-                <div class="admin-tabs-row">
-                    <button class="admin-tab-btn active" onclick="switchAdminTab('overview')">Overview</button>
-                    <button class="admin-tab-btn" onclick="switchAdminTab('orders')">Orders</button>
-                    <button class="admin-tab-btn" onclick="switchAdminTab('products')">Products</button>
-                    <button class="admin-tab-btn" onclick="switchAdminTab('campaigns')">Campaigns</button>
-                    <button class="admin-tab-btn" onclick="switchAdminTab('users')">Users</button>
-                    <button class="admin-tab-btn" onclick="switchAdminTab('emails')">Emails</button>
-                    <button class="admin-tab-btn" onclick="switchAdminTab('snapscan')">SnapScan</button>
-                    <button class="admin-tab-btn" onclick="switchAdminTab('yoco')">Yoco</button>
-                    <button class="admin-tab-btn" onclick="switchAdminTab('pending')">Pending</button>
-                    <button class="admin-tab-btn" onclick="switchAdminTab('settings')">Settings</button>
-                </div>
-                <div id="adminTabContent"></div>
-            </div>
-        </div>
-    `;
-    const existingDashboard = document.getElementById('adminDashboard');
-    if (existingDashboard) existingDashboard.remove();
-    document.body.insertAdjacentHTML('beforeend', dashboardHTML);
-    switchAdminTab('overview');
+    window.location.href = '/admin/';
 }
 
 function closeAdminDashboard() {
