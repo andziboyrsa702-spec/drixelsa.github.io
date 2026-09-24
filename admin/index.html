@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Drixel Admin</title>
+  <link rel="icon" href="/favicon.ico">
+  <link rel="stylesheet" href="/admin/admin.css">
+</head>
+<body>
+  <div id="gate" class="gate"><div class="gate-card"><span class="wordmark">DRIXEL</span><h1>Admin</h1><p id="gateMessage">Verifying your account…</p><a class="button secondary" href="/auth.html">Sign in</a></div></div>
+  <div id="app" class="app" hidden>
+    <aside class="sidebar">
+      <a class="brand" href="/"><span>DRIXEL</span><small>ADMIN</small></a>
+      <nav id="nav">
+        <p>Overview</p><button data-view="dashboard" class="active">Dashboard</button>
+        <p>Commerce</p><button data-view="orders">Orders</button><button data-view="products">Products</button><button data-view="inventory">Inventory</button><button data-view="customers">Customers</button>
+        <p>Marketing</p><button data-view="content">Content & campaigns</button><button data-view="discounts">Discounts</button>
+        <p>Operations</p><button data-view="payments">Payments</button><button data-view="shipping">Shipping</button>
+        <p>System</p><button data-view="settings">Store settings</button>
+      </nav>
+      <div class="sidebar-foot"><a href="/">View storefront</a><button id="signOut">Sign out</button></div>
+    </aside>
+    <main>
+      <header class="topbar"><div><p class="eyebrow" id="eyebrow">Overview</p><h1 id="pageTitle">Dashboard</h1></div><div class="top-actions"><button id="refresh" class="icon-button">Refresh</button><button id="primaryAction" class="button">Add product</button></div></header>
+      <section id="content" class="content"><div class="loading">Loading store data…</div></section>
+    </main>
+  </div>
+  <dialog id="dialog"><form method="dialog" class="dialog-shell"><div class="dialog-head"><div><p class="eyebrow" id="dialogEyebrow">DRIXEL</p><h2 id="dialogTitle">Edit</h2></div><button value="cancel" class="icon-button">Close</button></div><div id="dialogBody"></div></form></dialog>
+  <div id="toast" class="toast" role="status"></div>
+  <script type="module" src="/admin/admin.js"></script>
+</body>
+</html>
