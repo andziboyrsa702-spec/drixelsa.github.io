@@ -14,8 +14,10 @@ service cloud.firestore {
     }
 
     function ownsOrder() {
-      return signedIn() &&
-        resource.data.customer.email == request.auth.token.email;
+      return signedIn() && (
+        resource.data.customer.uid == request.auth.uid ||
+        resource.data.customer.email == request.auth.token.email
+      );
     }
 
     match /products/{productId} {
@@ -75,6 +77,15 @@ service cloud.firestore {
     match /audit_logs/{logId} {
       allow read, create: if isAdmin();
       allow update, delete: if false;
+    }
+
+    match /inventory_adjustments/{adjustmentId} {
+      allow read, create: if isAdmin();
+      allow update, delete: if false;
+    }
+
+    match /checkout_attempts/{attemptId} {
+      allow read, write: if false;
     }
 
     match /contacts/{contactId} {
