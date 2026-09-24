@@ -1,0 +1,1 @@
+import React from"react";import AdminPage from"../../../../../admin-react/AdminPage.jsx";export default()=> <AdminPage page="customers"/>;
