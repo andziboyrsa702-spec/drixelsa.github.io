@@ -1,4 +1,4 @@
-name: React V3 Build Check
+name: React V3 Quality Gate
 on:
   push:
     branches: [react-v3-migration]
@@ -13,5 +13,13 @@ jobs:
         with:
           node-version: 20
           cache: npm
-      - run: npm install
+      - run: npm install --no-audit --no-fund
       - run: npm run build
+      - name: Verify Firebase hosting output
+        run: test -f dist/index.html
+      - name: Verify critical React source
+        run: |
+          test -f src/app/App.jsx
+          test -f src/admin-react/AdminRouter.jsx
+          test -f src/react-pages/Checkout.jsx
+          test -f src/pages/za/admin/settings/markets/index.jsx
