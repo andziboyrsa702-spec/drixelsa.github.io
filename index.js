@@ -5644,7 +5644,7 @@ async function saveSettings() {
         localStorage.setItem('drixel_free_delivery_threshold', newFreeThreshold);
     }
 
-    localStorage.setItem('drixel_resend_api_key', newResendApiKey);
+    localStorage.removeItem('drixel_resend_api_key');
     localStorage.setItem('drixel_resend_from_email', newResendFromEmail);
     localStorage.setItem('drixel_email_endpoint', newEmailEndpoint);
 
@@ -5672,7 +5672,7 @@ async function loadStoreSettingsFromFirestore() {
         const settingsDoc = await window.firebaseGetDoc(window.firebaseDoc(db, 'settings', 'store_config'));
         if (settingsDoc.exists()) {
             const data = settingsDoc.data();
-            if (data.resendApiKey) localStorage.setItem('drixel_resend_api_key', data.resendApiKey);
+            if (data.resendApiKey) localStorage.removeItem('drixel_resend_api_key');
             if (data.resendFromEmail) localStorage.setItem('drixel_resend_from_email', data.resendFromEmail);
             if (data.emailEndpoint) localStorage.setItem('drixel_email_endpoint', data.emailEndpoint);
             if (data.deliveryFee && !isNaN(parseFloat(data.deliveryFee))) {
