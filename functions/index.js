@@ -448,3 +448,22 @@ exports.adminOrderAction = functions.https.onRequest(async(req,res)=>{
         return res.status(200).json({success:true});
     }catch(error){console.error("Admin order action failed:",error);return res.status(error.status||500).json({success:false,message:error.status?error.message:"Order action failed."})}
 });
+
+
+const MARKET_CURRENCIES = new Set(["ZAR","USD","NGN","BWP","GBP","EUR"]);
+exports.market = functions.https.onRequest((req,res)=>{
+    const raw = String(req.get("x-country-code") || req.get("cf-ipcountry") || req.get("x-appengine-country") || "").toUpperCase();
+    const countryCode = /^[A-Z]{2}$/.test(raw) ? raw : "ZA";
+    res.set("Cache-Control","private, max-age=300");
+    return res.status(200).json({countryCode});
+});
+exports.exchangeRates = functions.https.onRequest(async(req,res)=>{
+    const base=String(req.query.base||"ZAR").toUpperCase(),to=String(req.query.to||"ZAR").toUpperCase();
+    if(base!=="ZAR"||!MARKET_CURRENCIES.has(to))return res.status(400).json({success:false,message:"Unsupported currency."});
+    if(to==="ZAR")return res.status(200).json({base,to,rate:1});
+    const configured=process.env["FX_"+base+"_"+to];
+    const rate=Number(configured);
+    if(!Number.isFinite(rate)||rate<=0)return res.status(503).json({success:false,message:"Exchange rate is not configured."});
+    res.set("Cache-Control","public, max-age=1800");
+    return res.status(200).json({base,to,rate});
+});
