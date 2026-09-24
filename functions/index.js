@@ -459,6 +459,7 @@ exports.adminOrderAction = functions.https.onRequest(async(req,res)=>{
             await restoreOrderInventory(ref);
             await ref.update({status:"cancelled",fulfillmentStatus:"cancelled",cancelledAt:admin.firestore.FieldValue.serverTimestamp(),cancelledBy:adminUser.email,updatedAt:admin.firestore.FieldValue.serverTimestamp()});
         }else if(action==="mark_paid"){
+            const order=snap.data();if(order.status==="cancelled"||order.fulfillmentStatus==="cancelled")return res.status(409).json({success:false,message:"A cancelled order cannot be marked paid."});if(order.paymentStatus==="paid")return res.status(200).json({success:true,unchanged:true});
             await ref.update({paymentStatus:"paid",paidAt:admin.firestore.FieldValue.serverTimestamp(),paymentVerifiedBy:adminUser.email,updatedAt:admin.firestore.FieldValue.serverTimestamp()});
         }else return res.status(400).json({success:false,message:"Unsupported order action."});
         await admin.firestore().collection("audit_logs").add({action:"order."+action,resource:"orders/"+orderId,actor:adminUser.email,createdAt:admin.firestore.FieldValue.serverTimestamp()});
@@ -467,8 +468,6 @@ exports.adminOrderAction = functions.https.onRequest(async(req,res)=>{
 });
 
 
-const FX_MAX_AGE_MS=6*60*60*1000;
-async function storedFxRate(to){const snap=await admin.firestore().collection("fx_rates").doc("ZAR_"+to).get();if(!snap.exists)return null;const d=snap.data(),updated=d.updatedAt&&d.updatedAt.toMillis?d.updatedAt.toMillis():0,rate=Number(d.rate);return Number.isFinite(rate)&&rate>0&&Date.now()-updated<=FX_MAX_AGE_MS?{rate,updatedAt:new Date(updated).toISOString(),source:d.source||"configured"}:null}
 const FX_MAX_AGE_MS=6*60*60*1000;
 async function storedFxRate(to){const snap=await admin.firestore().collection("fx_rates").doc("ZAR_"+to).get();if(!snap.exists)return null;const d=snap.data(),updated=d.updatedAt&&d.updatedAt.toMillis?d.updatedAt.toMillis():0,rate=Number(d.rate);return Number.isFinite(rate)&&rate>0&&Date.now()-updated<=FX_MAX_AGE_MS?{rate,updatedAt:new Date(updated).toISOString(),source:d.source||"configured"}:null}
 const MARKET_CURRENCIES = new Set(["ZAR","USD","NGN","BWP","GBP","EUR"]);
