@@ -44,6 +44,10 @@
     ],
     "rewrites": [
       {
+        "source": "/api/admin/order-action",
+        "function": "adminOrderAction"
+      },
+      {
         "source": "/api/checkout-quote",
         "function": "checkoutQuote"
       },
