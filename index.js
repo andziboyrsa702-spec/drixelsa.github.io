@@ -4560,11 +4560,7 @@ function prevCampaignVideo() {
 // ===== INITIALIZE APP =====
 function initializeAppAfterFirebase() {
     console.log("🚀 Initializing Drixel SA with all fixes");
-
-    // Clean up revoked legacy Resend API key if present
-    if (localStorage.getItem('drixel_resend_api_key') === 're_9127pJDT_jRDx942YS4UbyH3YDfm9H7ow') {
-        localStorage.removeItem('drixel_resend_api_key');
-    }
+    localStorage.removeItem('drixel_resend_api_key');
     if (!localStorage.getItem('drixel_resend_from_email') || localStorage.getItem('drixel_resend_from_email').includes('onboarding@resend.dev') || localStorage.getItem('drixel_resend_from_email').includes('<')) {
         localStorage.setItem('drixel_resend_from_email', 'info@customer.drixelsa.co.za');
     }
