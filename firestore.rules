@@ -14,8 +14,10 @@ service cloud.firestore {
     }
 
     function ownsOrder() {
-      return signedIn() &&
-        resource.data.customer.email == request.auth.token.email;
+      return signedIn() && (
+        resource.data.customer.uid == request.auth.uid ||
+        resource.data.customer.email == request.auth.token.email
+      );
     }
 
     match /products/{productId} {
@@ -39,10 +41,9 @@ service cloud.firestore {
     }
 
     match /orders/{orderId} {
-      // Checkout is restricted to authenticated customers. Payment/order status
-      // changes remain server/admin controlled rather than customer editable.
-      allow create: if signedIn()
-        && request.resource.data.customer.email == request.auth.token.email;
+      // Orders are created by trusted backend checkout code. Customers may only
+      // read their own orders; payment and fulfillment mutations stay privileged.
+      allow create: if false;
       allow read: if isAdmin() || ownsOrder();
       allow update, delete: if isAdmin();
     }
@@ -51,6 +52,62 @@ service cloud.firestore {
       allow read, create, update: if signedIn() &&
         (request.auth.uid == userId || isAdmin());
       allow delete: if isAdmin();
+    }
+
+    // Operational collections: customer writes are intentionally restricted.
+    match /subscribers/{subscriberId} {
+      // Public newsletter mutations go through server-side endpoints.
+      allow read, create, update, delete: if isAdmin();
+    }
+
+    match /email_campaigns/{campaignId} {
+      allow read, create, update, delete: if isAdmin();
+    }
+
+
+    match /collections/{collectionId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /returns/{returnId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /audit_logs/{logId} {
+      allow read, create: if isAdmin();
+      allow update, delete: if false;
+    }
+
+    match /inventory_adjustments/{adjustmentId} {
+      allow read, create: if isAdmin();
+      allow update, delete: if false;
+    }
+
+    match /checkout_attempts/{attemptId} {
+      allow read, write: if false;
+    }
+
+    match /contacts/{contactId} {
+      allow read, update, delete: if isAdmin();
+      allow create: if true;
+    }
+
+    match /pending_payments/{paymentId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /yoco_purchases/{purchaseId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /snapscan_purchases/{purchaseId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /carts/{cartId} {
+      allow read, write: if signedIn() &&
+        (request.auth.uid == cartId || isAdmin());
     }
 
     // Deny any collection not explicitly declared above.

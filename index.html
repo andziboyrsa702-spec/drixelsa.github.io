@@ -45,6 +45,9 @@
     <!-- Google reCAPTCHA v2 (checkbox) -->
     <script src="https://www.google.com/recaptcha/api.js" async defer></script>
     <link rel="stylesheet" href="index.css?v=1783973275">
+    <link rel="stylesheet" href="/src/styles/tokens.css">
+    <link rel="stylesheet" href="/src/styles/storefront.css">
+    <link rel="stylesheet" href="/src/styles/newsletter.css">
 
     <!-- JSON-LD Structured Data Schema for Google Sitelinks -->
     <script type="application/ld+json">
@@ -292,163 +295,78 @@
 
     <!-- Home Page -->
 
-    <section id="homePage" class="page">
-        <div class="hero">
-            <video autoplay loop muted playsinline class="hero-video">
-                <source src="/WhatsApp Video 2026-07-09 at 06.15.49.mp4" type="video/mp4">
+    <section id="homePage" class="page dx-home">
+        <div class="dx-hero">
+            <video autoplay loop muted playsinline preload="metadata" aria-hidden="true">
+                <source data-hero-video src="/public/assets/video/home-hero.mp4" type="video/mp4">
             </video>
-            <div class="hero-overlay"></div>
-            <div class="container">
-                <h1>YOUR STREETS. YOUR RULES.</h1>
-                <p>A premium South African streetwear drop tailored for those who make their own rules.</p>
-                <a href="/products.html" class="btn"
-                    style="border-radius:30px; font-weight:600; padding:12px 30px;">Shop Collection</a>
-                <a href="#" onclick="window.openOrderTracker(); return false;" class="btn btn-outline mt-20"
-                    style="border-radius:30px; font-weight:600; padding:12px 30px; margin-left:15px; border-color:#ffffff; color:#ffffff;">Track
-                    Order</a>
-            </div>
-        </div>
-
-        <div class="section bg-grey">
-            <div class="container">
-                <h2 class="section-title">Seasonal Campaigns</h2>
-                <div class="editorial-grid">
-                    <div class="editorial-card"><img src="/WhatsApp Image 2026-07-09 at 04.58.25 (3).jpeg"
-                            alt="Campaign Image 1"></div>
-                    <div class="editorial-card"><img src="/WhatsApp Image 2026-07-09 at 04.58.25 (4).jpeg"
-                            alt="Campaign Image 2"></div>
-                    <div class="editorial-card"><img src="/WhatsApp Image 2026-07-09 at 04.58.25 (5).jpeg"
-                            alt="Campaign Image 3"></div>
-                    <div class="editorial-card"><img src="/WhatsApp Image 2026-07-09 at 04.58.25 (6).jpeg"
-                            alt="Campaign Image 4"></div>
-                    <div class="editorial-card"><img src="/WhatsApp Image 2026-07-09 at 04.58.25 (7).jpeg"
-                            alt="Campaign Image 5"></div>
-                    <div class="editorial-card"><img src="/WhatsApp Image 2026-07-09 at 04.58.25 (8).jpeg"
-                            alt="Campaign Image 6"></div>
-                    <div class="editorial-card"><img src="/WhatsApp Image 2026-07-09 at 04.58.25 (9).jpeg"
-                            alt="Campaign Image 7"></div>
-                    <div class="editorial-card"><img src="/WhatsApp Image 2026-07-09 at 04.58.25 (10).jpeg"
-                            alt="Campaign Image 8"></div>
-                    <div class="editorial-card"><img src="/WhatsApp Image 2026-07-09 at 04.58.25 (11).jpeg"
-                            alt="Campaign Image 9"></div>
-                    <div class="editorial-card"><img src="/WhatsApp Image 2026-07-09 at 05.25.04.jpeg"
-                            alt="Campaign Image 10"></div>
-                    <div class="editorial-card"><img src="/WhatsApp Image 2026-07-09 at 05.25.04 (1).jpeg"
-                            alt="Campaign Image 11"></div>
-                    <div class="editorial-card"><img src="/WhatsApp Image 2026-07-09 at 05.25.04 (2).jpeg"
-                            alt="Campaign Image 12"></div>
-                    <div class="editorial-card"><img src="/WhatsApp Image 2026-07-09 at 05.25.04 (3).jpeg"
-                            alt="Campaign Image 13"></div>
-                </div>
-
-                <h2 class="section-title" style="margin-top: 80px;">Drixel Campaign Reels</h2>
-                <div class="video-carousel-container">
-                    <div class="video-carousel-track" id="videoCarouselTrack">
-                        <div class="video-carousel-card active">
-                            <video autoplay loop muted playsinline>
-                                <source src="/WhatsApp Video 2026-07-09 at 06.08.55.mp4" type="video/mp4">
-                            </video>
-                            <div class="video-card-info">
-                                <h3>Drixel Lookbook - Accessories</h3>
-                                <p>Signature street accessories and beanies.</p>
-                            </div>
-                        </div>
-                        <div class="video-carousel-card">
-                            <video loop muted playsinline>
-                                <source src="/WhatsApp Video 2026-07-09 at 06.10.31.mp4" type="video/mp4">
-                            </video>
-                            <div class="video-card-info">
-                                <h3>Drixel Lookbook - Tees</h3>
-                                <p>Heavyweight cotton streetwear graphic tees.</p>
-                            </div>
-                        </div>
-                        <div class="video-carousel-card">
-                            <video loop muted playsinline>
-                                <source src="/WhatsApp Video 2026-07-09 at 06.14.16.mp4" type="video/mp4">
-                            </video>
-                            <div class="video-card-info">
-                                <h3>Drixel Lookbook - Hoodies</h3>
-                                <p>Oversized drop hoodies engineered for comfort.</p>
-                            </div>
-                        </div>
-                        <div class="video-carousel-card">
-                            <video loop muted playsinline>
-                                <source src="/WhatsApp Video 2026-07-09 at 06.16.23.mp4" type="video/mp4">
-                            </video>
-                            <div class="video-card-info">
-                                <h3>Drixel Lookbook - Sweaters</h3>
-                                <p>Premium winter knit sweaters and warm styles.</p>
-                            </div>
-                        </div>
-                    </div>
-                    <button class="carousel-control prev" onclick="window.prevCampaignVideo()"><i
-                            class="fas fa-chevron-left"></i></button>
-                    <button class="carousel-control next" onclick="window.nextCampaignVideo()"><i
-                            class="fas fa-chevron-right"></i></button>
-                </div>
-
-                <h2 class="section-title" style="margin-top: 80px;">Featured Streetwear</h2>
-                <div class="processing-banner">
-                    <i class="fas fa-clock"></i> IMPORTANT: Due to high demand, orders take 4-8 days to process + 3-5
-                    business days delivery
-                </div>
-                <div class="products-grid" id="featuredProducts">
-                    <!-- Featured products loaded by JavaScript -->
-                </div>
-                <div class="text-center mt-40">
-                    <a href="#" class="btn">View All Products</a>
-                    <a href="#" class="btn btn-outline mt-20">Quick
-                        Checkout</a>
+            <div class="dx-hero-copy">
+                <p class="dx-kicker" data-hero-kicker>Drixel SA / Streetwear</p>
+                <h1 data-hero-headline>YOUR STREETS. YOUR RULES.</h1>
+                <p data-hero-description>Premium South African streetwear built around heavyweight fabrics, relaxed silhouettes and everyday movement.</p>
+                <div class="dx-actions">
+                    <a href="/products.html" class="dx-button" data-hero-cta>Shop the collection</a>
+                    <a href="#" onclick="window.openOrderTracker(); return false;" class="dx-button ghost">Track an order</a>
                 </div>
             </div>
         </div>
 
-        <div class="section">
-            <div class="container">
-                <div class="text-center">
-                    <h2>The Drixel Experience</h2>
-                    <p style="max-width: 800px; margin: 0 auto 50px;">Founded in 2025, we're redefining South African
-                        streetwear with premium quality, fast delivery, and exceptional customer experience.</p>
-                    <div class="products-grid" style="grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));">
-                        <div class="text-center">
-                            <div
-                                style="width: 80px; height: 80px; background: var(--nike-black); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 25px;">
-                                <i class="fas fa-tshirt" style="font-size: 36px; color: white;"></i>
-                            </div>
-                            <h3>Premium Craftsmanship</h3>
-                            <p>High-quality fabrics with meticulous attention to detail</p>
-                        </div>
-                        <div class="text-center">
-                            <div
-                                style="width: 80px; height: 80px; background: var(--accent-orange); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 25px;">
-                                <i class="fas fa-shipping-fast" style="font-size: 36px; color: white;"></i>
-                            </div>
-                            <h3>Reliable Delivery</h3>
-                            <p>Free delivery on orders over R1000 via premium couriers</p>
-                        </div>
-                        <div class="text-center">
-                            <div
-                                style="width: 80px; height: 80px; background: var(--accent-blue); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 25px;">
-                                <i class="fas fa-envelope" style="font-size: 36px; color: white;"></i>
-                            </div>
-                            <h3>Real-time Updates</h3>
-                            <p>Automatic email notifications at every order stage</p>
-                        </div>
-                        <div class="text-center">
-                            <div
-                                style="width: 80px; height: 80px; background: var(--success-green); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 25px;">
-                                <i class="fas fa-headset" style="font-size: 36px; color: white;"></i>
-                            </div>
-                            <h3>Dedicated Support</h3>
-                            <p>Local customer service with rapid response times</p>
-                        </div>
-                    </div>
+        <section class="dx-section" aria-labelledby="shop-category-title">
+            <div class="dx-section-head">
+                <h2 id="shop-category-title">Shop by category</h2>
+                <p>Find the shape that fits your rotation. Clean essentials, heavyweight layers and street-ready accessories.</p>
+            </div>
+            <div class="dx-category-grid">
+                <a class="dx-category" href="/products/tees/"><img loading="lazy" src="/public/assets/campaigns/campaign-02.jpeg" alt="Drixel tees"><div class="dx-category-copy"><span>Everyday foundations</span><strong>Tees</strong></div></a>
+                <a class="dx-category" href="/products/hoodies/"><img loading="lazy" src="/public/assets/campaigns/campaign-04.jpeg" alt="Drixel hoodies"><div class="dx-category-copy"><span>Heavyweight layers</span><strong>Hoodies</strong></div></a>
+                <a class="dx-category" href="/products/sweaters/"><img loading="lazy" src="/public/assets/campaigns/campaign-06.jpeg" alt="Drixel sweaters"><div class="dx-category-copy"><span>Cold-weather rotation</span><strong>Sweaters</strong></div></a>
+                <a class="dx-category" href="/products/beanies/"><img loading="lazy" src="/public/assets/lookbook/lookbook-01.jpeg" alt="Drixel accessories"><div class="dx-category-copy"><span>Finish the fit</span><strong>Accessories</strong></div></a>
+            </div>
+        </section>
+
+        <section class="dx-feature-band" aria-labelledby="featured-title">
+            <div class="dx-section">
+                <div class="dx-section-head">
+                    <h2 id="featured-title">Featured now</h2>
+                    <p>A tighter edit of Drixel pieces selected from the current catalogue.</p>
                 </div>
+                <div class="products-grid" id="featuredProducts"><!-- Existing catalogue logic renders here --></div>
+                <div class="dx-actions" style="margin-top:30px"><a href="/products.html" class="dx-button dark">Shop all products</a></div>
+            </div>
+        </section>
+
+        <section class="dx-section" aria-labelledby="campaign-title">
+            <div class="dx-section-head">
+                <h2 id="campaign-title">Drixel stories</h2>
+                <p>Campaign imagery should sell a feeling before it sells a product. The new homepage gives the photography room to work.</p>
+            </div>
+            <div class="dx-editorial">
+                <article class="dx-editorial-main">
+                    <img loading="lazy" src="/public/assets/campaigns/campaign-08.jpeg" alt="Drixel streetwear campaign">
+                    <div class="dx-editorial-overlay"><span class="dx-kicker">Campaign 01</span><h3>Built for your city.</h3><div><a class="dx-button" href="/products.html">Explore the edit</a></div></div>
+                </article>
+                <article class="dx-editorial-side">
+                    <img loading="lazy" src="/public/assets/lookbook/lookbook-02.jpeg" alt="Drixel lookbook">
+                    <div class="dx-editorial-overlay"><span class="dx-kicker">Lookbook</span><h3>Layers in motion.</h3><div><a class="dx-button" href="/products/hoodies/">Shop layers</a></div></div>
+                </article>
+            </div>
+        </section>
+
+        <div class="dx-service-strip">
+            <div class="dx-services">
+                <div><strong>South African streetwear</strong><span>Designed as a distinct Drixel experience.</span></div>
+                <div><strong>Order tracking</strong><span>Follow your order from processing to delivery.</span></div>
+                <div><strong>Customer support</strong><span>Support and store information remain easy to reach.</span></div>
             </div>
         </div>
     </section>
 
-    <!-- Shop Page -->
+    <section class="dx-newsletter" aria-labelledby="newsletter-title">
+        <div class="dx-newsletter-inner">
+            <div><p class="dx-kicker">Drixel updates</p><h2 id="newsletter-title">Stay in the loop.</h2><p>New drops, campaign stories and selected releases. No clutter.</p></div>
+            <div><form data-newsletter-form><input type="email" required autocomplete="email" aria-label="Email address" placeholder="Email address"><button type="submit">Join</button></form><p class="dx-newsletter-status" data-newsletter-status aria-live="polite"></p></div>
+        </div>
+    </section>
 
     <!-- Footer -->
     <footer class="site-footer">
@@ -697,6 +615,7 @@
     <!-- ===== MAIN JAVASCRIPT ===== -->
 
     <script type="module" src="index.js?v=1784368890"></script>
+    <script type="module">import{mountNewsletter}from"/src/components/newsletter.js";mountNewsletter();import{applyStorefrontSettings}from"/src/pages/storefront-runtime.js";applyStorefrontSettings();</script>
 </body>
 
 </html>

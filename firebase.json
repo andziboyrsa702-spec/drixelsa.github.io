@@ -4,7 +4,10 @@
     "ignore": [
       "firebase.json",
       "**/.*",
-      "**/node_modules/**"
+      "**/node_modules/**",
+      "docs/**",
+      "START_WEBSITE.bat",
+      "**/*.md"
     ],
     "cleanUrls": true,
     "trailingSlash": false,
@@ -40,6 +43,34 @@
       }
     ],
     "rewrites": [
+      {
+        "source": "/api/admin/inventory-adjust",
+        "function": "adminInventoryAdjust"
+      },
+      {
+        "source": "/api/admin/order-action",
+        "function": "adminOrderAction"
+      },
+      {
+        "source": "/api/checkout-quote",
+        "function": "checkoutQuote"
+      },
+      {
+        "source": "/api/create-order",
+        "function": "createOrder"
+      },
+      {
+        "source": "/api/subscribe",
+        "function": "subscribeNewsletter"
+      },
+      {
+        "source": "/api/unsubscribe",
+        "function": "unsubscribeNewsletter"
+      },
+      {
+        "source": "/api/send-campaign",
+        "function": "sendCampaign"
+      },
       {
         "source": "/api/send-email",
         "function": "sendEmail"
