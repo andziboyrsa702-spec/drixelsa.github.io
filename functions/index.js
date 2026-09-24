@@ -242,13 +242,22 @@ exports.unsubscribeNewsletter = functions.https.onRequest(async (req, res) => {
 
 const DELIVERY_FEE_ZAR = 70;
 const FREE_DELIVERY_THRESHOLD_ZAR = 1000;
+const SHIPPING_MARKETS={
+    za:{enabled:true,fee:70,freeFrom:1000},
+    bw:{enabled:true,fee:220,freeFrom:null},
+    us:{enabled:false,fee:null,freeFrom:null},
+    ng:{enabled:false,fee:null,freeFrom:null},
+    gb:{enabled:false,fee:null,freeFrom:null},
+    eu:{enabled:false,fee:null,freeFrom:null}
+};
+function shippingConfig(market){return SHIPPING_MARKETS[String(market||"za").toLowerCase()]||null}
 const MAX_CHECKOUT_ITEMS = 40;
 
 function checkoutItemKey(item) {
     return [String(item.productId || ""), String(item.sku || ""), String(item.size || ""), String(item.color || "")].join("|");
 }
 
-async function buildTrustedQuote(rawItems) {
+async function buildTrustedQuote(rawItems, market="za") {
     if (!Array.isArray(rawItems) || !rawItems.length || rawItems.length > MAX_CHECKOUT_ITEMS) {
         const error = new Error("Your bag is empty or too large.");
         error.status = 400;
@@ -298,8 +307,7 @@ async function buildTrustedQuote(rawItems) {
         });
     }
     const subtotal = Number(lines.reduce((sum, x) => sum + x.lineTotal, 0).toFixed(2));
-    const shipping = subtotal >= FREE_DELIVERY_THRESHOLD_ZAR ? 0 : DELIVERY_FEE_ZAR;
-    return { items: lines, subtotal, shipping, total: Number((subtotal + shipping).toFixed(2)), currency: "ZAR" };
+    const delivery=shippingConfig(market);if(!delivery||!delivery.enabled){const error=new Error("Delivery to this market is not enabled yet.");error.status=409;throw error}const shipping=delivery.freeFrom!=null&&subtotal>=delivery.freeFrom?0:Number(delivery.fee);return {items:lines,subtotal,shipping,total:Number((subtotal+shipping).toFixed(2)),currency:"ZAR",market:String(market||"za").toLowerCase()};
 }
 
 async function requireCustomer(req) {
@@ -315,7 +323,8 @@ function validText(value, max) { return typeof value === "string" && value.trim(
 exports.checkoutQuote = functions.https.onRequest(async (req, res) => {
     if (req.method !== "POST") return res.status(405).json({ success: false, message: "Method not allowed." });
     try {
-        const quote = await buildTrustedQuote(req.body && req.body.items);
+        const market=String(req.body&&req.body.market||"za").toLowerCase();if(!MARKET_CONFIG[market])return res.status(400).json({success:false,message:"Unsupported market."});
+        const quote = await buildTrustedQuote(req.body && req.body.items,market);
         return res.status(200).json({ success: true, ...quote });
     } catch (error) {
         return res.status(error.status || 500).json({ success: false, message: error.status ? error.message : "Unable to calculate checkout." });
@@ -402,9 +411,9 @@ exports.createOrder = functions.https.onRequest(async (req, res) => {
         if(!required.every(([key,max])=>validText(customer[key],max))||!isValidEmail(email))return res.status(400).json({success:false,message:"Complete all delivery details."});
         const paymentMethod=String(req.body.paymentMethod||"");
         if(paymentMethod!=="bank")return res.status(400).json({success:false,message:"This payment method is not enabled in secure checkout yet."});
-        const quote=await buildTrustedQuote(req.body.items);
-        const idempotencyKey=String(req.body.idempotencyKey||"");if(!validIdempotencyKey(idempotencyKey))return res.status(400).json({success:false,message:"A valid checkout attempt ID is required."});\n        const market=String(req.body.market||"za").toLowerCase();if(!MARKET_CONFIG[market])return res.status(400).json({success:false,message:"Unsupported market."});
-        const {orderRef,orderNumber,reused,currency,rate,displayTotal}=await createOrderIdempotent({user,customer:{...customer,email},quote,paymentMethod,idempotencyKey,market});
+        const market=String(req.body.market||"za").toLowerCase();if(!MARKET_CONFIG[market])return res.status(400).json({success:false,message:"Unsupported market."});
+        const quote=await buildTrustedQuote(req.body.items,market);
+        const idempotencyKey=String(req.body.idempotencyKey||"");if(!validIdempotencyKey(idempotencyKey))return res.status(400).json({success:false,message:"A valid checkout attempt ID is required."});\n        const {orderRef,orderNumber,reused,currency,rate,displayTotal}=await createOrderIdempotent({user,customer:{...customer,email},quote,paymentMethod,idempotencyKey,market});
         return res.status(reused?200:201).json({success:true,reused,orderId:orderRef.id,orderNumber,total:quote.total,currency:"ZAR",displayTotal,displayCurrency:currency,exchangeRate:rate,paymentStatus:"pending",inventoryStatus:"reserved"});
     } catch(error) {
         console.error("Order creation failed:",error);
@@ -413,7 +422,7 @@ exports.createOrder = functions.https.onRequest(async (req, res) => {
 });
 
 function validIdempotencyKey(value){return typeof value==="string"&&/^[A-Za-z0-9_-]{16,100}$/.test(value)}
-const MARKET_CONFIG={za:{country:"South Africa",currency:"ZAR"},us:{country:"United States",currency:"USD"},ng:{country:"Nigeria",currency:"NGN"},bw:{country:"Botswana",currency:"BWP"},gb:{country:"United Kingdom",currency:"GBP"},eu:{country:"Europe",currency:"EUR"}};
+const MARKET_CONFIG={za:{country:"South Africa",countryCode:"ZA",currency:"ZAR"},us:{country:"United States",countryCode:"US",currency:"USD"},ng:{country:"Nigeria",countryCode:"NG",currency:"NGN"},bw:{country:"Botswana",countryCode:"BW",currency:"BWP"},gb:{country:"United Kingdom",countryCode:"GB",currency:"GBP"},eu:{country:"Europe",countryCode:"EU",currency:"EUR"}};
 function marketConfig(value){return MARKET_CONFIG[String(value||"").toLowerCase()]||MARKET_CONFIG.za}
 function marketRate(market){const cfg=marketConfig(market);if(cfg.currency==="ZAR")return 1;const rate=Number(process.env["FX_ZAR_"+cfg.currency]);if(!Number.isFinite(rate)||rate<=0){const e=new Error("Pricing for this market is temporarily unavailable.");e.status=503;throw e}return rate}
 function convertMoney(value,rate){return Number((Number(value||0)*rate).toFixed(2))}
@@ -426,7 +435,7 @@ async function createOrderIdempotent({user,customer,quote,paymentMethod,idempote
         const snaps=new Map();for(const productId of grouped.keys())snaps.set(productId,await tx.get(db.collection("products").doc(productId)));
         for(const [productId,lines] of grouped.entries()){const snap=snaps.get(productId);if(!snap.exists){const e=new Error("A product is no longer available.");e.status=409;throw e}const product=snap.data();if(product.active===false){const e=new Error("A product is no longer available.");e.status=409;throw e}const variants=Array.isArray(product.variants)?product.variants.map(v=>({...v})):[];for(const line of lines){let currentPrice=Number(product.price);if(variants.length){const i=variants.findIndex(v=>(!line.sku||String(v.sku||"")===line.sku)&&(!line.size||String(v.size||"")===line.size)&&(!line.color||String(v.color||"")===line.color));if(i<0){const e=new Error("A selected product option is no longer available.");e.status=409;throw e}const stock=Number(variants[i].stock??variants[i].quantity??0);if(stock<line.quantity){const e=new Error("Stock changed while you were checking out. Please review your bag.");e.status=409;throw e}currentPrice=Number(variants[i].price!=null?variants[i].price:product.price);variants[i].stock=stock-line.quantity}if(!Number.isFinite(currentPrice)||Math.abs(currentPrice-Number(line.unitPrice))>.001){const e=new Error("Prices changed while you were checking out. Please review your bag.");e.status=409;throw e}}if(variants.length)tx.update(snap.ref,{variants,updatedAt:admin.firestore.FieldValue.serverTimestamp()})}
         const displayItems=quote.items.map(x=>({...x,displayUnitPrice:convertMoney(x.unitPrice,rate),displayLineTotal:convertMoney(x.lineTotal,rate)})),displaySubtotal=convertMoney(quote.subtotal,rate),displayShipping=convertMoney(quote.shipping,rate),displayTotal=convertMoney(quote.total,rate);
-        tx.set(orderRef,{orderNumber,market:String(market||"za").toLowerCase(),customer:{uid:user.uid,email:customer.email.trim().toLowerCase(),firstName:customer.firstName.trim(),lastName:customer.lastName.trim(),phone:customer.phone.trim()},shippingAddress:{address:customer.address.trim(),city:customer.city.trim(),postalCode:customer.postalCode.trim(),province:customer.province.trim(),country:cfg.country},items:displayItems,subtotal:quote.subtotal,shipping:quote.shipping,total:quote.total,currency:"ZAR",displaySubtotal,displayShipping,displayTotal,displayCurrency:cfg.currency,exchangeRate:rate,exchangeRateBase:"ZAR",paymentMethod,paymentStatus:"pending",fulfillmentStatus:"processing",status:"processing",inventoryStatus:"reserved",pricingSource:"server",createdAt:admin.firestore.FieldValue.serverTimestamp(),updatedAt:admin.firestore.FieldValue.serverTimestamp()});
+        tx.set(orderRef,{orderNumber,market:String(market||"za").toLowerCase(),customer:{uid:user.uid,email:customer.email.trim().toLowerCase(),firstName:customer.firstName.trim(),lastName:customer.lastName.trim(),phone:customer.phone.trim()},shippingAddress:{address:customer.address.trim(),city:customer.city.trim(),postalCode:customer.postalCode.trim(),province:customer.province.trim(),country:cfg.country,countryCode:cfg.countryCode||String(market||"za").toUpperCase()},items:displayItems,subtotal:quote.subtotal,shipping:quote.shipping,total:quote.total,currency:"ZAR",displaySubtotal,displayShipping,displayTotal,displayCurrency:cfg.currency,exchangeRate:rate,exchangeRateBase:"ZAR",paymentMethod,paymentStatus:"pending",fulfillmentStatus:"processing",status:"processing",inventoryStatus:"reserved",pricingSource:"server",createdAt:admin.firestore.FieldValue.serverTimestamp(),updatedAt:admin.firestore.FieldValue.serverTimestamp()});
         tx.set(keyRef,{uid:user.uid,orderId:orderRef.id,orderNumber,market:String(market||"za").toLowerCase(),currency:cfg.currency,exchangeRate:rate,displayTotal,createdAt:admin.firestore.FieldValue.serverTimestamp()});return{orderRef,orderNumber,reused:false,market:String(market||"za").toLowerCase(),currency:cfg.currency,rate,displayTotal}
     })
 }
