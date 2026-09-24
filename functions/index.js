@@ -134,10 +134,10 @@ exports.sendCampaign = functions.https.onRequest(async (req, res) => {
         subscriberSnap.forEach(docSnap => {
             const subscriber = docSnap.data();
             if (isValidEmail(subscriber.email) && subscriber.status !== "unsubscribed") {
-                recipients.push(subscriber.email.toLowerCase());
+                recipients.push({ id: docSnap.id, email: subscriber.email.toLowerCase(), token: subscriber.unsubscribeToken || "" });
             }
         });
-        const uniqueRecipients = [...new Set(recipients)];
+        const uniqueRecipients = [...new Map(recipients.map(r => [r.email, r])).values()];
         if (!uniqueRecipients.length) {
             return res.status(400).json({ success: false, message: "No active subscribers." });
         }
@@ -163,20 +163,23 @@ exports.sendCampaign = functions.https.onRequest(async (req, res) => {
 
         for (let i = 0; i < uniqueRecipients.length; i += batchSize) {
             const batch = uniqueRecipients.slice(i, i + batchSize);
-            const results = await Promise.allSettled(batch.map(email =>
-                resend.emails.send({
+            const baseUrl = publicBaseUrl(req);
+            const results = await Promise.allSettled(batch.map(recipient => {
+                const unsubscribeUrl = recipient.token ? baseUrl + "/api/unsubscribe?id=" + encodeURIComponent(recipient.id) + "&token=" + encodeURIComponent(recipient.token) : "";
+                const footer = unsubscribeUrl ? `<div style="max-width:620px;margin:24px auto 0;padding:20px;text-align:center;color:#777;font:12px Arial,sans-serif"><a style="color:#777" href="${unsubscribeUrl}">Unsubscribe</a> from Drixel marketing emails.</div>` : "";
+                return resend.emails.send({
                     from: "Drixel SA <info@customer.drixelsa.co.za>",
-                    to: [email],
+                    to: [recipient.email],
                     subject: campaign.subject.trim(),
-                    html: campaign.html
-                })
-            ));
+                    html: campaign.html + footer
+                });
+            }));
             results.forEach(result => result.status === "fulfilled" ? sent++ : failed++);
         }
 
         await campaignRef.update({
             status: failed === uniqueRecipients.length ? "failed" : "sent",
-            deliveredCount: sent,
+            acceptedCount: sent,
             failedCount: failed,
             sentAt: admin.firestore.FieldValue.serverTimestamp()
         });
@@ -186,4 +189,52 @@ exports.sendCampaign = functions.https.onRequest(async (req, res) => {
         console.error("Campaign send failed:", error);
         return res.status(error.status || 500).json({ success: false, message: error.status ? error.message : "Campaign delivery failed." });
     }
+});
+
+
+function newsletterDocId(email) {
+    return require("crypto").createHash("sha256").update(email).digest("hex");
+}
+
+function publicBaseUrl(req) {
+    const configured = process.env.PUBLIC_SITE_URL;
+    if (configured) return configured.replace(/\/$/, "");
+    const forwardedProto = req.get("x-forwarded-proto") || "https";
+    return forwardedProto + "://" + req.get("host");
+}
+
+exports.subscribeNewsletter = functions.https.onRequest(async (req, res) => {
+    if (req.method !== "POST") {
+        res.set("Allow", "POST");
+        return res.status(405).json({ success: false, message: "Method not allowed." });
+    }
+    const email = String(req.body && req.body.email || "").trim().toLowerCase();
+    if (!isValidEmail(email)) {
+        return res.status(400).json({ success: false, message: "Enter a valid email address." });
+    }
+    const ref = admin.firestore().collection("subscribers").doc(newsletterDocId(email));
+    const snap = await ref.get();
+    const existing = snap.exists ? snap.data() : {};
+    const unsubscribeToken = existing.unsubscribeToken || require("crypto").randomBytes(32).toString("hex");
+    await ref.set({
+        email,
+        status: "active",
+        source: existing.source || "website",
+        unsubscribeToken,
+        subscribedAt: existing.subscribedAt || admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+    }, { merge: true });
+    return res.status(200).json({ success: true, message: "You're on the list." });
+});
+
+exports.unsubscribeNewsletter = functions.https.onRequest(async (req, res) => {
+    if (!["GET", "POST"].includes(req.method)) return res.status(405).send("Method not allowed.");
+    const id = String((req.query && req.query.id) || (req.body && req.body.id) || "");
+    const token = String((req.query && req.query.token) || (req.body && req.body.token) || "");
+    if (!/^[a-f0-9]{64}$/.test(id) || !/^[a-f0-9]{64}$/.test(token)) return res.status(400).send("Invalid unsubscribe link.");
+    const ref = admin.firestore().collection("subscribers").doc(id), snap = await ref.get();
+    if (!snap.exists || snap.data().unsubscribeToken !== token) return res.status(404).send("Unsubscribe link not found.");
+    await ref.update({ status: "unsubscribed", unsubscribedAt: admin.firestore.FieldValue.serverTimestamp(), updatedAt: admin.firestore.FieldValue.serverTimestamp() });
+    res.set("Content-Type", "text/html; charset=utf-8");
+    return res.status(200).send('<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><title>Unsubscribed | Drixel</title><body style="margin:0;background:#050505;color:#fff;font-family:Arial,sans-serif;display:grid;place-items:center;min-height:100vh"><main style="max-width:560px;padding:40px;text-align:center"><b style="font-size:28px;letter-spacing:-2px">DRIXEL</b><h1 style="font-size:48px;letter-spacing:-3px">You’re unsubscribed.</h1><p style="color:#999;line-height:1.6">You will no longer receive Drixel marketing emails at this address.</p></main></body>');
 });
