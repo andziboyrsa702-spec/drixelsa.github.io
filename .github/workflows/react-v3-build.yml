@@ -1,0 +1,17 @@
+name: React V3 Build Check
+on:
+  push:
+    branches: [react-v3-migration]
+  pull_request:
+    branches: [drixel-v2-architecture]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm install
+      - run: npm run build
