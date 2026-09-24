@@ -4,6 +4,13 @@ on:
     branches: [react-v3-migration]
   pull_request:
     branches: [drixel-v2-architecture]
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: react-v3-phone-preview
+  cancel-in-progress: true
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -33,3 +40,22 @@ jobs:
           name: drixel-react-v3-preview
           path: drixel-react-v3-preview.tar.gz
           retention-days: 7
+      - name: Configure GitHub Pages
+        if: github.event_name == 'push'
+        uses: actions/configure-pages@v5
+      - name: Upload GitHub Pages artifact
+        if: github.event_name == 'push'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+  deploy-preview:
+    if: github.event_name == 'push'
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy React V3 phone preview
+        id: deployment
+        uses: actions/deploy-pages@v4
