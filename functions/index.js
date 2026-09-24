@@ -424,6 +424,11 @@ async function createOrderIdempotent({user,customer,quote,paymentMethod,idempote
         tx.set(keyRef,{uid:user.uid,orderId:orderRef.id,orderNumber,createdAt:admin.firestore.FieldValue.serverTimestamp()});return{orderRef,orderNumber,reused:false}
     })
 }
+exports.adminInventoryAdjust = functions.https.onRequest(async(req,res)=>{
+    if(req.method!=="POST")return res.status(405).json({success:false,message:"Method not allowed."});
+    try{const actor=await requireAdmin(req),productId=String(req.body?.productId||""),sku=String(req.body?.sku||""),delta=Number(req.body?.delta),reason=String(req.body?.reason||"").trim().slice(0,180);if(!productId||!sku||!Number.isInteger(delta)||delta===0||Math.abs(delta)>10000||!reason)return res.status(400).json({success:false,message:"Product, SKU, whole-number adjustment and reason are required."});const db=admin.firestore(),ref=db.collection("products").doc(productId),log=db.collection("inventory_adjustments").doc();let result;await db.runTransaction(async tx=>{const snap=await tx.get(ref);if(!snap.exists){const e=new Error("Product not found.");e.status=404;throw e}const p=snap.data(),variants=Array.isArray(p.variants)?p.variants.map(v=>({...v})):[],i=variants.findIndex(v=>String(v.sku||"")===sku);if(i<0){const e=new Error("Variant SKU not found.");e.status=404;throw e}const before=Number(variants[i].stock??variants[i].quantity??0),after=before+delta;if(after<0){const e=new Error("Adjustment would make stock negative.");e.status=409;throw e}variants[i].stock=after;tx.update(ref,{variants,updatedAt:admin.firestore.FieldValue.serverTimestamp()});tx.set(log,{productId,productName:String(p.name||p.title||""),sku,variant:[variants[i].color,variants[i].size].filter(Boolean).join(" / "),before,delta,after,reason,actor:actor.email,createdAt:admin.firestore.FieldValue.serverTimestamp()});result={before,after}});return res.status(200).json({success:true,...result})}catch(error){console.error("Inventory adjustment failed:",error);return res.status(error.status||500).json({success:false,message:error.status?error.message:"Inventory adjustment failed."})}
+});
+
 exports.adminOrderAction = functions.https.onRequest(async(req,res)=>{
     if(req.method!=="POST")return res.status(405).json({success:false,message:"Method not allowed."});
     try{
