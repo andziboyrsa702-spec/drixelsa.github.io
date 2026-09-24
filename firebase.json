@@ -44,6 +44,10 @@
     ],
     "rewrites": [
       {
+        "source": "/api/send-campaign",
+        "function": "sendCampaign"
+      },
+      {
         "source": "/api/send-email",
         "function": "sendEmail"
       },
