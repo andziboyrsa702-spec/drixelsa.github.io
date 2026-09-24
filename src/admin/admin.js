@@ -1,12 +1,9 @@
-import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
-import { getAuth,onAuthStateChanged,signOut } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
-import { getFirestore,collection,getDocs,doc,updateDoc } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
-const firebaseConfig={apiKey:"AIzaSyA4_Ejkc3Of0T8fCj1QqkNN78-2xJ882F0",authDomain:"drixel-sa.firebaseapp.com",projectId:"drixel-sa",storageBucket:"drixel-sa.firebasestorage.app",messagingSenderId:"620600264300",appId:"1:620600264300:web:525de2d55cc1ae6269fa49",measurementId:"G-RTRKFY9NPW"};
-const app=initializeApp(firebaseConfig),auth=getAuth(app),db=getFirestore(app);
+import { onAuthStateChanged,signOut } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
+import { collection,getDocs,doc,updateDoc } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+import { auth,db } from "../config/firebase.js";
+import { money,escapeHtml as safe,displayDate as date } from "../utils/format.js";
 const admins=new Set(["admin@drixelsa.co.za","drixelsa@gmail.com"]);let currentView="dashboard",cache={};
-const el=id=>document.getElementById(id),money=n=>new Intl.NumberFormat("en-ZA",{style:"currency",currency:"ZAR"}).format(Number(n||0));
-const safe=v=>String(v??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
-const date=v=>{if(!v)return"—";const d=v?.toDate?v.toDate():new Date(v);return Number.isNaN(+d)?"—":d.toLocaleDateString("en-ZA",{day:"2-digit",month:"short",year:"numeric"})};
+const el=id=>document.getElementById(id);
 async function docs(name,refresh=false){if(cache[name]&&!refresh)return cache[name];const s=await getDocs(collection(db,name));return cache[name]=s.docs.map(d=>({id:d.id,...d.data()}))}
 onAuthStateChanged(auth,user=>{const email=(user?.email||"").toLowerCase();if(!user||!admins.has(email)){location.replace("../auth.html?next=admin");return}el("adminGate").hidden=true;el("adminApp").hidden=false;el("adminIdentity").textContent=user.email;render("dashboard")});
 el("signOutBtn").onclick=async()=>{await signOut(auth);location.replace("../auth.html")};el("refreshBtn").onclick=()=>{cache={};render(currentView)};
