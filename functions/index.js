@@ -244,7 +244,7 @@ const DELIVERY_FEE_ZAR = 70;
 const FREE_DELIVERY_THRESHOLD_ZAR = 1000;
 const SHIPPING_MARKETS={
     za:{enabled:true,fee:70,freeFrom:1000},
-    bw:{enabled:true,fee:220,freeFrom:null},
+    bw:{enabled:false,fee:null,freeFrom:null},
     us:{enabled:false,fee:null,freeFrom:null},
     ng:{enabled:false,fee:null,freeFrom:null},
     gb:{enabled:false,fee:null,freeFrom:null},
@@ -404,6 +404,11 @@ async function restoreOrderInventory(orderRef) {
     });
 }
 
+
+const YOCO_API_BASE="https://payments.yoco.com/api";
+function appOrigin(req){return String(process.env.PUBLIC_APP_URL||("https://"+req.get("host"))).replace(/\/$/,"")}
+async function createYocoCheckout({orderId,orderNumber,total,idempotencyKey,req}){const secret=process.env.YOCO_SECRET_KEY;if(!secret){const e=new Error("Yoco test payments are not configured on the server.");e.status=503;throw e}const origin=appOrigin(req),amount=Math.round(Number(total)*100);const response=await fetch(YOCO_API_BASE+"/checkouts",{method:"POST",headers:{"Authorization":"Bearer "+secret,"Content-Type":"application/json","Idempotency-Key":idempotencyKey},body:JSON.stringify({amount,currency:"ZAR",successUrl:origin+"/za/payment/yoco/success?order="+encodeURIComponent(orderId),cancelUrl:origin+"/za/payment/yoco/cancel?order="+encodeURIComponent(orderId),failureUrl:origin+"/za/payment/yoco/failure?order="+encodeURIComponent(orderId),metadata:{orderId,orderNumber}})});const data=await response.json().catch(()=>({}));if(!response.ok||!data.redirectUrl){console.error("Yoco checkout creation failed",response.status);const e=new Error("Yoco could not start the payment.");e.status=502;throw e}return data}
+exports.verifyYocoPayment=functions.https.onRequest(async(req,res)=>{if(req.method!=="POST")return res.status(405).json({success:false,message:"Method not allowed."});try{const user=await requireCustomer(req),orderId=String(req.body?.orderId||""),ref=admin.firestore().collection("orders").doc(orderId),snap=await ref.get();if(!snap.exists)return res.status(404).json({success:false,message:"Order not found."});const order=snap.data();if(order.customer?.uid!==user.uid)return res.status(403).json({success:false,message:"This order does not belong to your account."});if(!order.yocoCheckoutId)return res.status(409).json({success:false,message:"No Yoco checkout is attached to this order."});const secret=process.env.YOCO_SECRET_KEY;if(!secret)return res.status(503).json({success:false,message:"Yoco is not configured."});const response=await fetch(YOCO_API_BASE+"/checkouts/"+encodeURIComponent(order.yocoCheckoutId),{headers:{Authorization:"Bearer "+secret}}),data=await response.json().catch(()=>({}));if(!response.ok)return res.status(502).json({success:false,message:"Could not verify payment with Yoco."});const paid=data.status==="succeeded"||data.payment?.status==="succeeded";if(paid&&order.paymentStatus!=="paid")await ref.set({paymentStatus:"paid",paidAt:admin.firestore.FieldValue.serverTimestamp(),paymentVerifiedBy:"yoco-api",updatedAt:admin.firestore.FieldValue.serverTimestamp()},{merge:true});return res.status(200).json({success:true,paid,status:data.status||data.payment?.status||"pending",orderNumber:order.orderNumber})}catch(error){return res.status(error.status||500).json({success:false,message:error.status?error.message:"Payment verification failed."})}});
 exports.createOrder = functions.https.onRequest(async (req, res) => {
     if (req.method !== "POST") return res.status(405).json({ success:false,message:"Method not allowed." });
     try {
@@ -412,10 +417,11 @@ exports.createOrder = functions.https.onRequest(async (req, res) => {
         const required=[["firstName",80],["lastName",80],["phone",30],["address",180],["city",100],["postalCode",20],["province",80]];
         if(!required.every(([key,max])=>validText(customer[key],max))||!isValidEmail(email))return res.status(400).json({success:false,message:"Complete all delivery details."});
         const paymentMethod=String(req.body.paymentMethod||"");
-        if(paymentMethod!=="bank")return res.status(400).json({success:false,message:"This payment method is not enabled in secure checkout yet."});
+        if(!["bank","yoco"].includes(paymentMethod))return res.status(400).json({success:false,message:"Unsupported payment method."});
         const market=String(req.body.market||"za").toLowerCase();if(!MARKET_CONFIG[market])return res.status(400).json({success:false,message:"Unsupported market."});
         const quote=await buildTrustedQuote(req.body.items,market);
         const idempotencyKey=String(req.body.idempotencyKey||"");if(!validIdempotencyKey(idempotencyKey))return res.status(400).json({success:false,message:"A valid checkout attempt ID is required."});\n        const {orderRef,orderNumber,reused,currency,rate,displayTotal}=await createOrderIdempotent({user,customer:{...customer,email},quote,paymentMethod,idempotencyKey,market});
+        if(paymentMethod==="yoco"){if(market!=="za")return res.status(409).json({success:false,message:"Yoco checkout is currently enabled for South African ZAR orders only."});const checkout=await createYocoCheckout({orderId:orderRef.id,orderNumber,total:quote.total,idempotencyKey,req});await orderRef.set({yocoCheckoutId:checkout.id,paymentProvider:"yoco",paymentStatus:"pending",updatedAt:admin.firestore.FieldValue.serverTimestamp()},{merge:true});return res.status(reused?200:201).json({success:true,reused,orderId:orderRef.id,orderNumber,paymentMethod:"yoco",paymentStatus:"pending",redirectUrl:checkout.redirectUrl})}
         return res.status(reused?200:201).json({success:true,reused,orderId:orderRef.id,orderNumber,total:quote.total,currency:"ZAR",displayTotal,displayCurrency:currency,exchangeRate:rate,paymentStatus:"pending",inventoryStatus:"reserved"});
     } catch(error) {
         console.error("Order creation failed:",error);
