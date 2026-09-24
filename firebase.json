@@ -44,6 +44,10 @@
     ],
     "rewrites": [
       {
+        "source": "/api/admin/inventory-adjust",
+        "function": "adminInventoryAdjust"
+      },
+      {
         "source": "/api/admin/order-action",
         "function": "adminOrderAction"
       },
