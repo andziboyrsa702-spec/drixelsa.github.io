@@ -370,7 +370,7 @@ async function reserveInventoryAndCreateOrder({ user, customer, quote, paymentMe
         tx.set(orderRef,{
             orderNumber,
             customer:{uid:user.uid,email:customer.email.trim().toLowerCase(),firstName:customer.firstName.trim(),lastName:customer.lastName.trim(),phone:customer.phone.trim()},
-            shippingAddress:{address:customer.address.trim(),city:customer.city.trim(),postalCode:customer.postalCode.trim(),province:customer.province.trim(),country:"South Africa"},
+            shippingAddress:{address:customer.address.trim(),city:customer.city.trim(),postalCode:customer.postalCode.trim(),province:customer.province.trim(),country:String(customer.country||quote.country||""),countryCode:String(customer.countryCode||quote.countryCode||"").toUpperCase()},
             items:quote.items,subtotal:quote.subtotal,shipping:quote.shipping,total:quote.total,currency:quote.currency,
             paymentMethod,paymentStatus:"pending",fulfillmentStatus:"processing",status:"processing",
             inventoryStatus:"reserved",pricingSource:"server",createdAt:admin.firestore.FieldValue.serverTimestamp(),updatedAt:admin.firestore.FieldValue.serverTimestamp()
