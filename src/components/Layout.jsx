@@ -1,0 +1,1 @@
+import React from"react";import AppHeader from"./AppHeader.jsx";export default function Layout({children}){return <><AppHeader/>{children}<footer className="react-footer"><strong>DRIXEL</strong><span>South African streetwear.</span></footer></>}
