@@ -238,3 +238,124 @@ exports.unsubscribeNewsletter = functions.https.onRequest(async (req, res) => {
     res.set("Content-Type", "text/html; charset=utf-8");
     return res.status(200).send('<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><title>Unsubscribed | Drixel</title><body style="margin:0;background:#050505;color:#fff;font-family:Arial,sans-serif;display:grid;place-items:center;min-height:100vh"><main style="max-width:560px;padding:40px;text-align:center"><b style="font-size:28px;letter-spacing:-2px">DRIXEL</b><h1 style="font-size:48px;letter-spacing:-3px">You’re unsubscribed.</h1><p style="color:#999;line-height:1.6">You will no longer receive Drixel marketing emails at this address.</p></main></body>');
 });
+
+
+const DELIVERY_FEE_ZAR = 70;
+const FREE_DELIVERY_THRESHOLD_ZAR = 1000;
+const MAX_CHECKOUT_ITEMS = 40;
+
+function checkoutItemKey(item) {
+    return [String(item.productId || ""), String(item.sku || ""), String(item.size || ""), String(item.color || "")].join("|");
+}
+
+async function buildTrustedQuote(rawItems) {
+    if (!Array.isArray(rawItems) || !rawItems.length || rawItems.length > MAX_CHECKOUT_ITEMS) {
+        const error = new Error("Your bag is empty or too large.");
+        error.status = 400;
+        throw error;
+    }
+    const merged = new Map();
+    rawItems.forEach(item => {
+        const productId = String(item && item.productId || "").trim();
+        if (!productId) return;
+        const quantity = Math.max(1, Math.min(20, Number(item.quantity) || 1));
+        const normalized = { productId, sku: String(item.sku || "").trim(), size: String(item.size || "").trim(), color: String(item.color || "").trim(), quantity };
+        const key = checkoutItemKey(normalized);
+        if (merged.has(key)) merged.get(key).quantity = Math.min(20, merged.get(key).quantity + quantity);
+        else merged.set(key, normalized);
+    });
+    if (!merged.size) { const error = new Error("No valid products were supplied."); error.status = 400; throw error; }
+    const db = admin.firestore();
+    const lines = [];
+    for (const item of merged.values()) {
+        const snap = await db.collection("products").doc(item.productId).get();
+        if (!snap.exists) { const error = new Error("A product in your bag is no longer available."); error.status = 409; throw error; }
+        const product = snap.data();
+        if (product.active === false) { const error = new Error("A product in your bag is currently unavailable."); error.status = 409; throw error; }
+        let variant = null;
+        if (Array.isArray(product.variants) && product.variants.length) {
+            variant = product.variants.find(v =>
+                (!item.sku || String(v.sku || "") === item.sku) &&
+                (!item.size || String(v.size || "") === item.size) &&
+                (!item.color || String(v.color || "") === item.color)
+            );
+            if (!variant) { const error = new Error("A selected product option is no longer available."); error.status = 409; throw error; }
+            const stock = Number(variant.stock ?? variant.quantity ?? 0);
+            if (stock < item.quantity) { const error = new Error("There is not enough stock for " + (product.name || product.title || "an item") + "."); error.status = 409; throw error; }
+        }
+        const unitPrice = Number(variant && variant.price != null ? variant.price : product.price);
+        if (!Number.isFinite(unitPrice) || unitPrice < 0) { const error = new Error("A product has an invalid store price."); error.status = 409; throw error; }
+        lines.push({
+            productId: snap.id,
+            name: String(product.name || product.title || "Drixel product").slice(0, 180),
+            sku: String((variant && variant.sku) || product.sku || "").slice(0, 100),
+            size: String((variant && variant.size) || item.size || "").slice(0, 80),
+            color: String((variant && variant.color) || item.color || "").slice(0, 80),
+            image: String(product.image || (product.images && product.images[0]) || "").slice(0, 2000),
+            quantity: item.quantity,
+            unitPrice,
+            lineTotal: Number((unitPrice * item.quantity).toFixed(2))
+        });
+    }
+    const subtotal = Number(lines.reduce((sum, x) => sum + x.lineTotal, 0).toFixed(2));
+    const shipping = subtotal >= FREE_DELIVERY_THRESHOLD_ZAR ? 0 : DELIVERY_FEE_ZAR;
+    return { items: lines, subtotal, shipping, total: Number((subtotal + shipping).toFixed(2)), currency: "ZAR" };
+}
+
+async function requireCustomer(req) {
+    const authorization = req.get("Authorization") || "";
+    const match = authorization.match(/^Bearer (.+)$/);
+    if (!match) { const e = new Error("Please sign in before checkout."); e.status = 401; throw e; }
+    try { return await admin.auth().verifyIdToken(match[1]); }
+    catch { const e = new Error("Your sign-in session is invalid. Please sign in again."); e.status = 401; throw e; }
+}
+
+function validText(value, max) { return typeof value === "string" && value.trim().length > 0 && value.trim().length <= max; }
+
+exports.checkoutQuote = functions.https.onRequest(async (req, res) => {
+    if (req.method !== "POST") return res.status(405).json({ success: false, message: "Method not allowed." });
+    try {
+        const quote = await buildTrustedQuote(req.body && req.body.items);
+        return res.status(200).json({ success: true, ...quote });
+    } catch (error) {
+        return res.status(error.status || 500).json({ success: false, message: error.status ? error.message : "Unable to calculate checkout." });
+    }
+});
+
+exports.createOrder = functions.https.onRequest(async (req, res) => {
+    if (req.method !== "POST") return res.status(405).json({ success: false, message: "Method not allowed." });
+    try {
+        const user = await requireCustomer(req);
+        const customer = req.body && req.body.customer || {};
+        const email = String(customer.email || "").trim().toLowerCase();
+        if (!user.email || email !== String(user.email).toLowerCase()) return res.status(403).json({ success: false, message: "Checkout email must match your signed-in account." });
+        const required = [["firstName",80],["lastName",80],["phone",30],["address",180],["city",100],["postalCode",20],["province",80]];
+        if (!required.every(([key,max]) => validText(customer[key], max)) || !isValidEmail(email)) return res.status(400).json({ success: false, message: "Complete all delivery details." });
+        const paymentMethod = String(req.body.paymentMethod || "");
+        if (paymentMethod !== "bank") return res.status(400).json({ success: false, message: "This payment method is not enabled in secure checkout yet." });
+        const quote = await buildTrustedQuote(req.body.items);
+        const orderRef = admin.firestore().collection("orders").doc();
+        const orderNumber = "DX-" + new Date().toISOString().slice(0,10).replace(/-/g,"") + "-" + orderRef.id.slice(0,6).toUpperCase();
+        await orderRef.set({
+            orderNumber,
+            customer: { uid: user.uid, email, firstName: customer.firstName.trim(), lastName: customer.lastName.trim(), phone: customer.phone.trim() },
+            shippingAddress: { address: customer.address.trim(), city: customer.city.trim(), postalCode: customer.postalCode.trim(), province: customer.province.trim(), country: "South Africa" },
+            items: quote.items,
+            subtotal: quote.subtotal,
+            shipping: quote.shipping,
+            total: quote.total,
+            currency: quote.currency,
+            paymentMethod: "bank",
+            paymentStatus: "pending",
+            fulfillmentStatus: "processing",
+            status: "processing",
+            pricingSource: "server",
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            updatedAt: admin.firestore.FieldValue.serverTimestamp()
+        });
+        return res.status(201).json({ success: true, orderId: orderRef.id, orderNumber, total: quote.total, currency: quote.currency, paymentStatus: "pending" });
+    } catch (error) {
+        console.error("Order creation failed:", error);
+        return res.status(error.status || 500).json({ success: false, message: error.status ? error.message : "Order could not be created." });
+    }
+});
