@@ -1,48 +1,61 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // Helper function to check if requesting user is authorized admin
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
     function isAdmin() {
-      return request.auth != null && (
-        request.auth.token.email == 'admin@drixelsa.co.za' || 
+      return signedIn() && (
+        request.auth.token.email == 'admin@drixelsa.co.za' ||
         request.auth.token.email == 'drixelsa@gmail.com'
       );
     }
-    
-    // Products Collection: Public read, Admin write
+
+    function ownsOrder() {
+      return signedIn() &&
+        resource.data.customer.email == request.auth.token.email;
+    }
+
     match /products/{productId} {
       allow read: if true;
       allow write: if isAdmin();
     }
-    
-    // Banners Collection: Public read, Admin write
+
     match /banners/{bannerId} {
       allow read: if true;
       allow write: if isAdmin();
     }
-    
-    // Coupons Collection: Public read, Admin write
+
     match /coupons/{couponId} {
       allow read: if true;
       allow write: if isAdmin();
     }
-    
-    // Settings Collection: Public read, Admin write
+
     match /settings/{settingId} {
       allow read: if true;
       allow write: if isAdmin();
     }
 
-    // Orders Collection: Public create (customers creating order), Admin full access
     match /orders/{orderId} {
-      allow create: if true;
-      allow read, update, delete: if isAdmin() || (request.auth != null && resource.data.customer.email == request.auth.token.email);
+      // Checkout is restricted to authenticated customers. Payment/order status
+      // changes remain server/admin controlled rather than customer editable.
+      allow create: if signedIn()
+        && request.resource.data.customer.email == request.auth.token.email;
+      allow read: if isAdmin() || ownsOrder();
+      allow update, delete: if isAdmin();
     }
-    
-    // Users Collection: Users read/write own data, Admin full access
+
     match /users/{userId} {
-      allow read, write: if request.auth != null && (request.auth.uid == userId || isAdmin());
+      allow read, create, update: if signedIn() &&
+        (request.auth.uid == userId || isAdmin());
+      allow delete: if isAdmin();
+    }
+
+    // Deny any collection not explicitly declared above.
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }

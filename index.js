@@ -145,7 +145,6 @@ setTimeout(() => {
 
 // ===== CONSTANTS =====
 const ADMIN_EMAIL = "admin@drixelsa.co.za";
-const ADMIN_PASSWORD = "@Anelisa2025";
 const ADMIN_NAMES = "Anelisa Thelejane & Andzani Mashabane";
 const DEFAULT_YOCO_PUBLIC_KEY = "pk_live_f26b158aDmMkbm56f1c4";
 let YOCO_PUBLIC_KEY = (localStorage.getItem('drixel_yoco_public_key') || DEFAULT_YOCO_PUBLIC_KEY).trim();
@@ -171,146 +170,45 @@ function sanitizeInput(str) {
 }
 window.sanitizeInput = sanitizeInput;
 
-// ===== RESEND & BACKEND EMAIL CONFIGURATION & HELPER =====
+// ===== SECURE BACKEND EMAIL HELPER =====
+// Email provider credentials must never be stored in browser storage or sent through third-party CORS proxies.
+// The Firebase Cloud Function at /api/send-email owns the Resend credential.
 async function sendEmailViaResend({ to, cc, subject, html }) {
-    let storedApiKey = (localStorage.getItem('drixel_resend_api_key') || '').trim();
-    if (storedApiKey === 're_9127pJDT_jRDx942YS4UbyH3YDfm9H7ow' || storedApiKey === 're_HSq1yYdh_DBU1dwEwwtb6di7C9tLRLUUx') {
-        storedApiKey = '';
-        localStorage.removeItem('drixel_resend_api_key');
-    }
-
-    let fromEmail = localStorage.getItem('drixel_resend_from_email') || 'info@customer.drixelsa.co.za';
-    const endpoint = localStorage.getItem('drixel_email_endpoint') || '/api/send-email';
-
-    if (!fromEmail || fromEmail.includes('onboarding@resend.dev') || fromEmail.includes('<') || fromEmail.includes('Drixel SA')) {
-        fromEmail = 'info@customer.drixelsa.co.za';
-        localStorage.setItem('drixel_resend_from_email', 'info@customer.drixelsa.co.za');
-    }
-
     const recipientList = Array.isArray(to) ? to : [to];
     const ccList = cc && cc.length > 0 ? (Array.isArray(cc) ? cc : [cc]) : [];
 
-    console.log("📧 [Email Dispatcher] Starting email send process...");
-    console.log("   • Recipient(s):", recipientList.join(', '));
-    console.log("   • Subject:", subject);
-
-    // Method 1: Resend API Key Direct & Proxy Delivery
-    if (storedApiKey && storedApiKey.startsWith('re_')) {
-        console.log("📨 [Method 1] Sending via Resend API key...");
-        const sendPayload = {
-            from: fromEmail,
-            to: recipientList,
-            ...(ccList.length > 0 ? { cc: ccList } : {}),
-            subject: subject,
-            html: html
-        };
-
-        const targetUrl = 'https://api.resend.com/emails';
-
-        const fetchAttempts = [
-            // 1. Direct fetch (works on server / Node.js backend)
-            async () => {
-                return await fetch(targetUrl, {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${storedApiKey}`,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(sendPayload)
-                });
-            },
-            // 2. High-Speed CORS Proxy Relay (bypasses browser CORS preflight blocking)
-            async () => {
-                return await fetch('https://corsproxy.io/?' + encodeURIComponent(targetUrl), {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${storedApiKey}`,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(sendPayload)
-                });
-            },
-            // 3. Fallback CORS Relay
-            async () => {
-                return await fetch('https://api.allorigins.win/raw?url=' + encodeURIComponent(targetUrl), {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${storedApiKey}`,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(sendPayload)
-                });
-            },
-            // 4. Fallback with onboarding domain via CORS proxy
-            async () => {
-                return await fetch('https://corsproxy.io/?' + encodeURIComponent(targetUrl), {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${storedApiKey}`,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        ...sendPayload,
-                        from: 'onboarding@resend.dev'
-                    })
-                });
-            }
-        ];
-
-        for (const fetchFn of fetchAttempts) {
-            try {
-                const response = await fetchFn();
-                if (response.ok) {
-                    const data = await response.json().catch(() => ({}));
-                    console.log("✅ [Method 1 SUCCESS] Email sent via Resend API! Response:", data);
-                    return { success: true, data };
-                } else {
-                    const errText = await response.text();
-                    console.warn("⚠️ [Method 1 Attempt Returned Status]:", response.status, errText);
-                }
-            } catch (err) {
-                console.warn("⚠️ [Method 1 Exception]:", err.message);
-            }
-        }
-    }
-
-    // Method 2: Custom Serverless Endpoint & Firebase Cloud Function (/api/send-email)
-    const cloudEndpoint = endpoint || '/api/send-email';
-    console.log("📧 [Method 2] Attempting Cloud Function endpoint:", cloudEndpoint);
     try {
-        const response = await fetch(cloudEndpoint, {
+        const user = auth.currentUser;
+        if (!user) {
+            throw new Error('Authentication is required to send email.');
+        }
+
+        const idToken = await user.getIdToken();
+        const response = await fetch('/api/send-email', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+                'Authorization': `Bearer ${idToken}`,
+                'Content-Type': 'application/json'
+            },
             body: JSON.stringify({
-                from: fromEmail,
                 to: recipientList,
                 ...(ccList.length > 0 ? { cc: ccList } : {}),
-                subject: subject,
-                html: html
+                subject,
+                html
             })
         });
 
-        if (response.ok) {
-            const data = await response.json().catch(() => ({}));
-            console.log("✅ [Method 2 SUCCESS] Email sent via Cloud Function:", data);
-            return { success: true, data };
-        } else {
-            const errText = await response.text();
-            console.warn("⚠️ [Method 2 Failed] Endpoint returned status:", response.status, errText);
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+            throw new Error(data.message || 'Email delivery failed.');
         }
-    } catch (err) {
-        console.warn("⚠️ [Method 2 Exception]:", err.message);
+        return { success: true, data };
+    } catch (error) {
+        console.error('Email delivery failed:', error);
+        return { success: false, message: error.message || 'Email delivery failed.' };
     }
-
-    console.error("❌ [Email Dispatcher] Resend API delivery failed for recipient:", recipientList);
-    return {
-        success: false,
-        message: 'Email delivery failed. Please check your Resend API Key in Admin Settings.'
-    };
 }
 window.sendEmailViaResend = sendEmailViaResend;
-
-
 
 
 // ===== APP STATE =====
@@ -4662,11 +4560,7 @@ function prevCampaignVideo() {
 // ===== INITIALIZE APP =====
 function initializeAppAfterFirebase() {
     console.log("🚀 Initializing Drixel SA with all fixes");
-
-    // Clean up revoked legacy Resend API key if present
-    if (localStorage.getItem('drixel_resend_api_key') === 're_9127pJDT_jRDx942YS4UbyH3YDfm9H7ow') {
-        localStorage.removeItem('drixel_resend_api_key');
-    }
+    localStorage.removeItem('drixel_resend_api_key');
     if (!localStorage.getItem('drixel_resend_from_email') || localStorage.getItem('drixel_resend_from_email').includes('onboarding@resend.dev') || localStorage.getItem('drixel_resend_from_email').includes('<')) {
         localStorage.setItem('drixel_resend_from_email', 'info@customer.drixelsa.co.za');
     }
@@ -5662,11 +5556,8 @@ function loadAdminSettings() {
     const tabContent = document.getElementById('adminTabContent');
     if (!tabContent) return;
 
-    let resendApiKey = localStorage.getItem('drixel_resend_api_key') || '';
-    if (resendApiKey === 're_9127pJDT_jRDx942YS4UbyH3YDfm9H7ow') {
-        resendApiKey = '';
-        localStorage.removeItem('drixel_resend_api_key');
-    }
+    let resendApiKey = '';
+    localStorage.removeItem('drixel_resend_api_key');
     const resendFromEmail = localStorage.getItem('drixel_resend_from_email') || 'info@customer.drixelsa.co.za';
     const emailEndpoint = localStorage.getItem('drixel_email_endpoint') || '/api/send-email';
 
@@ -5749,7 +5640,7 @@ async function saveSettings() {
         localStorage.setItem('drixel_free_delivery_threshold', newFreeThreshold);
     }
 
-    localStorage.setItem('drixel_resend_api_key', newResendApiKey);
+    localStorage.removeItem('drixel_resend_api_key');
     localStorage.setItem('drixel_resend_from_email', newResendFromEmail);
     localStorage.setItem('drixel_email_endpoint', newEmailEndpoint);
 
@@ -5777,7 +5668,7 @@ async function loadStoreSettingsFromFirestore() {
         const settingsDoc = await window.firebaseGetDoc(window.firebaseDoc(db, 'settings', 'store_config'));
         if (settingsDoc.exists()) {
             const data = settingsDoc.data();
-            if (data.resendApiKey) localStorage.setItem('drixel_resend_api_key', data.resendApiKey);
+            if (data.resendApiKey) localStorage.removeItem('drixel_resend_api_key');
             if (data.resendFromEmail) localStorage.setItem('drixel_resend_from_email', data.resendFromEmail);
             if (data.emailEndpoint) localStorage.setItem('drixel_email_endpoint', data.emailEndpoint);
             if (data.deliveryFee && !isNaN(parseFloat(data.deliveryFee))) {
