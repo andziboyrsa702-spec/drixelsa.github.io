@@ -53,6 +53,34 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // Operational collections: customer writes are intentionally restricted.
+    match /subscribers/{subscriberId} {
+      allow read, update, delete: if isAdmin();
+      allow create: if true;
+    }
+
+    match /contacts/{contactId} {
+      allow read, update, delete: if isAdmin();
+      allow create: if true;
+    }
+
+    match /pending_payments/{paymentId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /yoco_purchases/{purchaseId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /snapscan_purchases/{purchaseId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /carts/{cartId} {
+      allow read, write: if signedIn() &&
+        (request.auth.uid == cartId || isAdmin());
+    }
+
     // Deny any collection not explicitly declared above.
     match /{document=**} {
       allow read, write: if false;
