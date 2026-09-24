@@ -5560,11 +5560,8 @@ function loadAdminSettings() {
     const tabContent = document.getElementById('adminTabContent');
     if (!tabContent) return;
 
-    let resendApiKey = localStorage.getItem('drixel_resend_api_key') || '';
-    if (resendApiKey === 're_9127pJDT_jRDx942YS4UbyH3YDfm9H7ow') {
-        resendApiKey = '';
-        localStorage.removeItem('drixel_resend_api_key');
-    }
+    let resendApiKey = '';
+    localStorage.removeItem('drixel_resend_api_key');
     const resendFromEmail = localStorage.getItem('drixel_resend_from_email') || 'info@customer.drixelsa.co.za';
     const emailEndpoint = localStorage.getItem('drixel_email_endpoint') || '/api/send-email';
 
