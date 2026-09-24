@@ -403,14 +403,27 @@ exports.createOrder = functions.https.onRequest(async (req, res) => {
         const paymentMethod=String(req.body.paymentMethod||"");
         if(paymentMethod!=="bank")return res.status(400).json({success:false,message:"This payment method is not enabled in secure checkout yet."});
         const quote=await buildTrustedQuote(req.body.items);
-        const {orderRef,orderNumber}=await reserveInventoryAndCreateOrder({user,customer:{...customer,email},quote,paymentMethod});
-        return res.status(201).json({success:true,orderId:orderRef.id,orderNumber,total:quote.total,currency:quote.currency,paymentStatus:"pending",inventoryStatus:"reserved"});
+        const idempotencyKey=String(req.body.idempotencyKey||"");if(!validIdempotencyKey(idempotencyKey))return res.status(400).json({success:false,message:"A valid checkout attempt ID is required."});\n        const {orderRef,orderNumber,reused}=await createOrderIdempotent({user,customer:{...customer,email},quote,paymentMethod,idempotencyKey});
+        return res.status(reused?200:201).json({success:true,reused,orderId:orderRef.id,orderNumber,total:quote.total,currency:quote.currency,paymentStatus:"pending",inventoryStatus:"reserved"});
     } catch(error) {
         console.error("Order creation failed:",error);
         return res.status(error.status||500).json({success:false,message:error.status?error.message:"Order could not be created."});
     }
 });
 
+function validIdempotencyKey(value){return typeof value==="string"&&/^[A-Za-z0-9_-]{16,100}$/.test(value)}
+async function createOrderIdempotent({user,customer,quote,paymentMethod,idempotencyKey}){
+    const db=admin.firestore(),keyRef=db.collection("checkout_attempts").doc(require("crypto").createHash("sha256").update(user.uid+"|"+idempotencyKey).digest("hex")),orderRef=db.collection("orders").doc(),orderNumber="DX-"+new Date().toISOString().slice(0,10).replace(/-/g,"")+"-"+orderRef.id.slice(0,6).toUpperCase();
+    return db.runTransaction(async tx=>{
+        const keySnap=await tx.get(keyRef);
+        if(keySnap.exists){const x=keySnap.data();return{orderRef:db.collection("orders").doc(x.orderId),orderNumber:x.orderNumber,reused:true}}
+        const grouped=new Map();quote.items.forEach(line=>{const list=grouped.get(line.productId)||[];list.push(line);grouped.set(line.productId,list)});
+        const snaps=new Map();for(const productId of grouped.keys())snaps.set(productId,await tx.get(db.collection("products").doc(productId)));
+        for(const [productId,lines] of grouped.entries()){const snap=snaps.get(productId);if(!snap.exists){const e=new Error("A product is no longer available.");e.status=409;throw e}const product=snap.data();if(!Array.isArray(product.variants)||!product.variants.length)continue;const variants=product.variants.map(v=>({...v}));for(const line of lines){const i=variants.findIndex(v=>(!line.sku||String(v.sku||"")===line.sku)&&(!line.size||String(v.size||"")===line.size)&&(!line.color||String(v.color||"")===line.color));if(i<0){const e=new Error("A selected product option is no longer available.");e.status=409;throw e}const stock=Number(variants[i].stock??variants[i].quantity??0);if(stock<line.quantity){const e=new Error("Stock changed while you were checking out. Please review your bag.");e.status=409;throw e}variants[i].stock=stock-line.quantity}tx.update(snap.ref,{variants,updatedAt:admin.firestore.FieldValue.serverTimestamp()})}
+        tx.set(orderRef,{orderNumber,customer:{uid:user.uid,email:customer.email.trim().toLowerCase(),firstName:customer.firstName.trim(),lastName:customer.lastName.trim(),phone:customer.phone.trim()},shippingAddress:{address:customer.address.trim(),city:customer.city.trim(),postalCode:customer.postalCode.trim(),province:customer.province.trim(),country:"South Africa"},items:quote.items,subtotal:quote.subtotal,shipping:quote.shipping,total:quote.total,currency:quote.currency,paymentMethod,paymentStatus:"pending",fulfillmentStatus:"processing",status:"processing",inventoryStatus:"reserved",pricingSource:"server",createdAt:admin.firestore.FieldValue.serverTimestamp(),updatedAt:admin.firestore.FieldValue.serverTimestamp()});
+        tx.set(keyRef,{uid:user.uid,orderId:orderRef.id,orderNumber,createdAt:admin.firestore.FieldValue.serverTimestamp()});return{orderRef,orderNumber,reused:false}
+    })
+}
 exports.adminOrderAction = functions.https.onRequest(async(req,res)=>{
     if(req.method!=="POST")return res.status(405).json({success:false,message:"Method not allowed."});
     try{
