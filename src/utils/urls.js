@@ -1,0 +1,5 @@
+export function slugify(value=""){return String(value).toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]+/g,"-").replace(/^-+|-+$/g,"").replace(/-{2,}/g,"-").slice(0,110)}
+export function productCode(product={}){const variant=product.variants?.find(v=>v.sku)||{};return String(product.sku||variant.sku||product.id||"product").trim()}
+export function productPath(product={}){const name=slugify(product.name||product.title||"drixel-product")||"drixel-product";return `/za/t/${name}/${encodeURIComponent(productCode(product))}`}
+export function categoryPath(category="new-featured"){return `/za/w/${slugify(category)||"new-featured"}`}
+export const routes={home:"/za",shop:"/za/w/new-featured",cart:"/za/cart",checkout:"/za/checkout",login:"/za/member/login",account:"/za/member/profile",orders:"/za/member/orders",admin:"/za/admin/dashboard",adminProducts:"/za/admin/products",adminOrders:"/za/admin/orders",adminInventory:"/za/admin/inventory"};
