@@ -38,7 +38,7 @@ exports.sendEmail = functions.https.onRequest(async (req, res) => {
         return res.status(401).json({ success: false, message: "Invalid authentication token." });
     }
 
-    if (!decodedToken.email || !ALLOWED_ADMIN_EMAILS.has(decodedToken.email.toLowerCase())) {
+    if (decodedToken.admin !== true && decodedToken.role !== "admin") {
         return res.status(403).json({ success: false, message: "Administrator access required." });
     }
 
@@ -333,52 +333,6 @@ exports.checkoutQuote = functions.https.onRequest(async (req, res) => {
     }
 });
 
-async function reserveInventoryAndCreateOrder({ user, customer, quote, paymentMethod }) {
-    const db = admin.firestore();
-    const orderRef = db.collection("orders").doc();
-    const orderNumber = "DX-" + new Date().toISOString().slice(0,10).replace(/-/g,"") + "-" + orderRef.id.slice(0,6).toUpperCase();
-    await db.runTransaction(async tx => {
-        const grouped = new Map();
-        quote.items.forEach(line => {
-            const list = grouped.get(line.productId) || [];
-            list.push(line);
-            grouped.set(line.productId, list);
-        });
-        const snapshots = new Map();
-        for (const productId of grouped.keys()) snapshots.set(productId, await tx.get(db.collection("products").doc(productId)));
-        const productUpdates = [];
-        for (const [productId, lines] of grouped.entries()) {
-            const snap = snapshots.get(productId);
-            if (!snap.exists) { const e = new Error("A product is no longer available."); e.status=409; throw e; }
-            const product = snap.data();
-            if (!Array.isArray(product.variants) || !product.variants.length) continue;
-            const variants = product.variants.map(v => ({...v}));
-            for (const line of lines) {
-                const index = variants.findIndex(v =>
-                    (!line.sku || String(v.sku||"")===line.sku) &&
-                    (!line.size || String(v.size||"")===line.size) &&
-                    (!line.color || String(v.color||"")===line.color)
-                );
-                if (index < 0) { const e=new Error("A selected product option is no longer available.");e.status=409;throw e; }
-                const stock=Number(variants[index].stock??variants[index].quantity??0);
-                if(stock<line.quantity){const e=new Error("Stock changed while you were checking out. Please review your bag.");e.status=409;throw e;}
-                variants[index].stock=stock-line.quantity;
-            }
-            productUpdates.push({ref:snap.ref,variants});
-        }
-        productUpdates.forEach(x=>tx.update(x.ref,{variants:x.variants,updatedAt:admin.firestore.FieldValue.serverTimestamp()}));
-        tx.set(orderRef,{
-            orderNumber,
-            customer:{uid:user.uid,email:customer.email.trim().toLowerCase(),firstName:customer.firstName.trim(),lastName:customer.lastName.trim(),phone:customer.phone.trim()},
-            shippingAddress:{address:customer.address.trim(),city:customer.city.trim(),postalCode:customer.postalCode.trim(),province:customer.province.trim(),country:String(customer.country||quote.country||""),countryCode:String(customer.countryCode||quote.countryCode||"").toUpperCase()},
-            items:quote.items,subtotal:quote.subtotal,shipping:quote.shipping,total:quote.total,currency:quote.currency,
-            paymentMethod,paymentStatus:"pending",fulfillmentStatus:"processing",status:"processing",
-            inventoryStatus:"reserved",pricingSource:"server",createdAt:admin.firestore.FieldValue.serverTimestamp(),updatedAt:admin.firestore.FieldValue.serverTimestamp()
-        });
-    });
-    return {orderRef,orderNumber};
-}
-
 async function restoreOrderInventory(orderRef) {
     const db=admin.firestore();
     return db.runTransaction(async tx=>{
@@ -421,7 +375,7 @@ exports.createOrder = functions.https.onRequest(async (req, res) => {
         const market=String(req.body.market||"za").toLowerCase();if(!MARKET_CONFIG[market])return res.status(400).json({success:false,message:"Unsupported market."});
         const quote=await buildTrustedQuote(req.body.items,market);
         const idempotencyKey=String(req.body.idempotencyKey||"");if(!validIdempotencyKey(idempotencyKey))return res.status(400).json({success:false,message:"A valid checkout attempt ID is required."});\n        const {orderRef,orderNumber,reused,currency,rate,displayTotal}=await createOrderIdempotent({user,customer:{...customer,email},quote,paymentMethod,idempotencyKey,market});
-        if(paymentMethod==="yoco"){if(market!=="za")return res.status(409).json({success:false,message:"Yoco checkout is currently enabled for South African ZAR orders only."});const checkout=await createYocoCheckout({orderId:orderRef.id,orderNumber,total:quote.total,idempotencyKey,req});await orderRef.set({yocoCheckoutId:checkout.id,paymentProvider:"yoco",paymentStatus:"pending",updatedAt:admin.firestore.FieldValue.serverTimestamp()},{merge:true});return res.status(reused?200:201).json({success:true,reused,orderId:orderRef.id,orderNumber,paymentMethod:"yoco",paymentStatus:"pending",redirectUrl:checkout.redirectUrl})}
+        if(paymentMethod==="yoco"){if(market!=="za"){await restoreOrderInventory(orderRef);await orderRef.set({status:"cancelled",fulfillmentStatus:"cancelled",paymentStatus:"cancelled",cancelReason:"Unsupported Yoco market",updatedAt:admin.firestore.FieldValue.serverTimestamp()},{merge:true});return res.status(409).json({success:false,message:"Yoco checkout is currently enabled for South African ZAR orders only."});}let checkout;try{checkout=await createYocoCheckout({orderId:orderRef.id,orderNumber,total:quote.total,idempotencyKey,req})}catch(paymentError){if(!reused){await restoreOrderInventory(orderRef);await orderRef.set({status:"payment_failed",fulfillmentStatus:"cancelled",paymentStatus:"failed",paymentFailureReason:"Yoco checkout could not be created",updatedAt:admin.firestore.FieldValue.serverTimestamp()},{merge:true})}throw paymentError}await orderRef.set({yocoCheckoutId:checkout.id,paymentProvider:"yoco",paymentStatus:"pending",updatedAt:admin.firestore.FieldValue.serverTimestamp()},{merge:true});return res.status(reused?200:201).json({success:true,reused,orderId:orderRef.id,orderNumber,paymentMethod:"yoco",paymentStatus:"pending",redirectUrl:checkout.redirectUrl})}
         return res.status(reused?200:201).json({success:true,reused,orderId:orderRef.id,orderNumber,total:quote.total,currency:"ZAR",displayTotal,displayCurrency:currency,exchangeRate:rate,paymentStatus:"pending",inventoryStatus:"reserved"});
     } catch(error) {
         console.error("Order creation failed:",error);
