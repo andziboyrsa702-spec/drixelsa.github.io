@@ -44,6 +44,14 @@
     ],
     "rewrites": [
       {
+        "source": "/api/subscribe",
+        "function": "subscribeNewsletter"
+      },
+      {
+        "source": "/api/unsubscribe",
+        "function": "unsubscribeNewsletter"
+      },
+      {
         "source": "/api/send-campaign",
         "function": "sendCampaign"
       },
