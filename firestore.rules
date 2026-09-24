@@ -39,10 +39,9 @@ service cloud.firestore {
     }
 
     match /orders/{orderId} {
-      // Checkout is restricted to authenticated customers. Payment/order status
-      // changes remain server/admin controlled rather than customer editable.
-      allow create: if signedIn()
-        && request.resource.data.customer.email == request.auth.token.email;
+      // Orders are created by trusted backend checkout code. Customers may only
+      // read their own orders; payment and fulfillment mutations stay privileged.
+      allow create: if false;
       allow read: if isAdmin() || ownsOrder();
       allow update, delete: if isAdmin();
     }
