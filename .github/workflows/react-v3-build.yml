@@ -23,3 +23,13 @@ jobs:
           test -f src/admin-react/AdminRouter.jsx
           test -f src/react-pages/Checkout.jsx
           test -f src/pages/za/admin/settings/markets/index.jsx
+      - name: Package phone preview
+        if: github.event_name == 'push'
+        run: tar -czf drixel-react-v3-preview.tar.gz -C dist .
+      - name: Upload phone preview artifact
+        if: github.event_name == 'push'
+        uses: actions/upload-artifact@v4
+        with:
+          name: drixel-react-v3-preview
+          path: drixel-react-v3-preview.tar.gz
+          retention-days: 7
