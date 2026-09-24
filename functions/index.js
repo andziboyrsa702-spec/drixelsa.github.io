@@ -419,7 +419,7 @@ exports.adminOrderAction = functions.https.onRequest(async(req,res)=>{
             await restoreOrderInventory(ref);
             await ref.update({status:"cancelled",fulfillmentStatus:"cancelled",cancelledAt:admin.firestore.FieldValue.serverTimestamp(),cancelledBy:adminUser.email,updatedAt:admin.firestore.FieldValue.serverTimestamp()});
         }else if(action==="mark_paid"){
-            const order=snap.data();if(order.status==="cancelled"||order.fulfillmentStatus==="cancelled")return res.status(409).json({success:false,message:"A cancelled order cannot be marked paid."});if(order.paymentStatus==="paid")return res.status(200).json({success:true,unchanged:true});
+            const order=snap.data();if(order.paymentProvider==="yoco"||order.paymentMethod==="yoco")return res.status(409).json({success:false,message:"Yoco orders must be confirmed by Yoco, not manually marked paid."});if(order.status==="cancelled"||order.fulfillmentStatus==="cancelled")return res.status(409).json({success:false,message:"A cancelled order cannot be marked paid."});if(order.paymentStatus==="paid")return res.status(200).json({success:true,unchanged:true});
             await ref.update({paymentStatus:"paid",paidAt:admin.firestore.FieldValue.serverTimestamp(),paymentVerifiedBy:adminUser.email,updatedAt:admin.firestore.FieldValue.serverTimestamp()});
         }else return res.status(400).json({success:false,message:"Unsupported order action."});
         await admin.firestore().collection("audit_logs").add({action:"order."+action,resource:"orders/"+orderId,actor:adminUser.email,createdAt:admin.firestore.FieldValue.serverTimestamp()});
