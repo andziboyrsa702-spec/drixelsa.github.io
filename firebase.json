@@ -44,6 +44,14 @@
     ],
     "rewrites": [
       {
+        "source": "/api/checkout-quote",
+        "function": "checkoutQuote"
+      },
+      {
+        "source": "/api/create-order",
+        "function": "createOrder"
+      },
+      {
         "source": "/api/subscribe",
         "function": "subscribeNewsletter"
       },
