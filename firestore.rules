@@ -66,6 +66,21 @@ service cloud.firestore {
       allow read, create, update, delete: if isAdmin();
     }
 
+
+    match /collections/{collectionId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /returns/{returnId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /audit_logs/{logId} {
+      allow read, create: if isAdmin();
+      allow update, delete: if false;
+    }
+
     match /contacts/{contactId} {
       allow read, update, delete: if isAdmin();
       allow create: if true;
