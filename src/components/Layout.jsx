@@ -1,1 +1,1 @@
-import React from"react";import AppHeader from"./AppHeader.jsx";import{useMarket}from"../context/MarketContext.jsx";export default function Layout({children}){const{info}=useMarket();return <><AppHeader/>{children}<footer className="react-footer"><strong>DRIXEL</strong><span>South African streetwear · {info.country} · {info.currency}</span></footer></>}
+import React from"react";import AppHeader from"./AppHeader.jsx";import Footer from"./Footer.jsx";export default function Layout({children}){return <><AppHeader/>{children}<Footer/></>}
