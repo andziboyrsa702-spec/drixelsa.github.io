@@ -55,11 +55,8 @@ service cloud.firestore {
 
     // Operational collections: customer writes are intentionally restricted.
     match /subscribers/{subscriberId} {
-      allow read, update, delete: if isAdmin();
-      allow create: if
-        request.resource.data.email is string &&
-        request.resource.data.email.size() <= 254 &&
-        request.resource.data.status == 'active';
+      // Public newsletter mutations go through server-side endpoints.
+      allow read, create, update, delete: if isAdmin();
     }
 
     match /email_campaigns/{campaignId} {
