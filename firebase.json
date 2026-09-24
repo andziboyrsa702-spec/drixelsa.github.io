@@ -1,13 +1,10 @@
 {
   "hosting": {
-    "public": ".",
+    "public": "dist",
     "ignore": [
       "firebase.json",
       "**/.*",
-      "**/node_modules/**",
-      "docs/**",
-      "START_WEBSITE.bat",
-      "**/*.md"
+      "**/node_modules/**"
     ],
     "cleanUrls": true,
     "trailingSlash": false,
@@ -44,6 +41,14 @@
     ],
     "rewrites": [
       {
+        "source": "/api/market",
+        "function": "market"
+      },
+      {
+        "source": "/api/exchange-rates",
+        "function": "exchangeRates"
+      },
+      {
         "source": "/api/admin/inventory-adjust",
         "function": "adminInventoryAdjust"
       },
@@ -58,6 +63,10 @@
       {
         "source": "/api/create-order",
         "function": "createOrder"
+      },
+      {
+        "source": "/api/payments/yoco/verify",
+        "function": "verifyYocoPayment"
       },
       {
         "source": "/api/subscribe",
@@ -76,16 +85,8 @@
         "function": "sendEmail"
       },
       {
-        "source": "/products/tees/**",
-        "destination": "/product.html"
-      },
-      {
-        "source": "/products/outerwear/**",
-        "destination": "/product.html"
-      },
-      {
-        "source": "/products/accessories/**",
-        "destination": "/product.html"
+        "source": "**",
+        "destination": "/index.html"
       }
     ]
   },

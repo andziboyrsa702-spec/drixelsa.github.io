@@ -1,0 +1,4 @@
+import{auth}from"../config/firebase-react.js";
+async function call(path,body){const user=auth.currentUser;if(!user)throw new Error("Administrator session expired.");const token=await user.getIdToken();const r=await fetch(path,{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},body:JSON.stringify(body)});const text=await r.text();let data={};try{data=text?JSON.parse(text):{}}catch{throw new Error("The admin service returned an invalid response.")}if(!r.ok||data.success===false)throw new Error(data.message||"Admin action failed.");return data}
+export const orderAction=(orderId,action)=>call("/api/admin/order-action",{orderId,action});
+export const adjustInventory=(productId,sku,delta,reason)=>call("/api/admin/inventory-adjust",{productId,sku,delta,reason});

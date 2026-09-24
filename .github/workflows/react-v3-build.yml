@@ -1,0 +1,60 @@
+name: React V3 Quality Gate
+on:
+  push:
+    branches: [react-v3-migration]
+  pull_request:
+    branches: [drixel-v2-architecture]
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: react-v3-phone-preview
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install --no-audit --no-fund
+      - run: npm run build
+      - name: Verify Firebase hosting output
+        run: test -f dist/index.html
+      - name: Verify critical React source
+        run: |
+          test -f src/app/App.jsx
+          test -f src/admin-react/AdminRouter.jsx
+          test -f src/react-pages/Checkout.jsx
+          test -f src/pages/za/admin/settings/markets/index.jsx
+      - name: Package phone preview
+        if: github.event_name == 'push'
+        run: tar -czf drixel-react-v3-preview.tar.gz -C dist .
+      - name: Upload phone preview artifact
+        if: github.event_name == 'push'
+        uses: actions/upload-artifact@v4
+        with:
+          name: drixel-react-v3-preview
+          path: drixel-react-v3-preview.tar.gz
+          retention-days: 7
+      - name: Configure GitHub Pages
+        if: github.event_name == 'push'
+        uses: actions/configure-pages@v5
+      - name: Upload GitHub Pages artifact
+        if: github.event_name == 'push'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+  deploy-preview:
+    if: github.event_name == 'push'
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy React V3 phone preview
+        id: deployment
+        uses: actions/deploy-pages@v4
