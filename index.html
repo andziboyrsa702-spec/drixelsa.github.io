@@ -298,14 +298,14 @@
     <section id="homePage" class="page dx-home">
         <div class="dx-hero">
             <video autoplay loop muted playsinline preload="metadata" aria-hidden="true">
-                <source src="/public/assets/video/home-hero.mp4" type="video/mp4">
+                <source data-hero-video src="/public/assets/video/home-hero.mp4" type="video/mp4">
             </video>
             <div class="dx-hero-copy">
-                <p class="dx-kicker">Drixel SA / Streetwear</p>
-                <h1>YOUR STREETS.<br>YOUR RULES.</h1>
-                <p>Premium South African streetwear built around heavyweight fabrics, relaxed silhouettes and everyday movement.</p>
+                <p class="dx-kicker" data-hero-kicker>Drixel SA / Streetwear</p>
+                <h1 data-hero-headline>YOUR STREETS. YOUR RULES.</h1>
+                <p data-hero-description>Premium South African streetwear built around heavyweight fabrics, relaxed silhouettes and everyday movement.</p>
                 <div class="dx-actions">
-                    <a href="/products.html" class="dx-button">Shop the collection</a>
+                    <a href="/products.html" class="dx-button" data-hero-cta>Shop the collection</a>
                     <a href="#" onclick="window.openOrderTracker(); return false;" class="dx-button ghost">Track an order</a>
                 </div>
             </div>
@@ -615,7 +615,7 @@
     <!-- ===== MAIN JAVASCRIPT ===== -->
 
     <script type="module" src="index.js?v=1784368890"></script>
-    <script type="module">import{mountNewsletter}from"/src/components/newsletter.js";mountNewsletter();</script>
+    <script type="module">import{mountNewsletter}from"/src/components/newsletter.js";mountNewsletter();import{applyStorefrontSettings}from"/src/pages/storefront-runtime.js";applyStorefrontSettings();</script>
 </body>
 
 </html>
