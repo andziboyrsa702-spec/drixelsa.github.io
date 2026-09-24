@@ -41,6 +41,14 @@
     ],
     "rewrites": [
       {
+        "source": "/api/market",
+        "function": "market"
+      },
+      {
+        "source": "/api/exchange-rates",
+        "function": "exchangeRates"
+      },
+      {
         "source": "/api/admin/inventory-adjust",
         "function": "adminInventoryAdjust"
       },
