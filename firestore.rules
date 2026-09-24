@@ -14,10 +14,7 @@ service cloud.firestore {
     }
 
     function ownsOrder() {
-      return signedIn() && (
-        resource.data.customer.uid == request.auth.uid ||
-        resource.data.customer.email == request.auth.token.email
-      );
+      return signedIn() && resource.data.customer.uid == request.auth.uid;
     }
 
     match /products/{productId} {
