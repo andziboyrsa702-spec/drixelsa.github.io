@@ -259,7 +259,7 @@ function checkoutItemKey(item) {
     return [String(item.productId || ""), String(item.sku || ""), String(item.size || ""), String(item.color || "")].join("|");
 }
 
-async function buildTrustedQuote(rawItems, market="za") {
+async function buildTrustedQuote(rawItems, market="za", couponCode="") {
     if (!Array.isArray(rawItems) || !rawItems.length || rawItems.length > MAX_CHECKOUT_ITEMS) {
         const error = new Error("Your bag is empty or too large.");
         error.status = 400;
@@ -309,7 +309,8 @@ async function buildTrustedQuote(rawItems, market="za") {
         });
     }
     const subtotal = Number(lines.reduce((sum, x) => sum + x.lineTotal, 0).toFixed(2));
-    const delivery=await shippingConfig(market);if(!delivery||!delivery.enabled){const error=new Error("Delivery to this market is not enabled yet.");error.status=409;throw error}const shipping=delivery.freeFrom!=null&&subtotal>=delivery.freeFrom?0:Number(delivery.fee);return {items:lines,subtotal,shipping,total:Number((subtotal+shipping).toFixed(2)),currency:"ZAR",market:String(market||"za").toLowerCase()};
+    let discount=0,appliedCoupon=null;const normalizedCoupon=String(couponCode||"").trim().toUpperCase();if(normalizedCoupon){const qs=await db.collection("coupons").where("code","==",normalizedCoupon).limit(1).get();if(qs.empty){const e=new Error("Discount code not found.");e.status=400;throw e}const coupon=qs.docs[0].data();if(coupon.active!==true){const e=new Error("This discount code is not active.");e.status=409;throw e}const min=Number(coupon.minSpend||0);if(subtotal<min){const e=new Error("This discount requires a minimum spend of R"+min.toFixed(2)+".");e.status=409;throw e}const value=Number(coupon.value||0);discount=coupon.type==="fixed"?Math.min(subtotal,value):Math.min(subtotal,subtotal*Math.min(100,value)/100);discount=Number(discount.toFixed(2));appliedCoupon={code:normalizedCoupon,type:coupon.type||"percent",value}}
+    const delivery=await shippingConfig(market);if(!delivery||!delivery.enabled){const error=new Error("Delivery to this market is not enabled yet.");error.status=409;throw error}const shipping=delivery.freeFrom!=null&&subtotal>=delivery.freeFrom?0:Number(delivery.fee);return {items:lines,subtotal,discount,appliedCoupon,shipping,total:Number((subtotal-discount+shipping).toFixed(2)),currency:"ZAR",market:String(market||"za").toLowerCase()};
 }
 
 async function requireCustomer(req) {
@@ -326,7 +327,7 @@ exports.checkoutQuote = functions.https.onRequest(async (req, res) => {
     if (req.method !== "POST") return res.status(405).json({ success: false, message: "Method not allowed." });
     try {
         const market=String(req.body&&req.body.market||"za").toLowerCase();if(!MARKET_CONFIG[market])return res.status(400).json({success:false,message:"Unsupported market."});
-        const quote = await buildTrustedQuote(req.body && req.body.items,market);
+        const quote = await buildTrustedQuote(req.body && req.body.items,market,req.body&&req.body.couponCode);
         return res.status(200).json({ success: true, ...quote });
     } catch (error) {
         return res.status(error.status || 500).json({ success: false, message: error.status ? error.message : "Unable to calculate checkout." });
@@ -373,7 +374,7 @@ exports.createOrder = functions.https.onRequest(async (req, res) => {
         const paymentMethod=String(req.body.paymentMethod||"");
         if(!["bank","yoco"].includes(paymentMethod))return res.status(400).json({success:false,message:"Unsupported payment method."});
         const market=String(req.body.market||"za").toLowerCase();if(!MARKET_CONFIG[market])return res.status(400).json({success:false,message:"Unsupported market."});
-        const quote=await buildTrustedQuote(req.body.items,market);
+        const quote=await buildTrustedQuote(req.body.items,market,req.body&&req.body.couponCode);
         const idempotencyKey=String(req.body.idempotencyKey||"");if(!validIdempotencyKey(idempotencyKey))return res.status(400).json({success:false,message:"A valid checkout attempt ID is required."});\n        const {orderRef,orderNumber,reused,currency,rate,displayTotal}=await createOrderIdempotent({user,customer:{...customer,email},quote,paymentMethod,idempotencyKey,market});
         if(paymentMethod==="yoco"){if(market!=="za"){await restoreOrderInventory(orderRef);await orderRef.set({status:"cancelled",fulfillmentStatus:"cancelled",paymentStatus:"cancelled",cancelReason:"Unsupported Yoco market",updatedAt:admin.firestore.FieldValue.serverTimestamp()},{merge:true});return res.status(409).json({success:false,message:"Yoco checkout is currently enabled for South African ZAR orders only."});}let checkout;try{checkout=await createYocoCheckout({orderId:orderRef.id,orderNumber,total:quote.total,idempotencyKey,req})}catch(paymentError){if(!reused){await restoreOrderInventory(orderRef);await orderRef.set({status:"payment_failed",fulfillmentStatus:"cancelled",paymentStatus:"failed",paymentFailureReason:"Yoco checkout could not be created",updatedAt:admin.firestore.FieldValue.serverTimestamp()},{merge:true})}throw paymentError}await orderRef.set({yocoCheckoutId:checkout.id,paymentProvider:"yoco",paymentStatus:"pending",updatedAt:admin.firestore.FieldValue.serverTimestamp()},{merge:true});return res.status(reused?200:201).json({success:true,reused,orderId:orderRef.id,orderNumber,paymentMethod:"yoco",paymentStatus:"pending",redirectUrl:checkout.redirectUrl})}
         return res.status(reused?200:201).json({success:true,reused,orderId:orderRef.id,orderNumber,total:quote.total,currency:"ZAR",displayTotal,displayCurrency:currency,exchangeRate:rate,paymentStatus:"pending",inventoryStatus:"reserved"});
