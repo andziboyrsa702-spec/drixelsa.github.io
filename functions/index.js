@@ -94,7 +94,7 @@ async function requireAdmin(req) {
         error.status = 401;
         throw error;
     }
-    if (!decoded.email || !ALLOWED_ADMIN_EMAILS.has(decoded.email.toLowerCase())) {
+    if (decoded.admin !== true && decoded.role !== "admin") {
         const error = new Error("Administrator access required.");
         error.status = 403;
         throw error;
