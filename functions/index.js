@@ -250,7 +250,8 @@ const SHIPPING_MARKETS={
     gb:{enabled:false,fee:null,freeFrom:null},
     eu:{enabled:false,fee:null,freeFrom:null}
 };
-function shippingConfig(market){return SHIPPING_MARKETS[String(market||"za").toLowerCase()]||null}
+async function marketSettings(){const snap=await admin.firestore().collection("settings").doc("markets").get();return snap.exists&&snap.data().markets?snap.data().markets:{}}
+async function shippingConfig(market){const code=String(market||"za").toLowerCase(),stored=(await marketSettings())[code],fallback=SHIPPING_MARKETS[code];if(stored)return{enabled:stored.enabled!==false&&stored.checkout===true,fee:stored.shippingFee==null?null:Number(stored.shippingFee),freeFrom:stored.freeFrom==null?null:Number(stored.freeFrom)};return fallback||null}
 function productAvailableInMarket(product,market){const list=Array.isArray(product.availableMarkets)?product.availableMarkets.map(x=>String(x).toLowerCase()):[];return !list.length||list.includes(String(market||"za").toLowerCase())}
 const MAX_CHECKOUT_ITEMS = 40;
 
@@ -308,7 +309,7 @@ async function buildTrustedQuote(rawItems, market="za") {
         });
     }
     const subtotal = Number(lines.reduce((sum, x) => sum + x.lineTotal, 0).toFixed(2));
-    const delivery=shippingConfig(market);if(!delivery||!delivery.enabled){const error=new Error("Delivery to this market is not enabled yet.");error.status=409;throw error}const shipping=delivery.freeFrom!=null&&subtotal>=delivery.freeFrom?0:Number(delivery.fee);return {items:lines,subtotal,shipping,total:Number((subtotal+shipping).toFixed(2)),currency:"ZAR",market:String(market||"za").toLowerCase()};
+    const delivery=await shippingConfig(market);if(!delivery||!delivery.enabled){const error=new Error("Delivery to this market is not enabled yet.");error.status=409;throw error}const shipping=delivery.freeFrom!=null&&subtotal>=delivery.freeFrom?0:Number(delivery.fee);return {items:lines,subtotal,shipping,total:Number((subtotal+shipping).toFixed(2)),currency:"ZAR",market:String(market||"za").toLowerCase()};
 }
 
 async function requireCustomer(req) {
@@ -425,10 +426,10 @@ exports.createOrder = functions.https.onRequest(async (req, res) => {
 function validIdempotencyKey(value){return typeof value==="string"&&/^[A-Za-z0-9_-]{16,100}$/.test(value)}
 const MARKET_CONFIG={za:{country:"South Africa",countryCode:"ZA",currency:"ZAR"},us:{country:"United States",countryCode:"US",currency:"USD"},ng:{country:"Nigeria",countryCode:"NG",currency:"NGN"},bw:{country:"Botswana",countryCode:"BW",currency:"BWP"},gb:{country:"United Kingdom",countryCode:"GB",currency:"GBP"},eu:{country:"Europe",countryCode:"EU",currency:"EUR"}};
 function marketConfig(value){return MARKET_CONFIG[String(value||"").toLowerCase()]||MARKET_CONFIG.za}
-function marketRate(market){const cfg=marketConfig(market);if(cfg.currency==="ZAR")return 1;const rate=Number(process.env["FX_ZAR_"+cfg.currency]);if(!Number.isFinite(rate)||rate<=0){const e=new Error("Pricing for this market is temporarily unavailable.");e.status=503;throw e}return rate}
+async function marketRate(market){const cfg=marketConfig(market);if(cfg.currency==="ZAR")return 1;const stored=await storedFxRate(cfg.currency);if(stored)return stored.rate;const rate=Number(process.env["FX_ZAR_"+cfg.currency]);if(!Number.isFinite(rate)||rate<=0){const e=new Error("Pricing for this market is temporarily unavailable.");e.status=503;throw e}return rate}
 function convertMoney(value,rate){return Number((Number(value||0)*rate).toFixed(2))}
 async function createOrderIdempotent({user,customer,quote,paymentMethod,idempotencyKey,market}){
-    const cfg=marketConfig(market),rate=marketRate(market),db=admin.firestore(),keyRef=db.collection("checkout_attempts").doc(require("crypto").createHash("sha256").update(user.uid+"|"+idempotencyKey).digest("hex")),orderRef=db.collection("orders").doc(),orderNumber="DX-"+new Date().toISOString().slice(0,10).replace(/-/g,"")+"-"+orderRef.id.slice(0,6).toUpperCase();
+    const cfg=marketConfig(market),rate=await marketRate(market),db=admin.firestore(),keyRef=db.collection("checkout_attempts").doc(require("crypto").createHash("sha256").update(user.uid+"|"+idempotencyKey).digest("hex")),orderRef=db.collection("orders").doc(),orderNumber="DX-"+new Date().toISOString().slice(0,10).replace(/-/g,"")+"-"+orderRef.id.slice(0,6).toUpperCase();
     return db.runTransaction(async tx=>{
         const keySnap=await tx.get(keyRef);
         if(keySnap.exists){const x=keySnap.data();return{orderRef:db.collection("orders").doc(x.orderId),orderNumber:x.orderNumber,reused:true,market:x.market||"za",currency:x.currency||"ZAR",rate:Number(x.exchangeRate||1),displayTotal:Number(x.displayTotal||quote.total)}}
@@ -466,6 +467,8 @@ exports.adminOrderAction = functions.https.onRequest(async(req,res)=>{
 });
 
 
+const FX_MAX_AGE_MS=6*60*60*1000;
+async function storedFxRate(to){const snap=await admin.firestore().collection("fx_rates").doc("ZAR_"+to).get();if(!snap.exists)return null;const d=snap.data(),updated=d.updatedAt&&d.updatedAt.toMillis?d.updatedAt.toMillis():0,rate=Number(d.rate);return Number.isFinite(rate)&&rate>0&&Date.now()-updated<=FX_MAX_AGE_MS?{rate,updatedAt:new Date(updated).toISOString(),source:d.source||"configured"}:null}
 const MARKET_CURRENCIES = new Set(["ZAR","USD","NGN","BWP","GBP","EUR"]);
 exports.market = functions.https.onRequest((req,res)=>{
     const raw = String(req.get("x-country-code") || req.get("cf-ipcountry") || req.get("x-appengine-country") || "").toUpperCase();
@@ -477,9 +480,7 @@ exports.exchangeRates = functions.https.onRequest(async(req,res)=>{
     const base=String(req.query.base||"ZAR").toUpperCase(),to=String(req.query.to||"ZAR").toUpperCase();
     if(base!=="ZAR"||!MARKET_CURRENCIES.has(to))return res.status(400).json({success:false,message:"Unsupported currency."});
     if(to==="ZAR")return res.status(200).json({base,to,rate:1});
-    const configured=process.env["FX_"+base+"_"+to];
-    const rate=Number(configured);
-    if(!Number.isFinite(rate)||rate<=0)return res.status(503).json({success:false,message:"Exchange rate is not configured."});
-    res.set("Cache-Control","public, max-age=1800");
-    return res.status(200).json({base,to,rate});
+    const stored=await storedFxRate(to);if(stored){res.set("Cache-Control","public, max-age=1800");return res.status(200).json({base,to,...stored})}
+    const rate=Number(process.env["FX_"+base+"_"+to]);if(!Number.isFinite(rate)||rate<=0)return res.status(503).json({success:false,message:"A current verified exchange rate is not configured."});
+    res.set("Cache-Control","public, max-age=1800");return res.status(200).json({base,to,rate,source:"environment"});
 });
