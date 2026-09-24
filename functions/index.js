@@ -171,6 +171,7 @@ exports.sendCampaign = functions.https.onRequest(async (req, res) => {
                     from: "Drixel SA <info@customer.drixelsa.co.za>",
                     to: [recipient.email],
                     subject: campaign.subject.trim(),
+                    ...(campaign.preheader ? { headers: { "X-Entity-Ref-ID": campaignId } } : {}),
                     html: campaign.html + footer
                 });
             }));
@@ -180,6 +181,7 @@ exports.sendCampaign = functions.https.onRequest(async (req, res) => {
         await campaignRef.update({
             status: failed === uniqueRecipients.length ? "failed" : "sent",
             acceptedCount: sent,
+            deliveredCount: sent,
             failedCount: failed,
             sentAt: admin.firestore.FieldValue.serverTimestamp()
         });
