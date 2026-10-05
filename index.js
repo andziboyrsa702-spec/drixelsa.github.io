@@ -1129,7 +1129,10 @@ function updateAuthUI() {
     const user = window.currentFirebaseUser;
     const drixelIdButton = document.getElementById('drixelIdAuthButton');
     if (drixelIdButton) {
-        drixelIdButton.textContent = user ? 'Link Drixel ID' : 'Continue with Drixel ID';
+        const label = drixelIdButton.querySelector('span');
+        if (label) {
+            label.textContent = user ? 'Link Drixel ID' : 'Continue with Drixel ID';
+        }
     }
     const authLink = document.getElementById('authLink');
     if (!authLink) return;
