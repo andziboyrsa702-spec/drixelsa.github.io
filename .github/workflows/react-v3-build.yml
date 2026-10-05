@@ -9,7 +9,7 @@ permissions:
   pages: write
   id-token: write
 concurrency:
-  group: react-v3-phone-preview
+  group: react-v3-phone-preview-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: true
 jobs:
   build:
@@ -21,6 +21,14 @@ jobs:
           node-version: 20
       - run: npm install --no-audit --no-fund
       - run: npm run build
+      - run: npx playwright install chromium --with-deps
+      - name: Verify React storefront alignment
+        run: |
+          npm run dev -- --host 127.0.0.1 >/tmp/drixel-vite.log 2>&1 &
+          VITE_PID=$!
+          trap 'kill "$VITE_PID"' EXIT
+          node -e 'const wait=async()=>{for(let i=0;i<100;i++){try{await fetch("http://127.0.0.1:5173/");return}catch{}await new Promise(r=>setTimeout(r,100))}process.exit(1)};wait()'
+          npm run test:layout
       - name: Verify Firebase hosting output
         run: test -f dist/index.html
       - name: Verify critical React source
@@ -58,3 +66,4 @@ jobs:
       - name: Deploy React V3 phone preview
         id: deployment
         uses: actions/deploy-pages@v4
+
