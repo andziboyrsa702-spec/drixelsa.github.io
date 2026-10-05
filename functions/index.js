@@ -1,9 +1,14 @@
 const functions = require("firebase-functions/v1");
 const admin = require("firebase-admin");
+const { initializeApp, getApps } = require("firebase-admin/app");
+const { getAuth } = require("firebase-admin/auth");
 const { FieldValue } = require("firebase-admin/firestore");
 const { Resend } = require("resend");
+const { sendMail } = require("./notifications");
 
-admin.initializeApp();
+if (!getApps().length) {
+    initializeApp();
+}
 
 const ALLOWED_ADMIN_EMAILS = new Set([
     "admin@drixelsa.co.za",
@@ -19,7 +24,7 @@ function normalizeRecipients(value) {
     return recipients.filter(isValidEmail).slice(0, 20);
 }
 
-exports.sendEmail = functions.https.onRequest(async (req, res) => {
+exports.sendEmail = functions.runWith({ secrets: ["RESEND_API_KEY"] }).https.onRequest(async (req, res) => {
     if (req.method !== "POST") {
         res.set("Allow", "POST");
         return res.status(405).json({ success: false, message: "Method not allowed." });
@@ -33,13 +38,13 @@ exports.sendEmail = functions.https.onRequest(async (req, res) => {
 
     let decodedToken;
     try {
-        decodedToken = await admin.auth().verifyIdToken(match[1]);
+        decodedToken = await getAuth().verifyIdToken(match[1]);
     } catch (error) {
         console.warn("Rejected invalid Firebase ID token.");
         return res.status(401).json({ success: false, message: "Invalid authentication token." });
     }
 
-    if (decodedToken.admin !== true && decodedToken.role !== "admin") {
+    if (!(decodedToken.admin === true || decodedToken.role === "admin" || (decodedToken.email_verified === true && decodedToken.email && ALLOWED_ADMIN_EMAILS.has(decodedToken.email.toLowerCase())))) {
         return res.status(403).json({ success: false, message: "Administrator access required." });
     }
 
@@ -62,14 +67,7 @@ exports.sendEmail = functions.https.onRequest(async (req, res) => {
     }
 
     try {
-        const resend = new Resend(apiKey);
-        const data = await resend.emails.send({
-            from: "Drixel SA <info@customer.drixelsa.co.za>",
-            to: recipients,
-            ...(ccRecipients.length ? { cc: ccRecipients } : {}),
-            subject: subject.trim(),
-            html
-        });
+        const data = await sendMail({ to: recipients, cc: ccRecipients, subject: subject.trim(), html }, require("node:crypto").randomUUID());
 
         return res.status(200).json({ success: true, message: "Email sent successfully.", data });
     } catch (error) {
@@ -466,7 +464,7 @@ exports.syncDrixelAccount = functions
         }
         let user;
         try {
-            user = await admin.auth().getUser(context.auth.uid);
+            user = await getAuth().getUser(context.auth.uid);
         } catch (_) {
             throw new functions.https.HttpsError("unauthenticated", "The signed-in account could not be verified.");
         }
@@ -506,3 +504,11 @@ exports.syncDrixelAccount = functions
         return { synchronized: true };
     });
 
+const commerce = require('./commerce');
+for (const name of ['getCheckoutConfig','quoteCheckout','createOrder','startYocoCheckout','yocoWebhook','adminOrderAction','expireReservations','getOrder']) {
+    if (!exports[name]) exports[name] = commerce[name];
+}
+const notifications = require('./notifications');
+for (const name of ['deliverMail','orderNotifications','subscribeNewsletter','newsletterPreferences','sendContact']) {
+    if (!exports[name]) exports[name] = notifications[name];
+}

@@ -1,115 +1,62 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    function signedIn() {
-      return request.auth != null;
-    }
-
+    function signedIn() { return request.auth != null; }
     function isAdmin() {
       return signedIn() && (
-        request.auth.token.admin == true ||
-        request.auth.token.role == 'admin'
+        request.auth.token.get('admin', false) == true ||
+        request.auth.token.get('role', '') == 'admin' ||
+        (request.auth.token.get('email_verified', false) == true &&
+         request.auth.token.get('email', '') in ['admin@drixelsa.co.za', 'drixelsa@gmail.com'])
+      );
+    }
+    function ownsOrder() {
+      return signedIn() && (
+        (resource.data.keys().hasAny(['customer']) && resource.data.customer.uid == request.auth.uid) ||
+        (resource.data.keys().hasAny(['userId']) && resource.data.userId == request.auth.uid)
       );
     }
 
-    function ownsOrder() {
-      return signedIn() && resource.data.customer.uid == request.auth.uid;
-    }
+    match /products/{id} { allow read: if true; allow write: if isAdmin(); }
+    match /banners/{id} { allow read: if true; allow write: if isAdmin(); }
+    match /coupons/{id} { allow read: if true; allow write: if isAdmin(); }
+    match /collections/{id} { allow read: if true; allow write: if isAdmin(); }
+    match /settings/{id} { allow read: if true; allow write: if isAdmin(); }
+    match /returns/{id} { allow read, write: if isAdmin(); }
+    match /audit_logs/{id} { allow read, create: if isAdmin(); allow update, delete: if false; }
+    match /order_audit/{id} { allow read: if isAdmin(); allow write: if false; }
+    match /inventory_adjustments/{id} { allow read, create: if isAdmin(); allow update, delete: if false; }
+    match /mail_jobs/{id} { allow read: if isAdmin(); allow write: if false; }
+    match /checkout_attempts/{id} { allow read, write: if false; }
+    match /pending_payments/{id} { allow read, write: if isAdmin(); }
+    match /yoco_purchases/{id} { allow read, write: if isAdmin(); }
+    match /snapscan_purchases/{id} { allow read, write: if isAdmin(); }
 
-    match /products/{productId} {
-      allow read: if true;
-      allow write: if isAdmin();
-    }
-
-    match /banners/{bannerId} {
-      allow read: if true;
-      allow write: if isAdmin();
-    }
-
-    match /coupons/{couponId} {
-      allow read: if true;
-      allow write: if isAdmin();
-    }
-
-    match /settings/{settingId} {
-      allow read: if true;
-      allow write: if isAdmin();
-    }
-
-    match /orders/{orderId} {
-      // Orders are created by trusted backend checkout code. Customers may only
-      // read their own orders; payment and fulfillment mutations stay privileged.
+    match /orders/{id} {
       allow create: if false;
       allow read: if isAdmin() || ownsOrder();
       allow update, delete: if isAdmin();
     }
 
-    match /users/{userId} {
-      allow read, create, update: if signedIn() &&
-        (request.auth.uid == userId || isAdmin());
+    match /carts/{uid} {
+      allow read, delete: if signedIn() && request.auth.uid == uid;
+      allow create, update: if signedIn() && request.auth.uid == uid;
+    }
+
+    match /users/{uid} {
+      allow read: if isAdmin() || (signedIn() && request.auth.uid == uid);
+      allow create: if signedIn() && request.auth.uid == uid
+        && request.resource.data.get('role', 'customer') == 'customer'
+        && !request.resource.data.keys().hasAny(['admin','customClaims']);
+      allow update: if isAdmin() || (signedIn() && request.auth.uid == uid
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role','admin','customClaims','uid']));
       allow delete: if isAdmin();
     }
 
-    // Operational collections: customer writes are intentionally restricted.
-    match /subscribers/{subscriberId} {
-      // Public newsletter mutations go through server-side endpoints.
-      allow read, create, update, delete: if isAdmin();
-    }
+    match /subscribers/{id} { allow read, create, update, delete: if isAdmin(); }
+    match /email_campaigns/{id} { allow read, create, update, delete: if isAdmin(); }
+    match /contacts/{id} { allow read, update, delete: if isAdmin(); allow create: if true; }
 
-    match /email_campaigns/{campaignId} {
-      allow read, create, update, delete: if isAdmin();
-    }
-
-
-    match /collections/{collectionId} {
-      allow read: if true;
-      allow write: if isAdmin();
-    }
-
-    match /returns/{returnId} {
-      allow read, write: if isAdmin();
-    }
-
-    match /audit_logs/{logId} {
-      allow read, create: if isAdmin();
-      allow update, delete: if false;
-    }
-
-    match /inventory_adjustments/{adjustmentId} {
-      allow read, create: if isAdmin();
-      allow update, delete: if false;
-    }
-
-    match /checkout_attempts/{attemptId} {
-      allow read, write: if false;
-    }
-
-    match /contacts/{contactId} {
-      allow read, update, delete: if isAdmin();
-      allow create: if true;
-    }
-
-    match /pending_payments/{paymentId} {
-      allow read, write: if isAdmin();
-    }
-
-    match /yoco_purchases/{purchaseId} {
-      allow read, write: if isAdmin();
-    }
-
-    match /snapscan_purchases/{purchaseId} {
-      allow read, write: if isAdmin();
-    }
-
-    match /carts/{cartId} {
-      allow read, write: if signedIn() &&
-        (request.auth.uid == cartId || isAdmin());
-    }
-
-    // Deny any collection not explicitly declared above.
-    match /{document=**} {
-      allow read, write: if false;
-    }
+    match /{document=**} { allow read, write: if false; }
   }
 }
