@@ -106,10 +106,10 @@ exports.syncDrixelAccount = functions
         };
         let response;
         try {
-            response = await fetch(\`\${drixelApiUrl.replace(/\\/+$/, "")}/api/service-accounts/sync\`, {
+            response = await fetch(`${drixelApiUrl.replace(/\/+$/, "")}/api/service-accounts/sync`, {
                 method: "POST",
                 headers: {
-                    Authorization: \`Bearer \${serviceKey}\`,
+                    Authorization: `Bearer ${serviceKey}`,
                     "Content-Type": "application/json",
                 },
                 body: JSON.stringify(payload),
