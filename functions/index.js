@@ -1,4 +1,4 @@
-const functions = require("firebase-functions");
+const functions = require("firebase-functions/v1");
 const admin = require("firebase-admin");
 const { FieldValue } = require("firebase-admin/firestore");
 const { Resend } = require("resend");
@@ -77,7 +77,6 @@ exports.sendEmail = functions.https.onRequest(async (req, res) => {
         return res.status(500).json({ success: false, message: "Failed to send email." });
     }
 });
-
 
 async function requireAdmin(req) {
     const authorization = req.get("Authorization") || "";
@@ -453,3 +452,57 @@ exports.exchangeRates = functions.https.onRequest(async(req,res)=>{
     const rate=Number(process.env["FX_"+base+"_"+to]);if(!Number.isFinite(rate)||rate<=0)return res.status(503).json({success:false,message:"A current verified exchange rate is not configured."});
     res.set("Cache-Control","public, max-age=1800");return res.status(200).json({base,to,rate,source:"environment"});
 });
+
+exports.syncDrixelAccount = functions
+    .runWith({ secrets: ["DRIXEL_SYNC_KEY"] })
+    .https.onCall(async (_data, context) => {
+        if (!context.auth) {
+            throw new functions.https.HttpsError("unauthenticated", "Sign-in is required.");
+        }
+        const drixelApiUrl = process.env.DRIXEL_API_URL;
+        const serviceKey = process.env.DRIXEL_SYNC_KEY;
+        if (!drixelApiUrl || !serviceKey) {
+            throw new functions.https.HttpsError("unavailable", "Drixel directory sync is not configured.");
+        }
+        let user;
+        try {
+            user = await admin.auth().getUser(context.auth.uid);
+        } catch (_) {
+            throw new functions.https.HttpsError("unauthenticated", "The signed-in account could not be verified.");
+        }
+        const identity = user.providerData.find((provider) => provider.providerId === "oidc.drixel");
+        if (!identity || !identity.uid) {
+            throw new functions.https.HttpsError("failed-precondition", "A linked Drixel ID identity is required.");
+        }
+        const email = identity.email || "";
+        const payload = {
+            subject: identity.uid,
+            ...(email && user.emailVerified ? { email, email_verified: true } : {}),
+            ...(identity.displayName ? { display_name: identity.displayName } : {}),
+        };
+        let response;
+        try {
+            response = await fetch(`${drixelApiUrl.replace(/\/+$/, "")}/api/service-accounts/sync`, {
+                method: "POST",
+                headers: {
+                    Authorization: `Bearer ${serviceKey}`,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify(payload),
+            });
+        } catch (_) {
+            throw new functions.https.HttpsError("unavailable", "Drixel directory sync is temporarily unavailable.");
+        }
+        const body = await response.json().catch(() => ({}));
+        if (!response.ok) {
+            const code = response.status === 409 ? "already-exists"
+                : response.status === 403 ? "permission-denied"
+                    : response.status >= 500 ? "unavailable" : "failed-precondition";
+            throw new functions.https.HttpsError(
+                code,
+                typeof body.error === "string" ? body.error : "Drixel directory sync failed.",
+            );
+        }
+        return { synchronized: true };
+    });
+

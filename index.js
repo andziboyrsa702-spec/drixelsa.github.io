@@ -10,7 +10,9 @@ import {
     onAuthStateChanged,
     sendPasswordResetEmail,
     GoogleAuthProvider,
-    signInWithPopup
+    OAuthProvider,
+    signInWithPopup,
+    linkWithPopup
 } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
 import {
     getFirestore,
@@ -29,6 +31,7 @@ import {
     serverTimestamp
 } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 import { getAnalytics } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-analytics.js";
+import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-functions.js";
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
@@ -45,12 +48,15 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
+const firebaseFunctions = getFunctions(app);
+const syncDrixelAccount = httpsCallable(firebaseFunctions, 'syncDrixelAccount');
 let analytics = null;
 
 // Make Firebase available globally with ALL functions
 window.firebaseApp = app;
 window.firebaseAuth = auth;
 window.firebaseDb = db;
+window.firebaseSyncDrixelAccount = syncDrixelAccount;
 window.firebaseAnalytics = null;
 
 // Make all functions available globally
@@ -998,6 +1004,101 @@ async function firebaseLogin() {
 }
 window.firebaseLogin = firebaseLogin;
 
+const DRIXEL_ID_PROVIDER_ID = "oidc.drixel";
+
+async function firebaseDrixelIdLogin() {
+    const auth = window.firebaseAuth;
+    const loginError = document.getElementById('loginError');
+    const loginSuccess = document.getElementById('loginSuccess');
+    if (loginError) loginError.style.display = 'none';
+    if (loginSuccess) loginSuccess.style.display = 'none';
+
+    if (!auth) {
+        if (loginError) {
+            loginError.textContent = 'Sign-in is not ready. Refresh the page and try again.';
+            loginError.style.display = 'block';
+        }
+        return;
+    }
+
+    try {
+        const provider = new OAuthProvider(DRIXEL_ID_PROVIDER_ID);
+        provider.addScope('email');
+        provider.addScope('profile');
+        const linkingExistingAccount = Boolean(auth.currentUser);
+
+        // When a customer is already signed in, link Drixel ID to that Firebase
+        // UID so their orders and profile stay attached to the same account.
+        const result = linkingExistingAccount
+            ? await linkWithPopup(auth.currentUser, provider)
+            : await signInWithPopup(auth, provider);
+        const user = result.user;
+
+        if (!user.email) {
+            throw new Error('Drixel ID did not return an email address. Contact support.');
+        }
+
+        const db = window.firebaseDb;
+        const userRef = window.firebaseDoc(db, window.firebaseCollections.USERS, user.uid);
+        const userDoc = await window.firebaseGetDoc(userRef);
+        if (!userDoc.exists()) {
+            await window.firebaseSetDoc(userRef, {
+                uid: user.uid,
+                email: user.email,
+                name: user.displayName || user.email.split('@')[0],
+                createdAt: new Date().toISOString(),
+                role: 'customer',
+                subscribed: false
+            });
+        } else {
+            await window.firebaseUpdateDoc(userRef, {
+                lastLogin: new Date().toISOString()
+            });
+        }
+
+        let directorySyncSucceeded = false;
+        try {
+            await window.firebaseSyncDrixelAccount({});
+            directorySyncSucceeded = true;
+        } catch (syncError) {
+            console.error('Drixel directory sync failed.');
+        }
+
+        if (loginSuccess) {
+            loginSuccess.textContent = directorySyncSucceeded
+                ? (linkingExistingAccount
+                    ? 'Drixel ID connected and linked to the Drixel account directory.'
+                    : 'Signed in with Drixel ID and linked to the Drixel account directory.')
+                : (linkingExistingAccount
+                    ? 'Drixel ID connected. Directory access is pending administrator review.'
+                    : 'Signed in with Drixel ID. Directory access is pending administrator review.');
+            loginSuccess.style.display = 'block';
+        }
+        window.currentFirebaseUser = user;
+        updateAuthUI();
+        setTimeout(() => showPage('home'), 700);
+    } catch (error) {
+        console.error('Drixel ID sign-in failed:', error);
+        let message = error?.message || 'Please try again.';
+        if (error?.code === 'auth/operation-not-allowed') {
+            message = 'Drixel ID is not configured. Enable OpenID Connect in Firebase Authentication with Identity Platform and add the Drixel provider first.';
+        } else if (error?.code === 'auth/account-exists-with-different-credential') {
+            message = 'This email already has a Drixel SA sign-in. Sign in with that existing method, then use “Link Drixel ID” to connect accounts.';
+        } else if (error?.code === 'auth/credential-already-in-use' || error?.code === 'auth/provider-already-linked') {
+            message = 'This Drixel ID is already linked to a Drixel SA account.';
+        }
+        if (loginError) {
+            loginError.textContent = message;
+            loginError.style.display = 'block';
+        } else if (typeof window.showToast === 'function') {
+            window.showToast(message, 'error');
+        } else {
+            console.warn(message);
+        }
+    }
+}
+window.firebaseDrixelIdLogin = firebaseDrixelIdLogin;
+
 async function firebaseLogout() {
     try {
         const auth = window.firebaseAuth;
@@ -1041,9 +1142,16 @@ async function resetPasswordFromLogin() {
 
 
 function updateAuthUI() {
+    const user = window.currentFirebaseUser;
+    const drixelIdButton = document.getElementById('drixelIdAuthButton');
+    if (drixelIdButton) {
+        const label = drixelIdButton.querySelector('span');
+        if (label) {
+            label.textContent = user ? 'Link Drixel ID' : 'Continue with Drixel ID';
+        }
+    }
     const authLink = document.getElementById('authLink');
     if (!authLink) return;
-    const user = window.currentFirebaseUser;
 
     if (user) {
         console.log("👤 User logged in:", user.email);
