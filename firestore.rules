@@ -1,61 +1,44 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    function signedIn() {
-      return request.auth != null;
-    }
-
+    function signedIn() { return request.auth != null; }
     function isAdmin() {
-      return signedIn() && (
-        request.auth.token.email == 'admin@drixelsa.co.za' ||
-        request.auth.token.email == 'drixelsa@gmail.com'
-      );
+      return signedIn() && (request.auth.token.get('admin', false) == true ||
+        (request.auth.token.get('email_verified', false) == true &&
+         request.auth.token.get('email', '') in ['admin@drixelsa.co.za', 'drixelsa@gmail.com']));
     }
-
-    function ownsOrder() {
-      return signedIn() &&
-        resource.data.customer.email == request.auth.token.email;
+    match /products/{id} { allow read: if true; allow write: if isAdmin(); }
+    match /banners/{id} { allow read: if true; allow write: if isAdmin(); }
+    match /coupons/{id} { allow read, write: if isAdmin(); }
+    match /settings/{id} {
+      allow read: if isAdmin();
+      allow write: if isAdmin() && (id != 'store_config' ||
+        request.resource.data.keys().hasOnly(['deliveryFee','freeDeliveryThreshold','updatedAt']));
     }
-
-    match /products/{productId} {
-      allow read: if true;
-      allow write: if isAdmin();
+    match /orders/{id} {
+      allow read: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid);
+      // All creation, prices, status transitions and inventory operations run on the server.
+      allow write: if false;
     }
-
-    match /banners/{bannerId} {
-      allow read: if true;
-      allow write: if isAdmin();
+    match /carts/{uid} {
+      allow read, delete: if signedIn() && request.auth.uid == uid;
+      allow create, update: if signedIn() && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['items','updatedAt'])
+        && request.resource.data.items is list && request.resource.data.items.size() <= 50;
     }
-
-    match /coupons/{couponId} {
-      allow read: if true;
-      allow write: if isAdmin();
-    }
-
-    match /settings/{settingId} {
-      allow read: if true;
-      allow write: if isAdmin();
-    }
-
-    match /orders/{orderId} {
-      // Checkout is restricted to authenticated customers. Payment/order status
-      // changes remain server/admin controlled rather than customer editable.
-      allow create: if signedIn()
-        && request.resource.data.customer.email == request.auth.token.email;
-      allow read: if isAdmin() || ownsOrder();
-      allow update, delete: if isAdmin();
-    }
-
-    match /users/{userId} {
-      allow read, create, update: if signedIn() &&
-        (request.auth.uid == userId || isAdmin());
+    match /users/{uid} {
+      allow read: if isAdmin() || (signedIn() && request.auth.uid == uid);
+      allow create: if signedIn() && request.auth.uid == uid
+        && request.resource.data.get('role', 'customer') == 'customer'
+        && !request.resource.data.keys().hasAny(['admin','customClaims']);
+      allow update: if isAdmin() || (signedIn() && request.auth.uid == uid
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role','admin','customClaims','uid']));
       allow delete: if isAdmin();
     }
-
-    // Deny any collection not explicitly declared above.
-    match /{document=**} {
-      allow read, write: if false;
-    }
+    match /subscribers/{id} { allow read: if isAdmin(); allow write: if false; }
+    match /contacts/{id} { allow read: if isAdmin(); allow write: if false; }
+    match /mail_jobs/{id} { allow read: if isAdmin(); allow write: if false; }
+    match /order_audit/{id} { allow read: if isAdmin(); allow write: if false; }
+    match /{document=**} { allow read, write: if false; }
   }
 }

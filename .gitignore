@@ -1,5 +1,8 @@
-.vscode/
 node_modules/
 functions/node_modules/
-.DS_Store
-Thumbs.db
+.env
+.env.*
+!.env.example
+.secret.local
+.firebase/
+*-debug.log
