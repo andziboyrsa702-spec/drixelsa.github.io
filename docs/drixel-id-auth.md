@@ -26,3 +26,15 @@ The provider's email and profile scopes are requested. Keep the Keycloak registr
 ## Scope
 
 This connects authentication through Drixel ID and preserves the Firebase UID when an existing customer links their account. Orders and product data remain in Firebase. The central Drixel directory does not yet receive the user's service membership from this login; service authorization still needs a server-side integration with the directory API.
+
+
+## Sync customer accounts to Drixel's directory
+
+After Drixel ID sign-in or linking, the website calls the authenticated syncDrixelAccount Firebase callable. The callable reads the linked OIDC subject from Firebase Admin and sends it to the central API from the function environment. DRIXEL_SYNC_KEY is a Firebase Secret Manager secret and is never included in website JavaScript. The function grants only the registered Drixel SA Store customer role; store orders and profiles remain in Firebase.
+
+Merge the Drixel Platform service-sync API change first. Configure the API key for application slug drixel-sa-store, then set DRIXEL_API_URL in functions/.env and create the secret:
+
+firebase functions:secrets:set DRIXEL_SYNC_KEY
+firebase deploy --only functions:syncDrixelAccount
+
+Enter the Drixel SA Store service key at the prompt. Never commit functions/.env, the service key, or Firebase service-account credentials. The callable refuses accounts without the linked oidc.drixel identity and does not grant administrator claims. A directory sync failure leaves the user signed in and displays that directory access is pending; suspended or ended memberships need an administrator to restore them.

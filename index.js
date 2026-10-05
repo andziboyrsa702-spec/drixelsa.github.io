@@ -31,6 +31,7 @@ import {
     serverTimestamp
 } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 import { getAnalytics } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-analytics.js";
+import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-functions.js";
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
@@ -47,12 +48,15 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
+const firebaseFunctions = getFunctions(app);
+const syncDrixelAccount = httpsCallable(firebaseFunctions, 'syncDrixelAccount');
 let analytics = null;
 
 // Make Firebase available globally with ALL functions
 window.firebaseApp = app;
 window.firebaseAuth = auth;
 window.firebaseDb = db;
+window.firebaseSyncDrixelAccount = syncDrixelAccount;
 window.firebaseAnalytics = null;
 
 // Make all functions available globally
@@ -1052,10 +1056,22 @@ async function firebaseDrixelIdLogin() {
             });
         }
 
+        let directorySyncSucceeded = false;
+        try {
+            await window.firebaseSyncDrixelAccount({});
+            directorySyncSucceeded = true;
+        } catch (syncError) {
+            console.error('Drixel directory sync failed.');
+        }
+
         if (loginSuccess) {
-            loginSuccess.textContent = linkingExistingAccount
-                ? 'Drixel ID connected to this account.'
-                : 'Signed in with Drixel ID.';
+            loginSuccess.textContent = directorySyncSucceeded
+                ? (linkingExistingAccount
+                    ? 'Drixel ID connected and linked to the Drixel account directory.'
+                    : 'Signed in with Drixel ID and linked to the Drixel account directory.')
+                : (linkingExistingAccount
+                    ? 'Drixel ID connected. Directory access is pending administrator review.'
+                    : 'Signed in with Drixel ID. Directory access is pending administrator review.');
             loginSuccess.style.display = 'block';
         }
         window.currentFirebaseUser = user;
@@ -1077,7 +1093,7 @@ async function firebaseDrixelIdLogin() {
         } else if (typeof window.showToast === 'function') {
             window.showToast(message, 'error');
         } else {
-            alert(message);
+            console.warn(message);
         }
     }
 }
