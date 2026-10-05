@@ -8,4 +8,10 @@ export const adminSections=[
 ["SYSTEM",[["settings/store","Store Settings"],["settings/markets","Markets"],["settings/audit-log","Audit Log"]]]
 ];
 export const adminPath=key=>"/za/admin/"+key;
-export const adminTitle=key=>adminSections.flatMap(x=>x[1]).find(x=>x[0]===key)?.[1]||"Dashboard";
+export const adminTitle=key=>{
+ if(key==='products/new')return 'Create product';
+ if(/^products\/[^/]+$/.test(key))return 'Product details';
+ if(/^orders\/[^/]+$/.test(key))return 'Order details';
+ if(/^customers\/[^/]+$/.test(key))return 'Customer details';
+ return adminSections.flatMap(x=>x[1]).find(x=>x[0]===key)?.[1]||'Page not found';
+};

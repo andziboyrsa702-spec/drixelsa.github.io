@@ -1,7 +1,48 @@
-import React,{useEffect,useState}from"react";import{doc,onSnapshot}from"firebase/firestore";import{useParams}from"react-router-dom";import{db}from"../config/firebase-react.js";import{orderAction}from"./adminApi.js";import{useDialog}from"../components/DialogProvider.jsx";
-export default function OrderDetailAdmin(){const{orderId}=useParams(),dialog=useDialog(),[o,setO]=useState(),[error,setError]=useState(""),[busy,setBusy]=useState("");
-useEffect(()=>onSnapshot(doc(db,"orders",orderId),s=>s.exists()?setO({id:s.id,...s.data()}):setError("Order not found."),e=>setError(e.message)),[orderId]);
-async function act(action){const isCancel=action==="cancel",isPaid=action==="mark_paid",label=action.replace("_"," "),ok=await dialog.confirm({title:isCancel?"Cancel order":isPaid?"Confirm payment":"Update fulfilment",message:isCancel?"Cancel this unpaid order and restore its reserved inventory? This action is recorded in the audit log.":isPaid?"Mark this manual-payment order as paid? This action is recorded in the audit log.":`Move this order to ${label}? This action is recorded in the audit log.`,confirmLabel:isCancel?"Cancel order":isPaid?"Mark paid":"Update order",danger:isCancel});if(!ok)return;setBusy(action);try{await orderAction(orderId,action);dialog.toast(isCancel?"Order cancelled and inventory restored.":"Payment marked as verified.","success")}catch(e){dialog.toast(e.message,"error")}finally{setBusy("")}}
-if(error)return <div className="ra-panel"><h2>Order unavailable</h2><p>{error}</p></div>;if(!o)return <div className="ra-panel">Loading order…</div>;
-const cancelled=o.status==="cancelled"||o.fulfillmentStatus==="cancelled",paid=o.paymentStatus==="paid",yoco=o.paymentProvider==="yoco"||o.paymentMethod==="yoco";
-return <div className="ra-panel"><div className="ra-panel-head"><div><p className="ra-eyebrow">ORDER</p><h2>{o.orderNumber||o.id}</h2></div><div className="ra-admin-actions">{!paid&&!cancelled&&!yoco&&<button onClick={()=>act("mark_paid")} disabled={!!busy}>{busy==="mark_paid"?"Updating…":"Mark paid"}</button>}{!paid&&!cancelled&&<button className="danger" onClick={()=>act("cancel")} disabled={!!busy}>{busy==="cancel"?"Cancelling…":"Cancel order"}</button>}{paid&&!cancelled&&["processing","packed","shipped","delivered"].map(x=><button key={x} className={(o.fulfillmentStatus||o.status)===x?"danger":""} onClick={()=>act(x)} disabled={!!busy||(o.fulfillmentStatus||o.status)===x}>{busy===x?"Updating…":x[0].toUpperCase()+x.slice(1)}</button>)}</div></div><div className="ra-metrics"><div className="ra-metric"><span>Payment</span><strong>{o.paymentStatus||"pending"}</strong></div><div className="ra-metric"><span>Fulfilment</span><strong>{o.status||o.fulfillmentStatus||"processing"}</strong></div><div className="ra-metric"><span>Total</span><strong>{o.displayCurrency||o.currency||"ZAR"} {o.displayTotal??o.total}</strong></div></div><h3>Customer</h3><p>{o.customer?.firstName} {o.customer?.lastName}<br/>{o.customer?.email}<br/>{o.customer?.phone}</p><h3>Items</h3><div className="ra-table-wrap"><table><thead><tr><th>Product</th><th>Variant</th><th>Qty</th></tr></thead><tbody>{o.items?.map((x,i)=><tr key={i}><td>{x.name}</td><td>{[x.color,x.size,x.sku].filter(Boolean).join(" / ")}</td><td>{x.quantity}</td></tr>)}</tbody></table></div></div>}
+import React, {useState} from 'react';
+import {Link, useParams} from 'react-router-dom';
+import {orderAction} from './adminApi.js';
+import {useDialog} from '../components/DialogProvider.jsx';
+import {useMarket} from '../context/MarketContext.jsx';
+import useAdminRecord from './useAdminRecord.js';
+import AdminDataState from './AdminDataState.jsx';
+const money=(value,currency='ZAR')=>new Intl.NumberFormat('en-ZA',{style:'currency',currency}).format(Number(value)||0);
+export default function OrderDetailAdmin(){
+ const {orderId}=useParams(),{market}=useMarket(),dialog=useDialog(),connection=useAdminRecord('orders',orderId),[busy,setBusy]=useState('');
+ const order=connection.data;
+ async function act(action){
+  if(busy)return;
+  const cancel=action==='cancel',paid=action==='mark_paid';
+  const confirmed=await dialog.confirm({title:cancel?'Cancel order':paid?'Confirm payment':'Update fulfilment',message:cancel?'Cancel this unpaid order and restore its reserved stock?':paid?'Confirm you have verified receipt of this manual payment. This action is recorded in the audit log.':`Move this order to ${action}? This action is recorded in the audit log.`,confirmLabel:cancel?'Cancel order':paid?'Mark paid':'Update order',danger:cancel});
+  if(!confirmed)return;
+  setBusy(action);
+  try{await orderAction(orderId,action);dialog.toast(cancel?'Order cancelled and reserved inventory restored.':paid?'Manual payment verified.':`Fulfilment updated to ${action}.`,'success');}
+  catch(error){dialog.toast(error.message||'Order could not be updated.','error');}finally{setBusy('');}
+ }
+ if(connection.loading||connection.error)return <AdminDataState {...connection}/>;
+ if(!order)return <section className="ra-panel"><h2>Order not found</h2><Link to={`/${market}/admin/orders`}>Back to orders</Link></section>;
+ const cancelled=order.status==='cancelled'||order.fulfillmentStatus==='cancelled',paid=order.paymentStatus==='paid',refunded=order.paymentStatus==='refunded',provider=order.paymentProvider||order.paymentMethod,manual=['bank','bank_transfer','eft','manual'].includes(provider);
+ const fulfilment=order.fulfillmentStatus||order.status||'processing',next={pending:'processing',pending_payment:'processing',processing:'packed',packed:'shipped',shipped:'delivered'}[fulfilment];
+ const customer=order.customer||{},address=order.shippingAddress||customer,currency=order.currency||'ZAR';
+ const created=order.createdAt?.seconds?new Date(order.createdAt.seconds*1000):new Date(order.createdAt);
+ return <section className="ra-panel">
+  <div className="ra-panel-head"><div><p className="ra-eyebrow">ORDER DETAILS</p><h2>{order.orderNumber||order.id}</h2><p>{!isNaN(created)?created.toLocaleString('en-ZA'):'Creation date unavailable'}</p></div><Link className="ra-cell-link" to={`/${market}/admin/orders`}>Back to orders</Link></div>
+  <div className="ra-admin-actions">
+   {!paid&&!cancelled&&!refunded&&manual&&<button disabled={!!busy} onClick={()=>act('mark_paid')}>Mark manual payment paid</button>}
+   {!paid&&!cancelled&&!refunded&&<button className="danger" disabled={!!busy} onClick={()=>act('cancel')}>Cancel unpaid order</button>}
+   {paid&&!cancelled&&next&&<button disabled={!!busy} onClick={()=>act(next)}>{busy?'Updating…':`Mark ${next}`}</button>}
+  </div>
+  <div className="ra-metrics" style={{marginTop:24}}>
+   <Metric label="Payment" value={order.paymentStatus||'pending'} note={provider||'Method unavailable'}/>
+   <Metric label="Fulfilment" value={fulfilment}/><Metric label="Order total" value={money(order.total,currency)}/>
+   <Metric label="Inventory" value={order.inventoryStatus||'Not recorded'}/>
+  </div>
+  <div className="ra-order-details"><section><h3>Customer</h3><p>{[customer.firstName,customer.lastName].filter(Boolean).join(' ')||'Name unavailable'}{'\n'}{customer.email||'Email unavailable'}{'\n'}{customer.phone||'Phone unavailable'}</p></section>
+   <section><h3>Delivery address</h3><p>{[address.address||address.street,address.city,address.province,address.postalCode,address.country].filter(Boolean).join('\n')||'No delivery address recorded.'}</p></section></div>
+  <h3>Order items</h3><div className="ra-table-wrap"><table><thead><tr><th>Product</th><th>Variant / SKU</th><th>Quantity</th><th>Line total</th></tr></thead><tbody>{(order.items||[]).map((item,index)=><tr key={item.sku||index}><td>{item.name||item.title||item.productId}</td><td>{[item.color,item.size,item.sku].filter(Boolean).join(' / ')||'—'}</td><td>{item.quantity}</td><td>{money(item.lineTotal??Number(item.price||0)*Number(item.quantity||0),currency)}</td></tr>)}</tbody></table></div>
+  {!order.items?.length&&<p className="ra-empty">No line items recorded.</p>}
+  <div className="ra-order-totals"><div><span>Subtotal</span><span>{order.subtotal!=null?money(order.subtotal,currency):'Not recorded'}</span></div>
+   {!!order.discount&&<div><span>Discount</span><span>−{money(order.discount,currency)}</span></div>}
+   <div><span>Shipping</span><span>{order.shipping!=null?money(order.shipping,currency):'Not recorded'}</span></div><div><span>Total</span><span>{money(order.total,currency)}</span></div></div>
+ </section>;
+}
+function Metric({label,value,note}){return <div className="ra-metric"><span>{label}</span><strong>{value}</strong>{note&&<small>{note}</small>}</div>;}

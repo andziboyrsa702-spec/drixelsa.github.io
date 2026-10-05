@@ -29,6 +29,9 @@ jobs:
           trap 'kill "$VITE_PID"' EXIT
           node -e 'const wait=async()=>{for(let i=0;i<100;i++){try{await fetch("http://127.0.0.1:5173/");return}catch{}await new Promise(r=>setTimeout(r,100))}process.exit(1)};wait()'
           npm run test:layout
+          npm run test:admin
+      - name: Verify campaign send safeguards
+        run: node --test tests/admin-campaign.cjs
       - name: Verify Firebase hosting output
         run: test -f dist/index.html
       - name: Verify critical React source

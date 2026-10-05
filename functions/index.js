@@ -100,12 +100,13 @@ async function requireAdmin(req) {
     return decoded;
 }
 
-exports.sendCampaign = functions.https.onRequest(async (req, res) => {
+exports.sendCampaign = functions.runWith({ secrets: ["RESEND_API_KEY"] }).https.onRequest(async (req, res) => {
     if (req.method !== "POST") {
         res.set("Allow", "POST");
         return res.status(405).json({ success: false, message: "Method not allowed." });
     }
 
+    let claimedRef;
     try {
         await requireAdmin(req);
         const campaignId = req.body && req.body.campaignId;
@@ -119,7 +120,7 @@ exports.sendCampaign = functions.https.onRequest(async (req, res) => {
             return res.status(404).json({ success: false, message: "Campaign not found." });
         }
 
-        const campaign = campaignSnap.data();
+        let campaign = campaignSnap.data();
         if (!campaign.subject || !campaign.html) {
             return res.status(400).json({ success: false, message: "Campaign is incomplete." });
         }
@@ -153,11 +154,29 @@ exports.sendCampaign = functions.https.onRequest(async (req, res) => {
         let failed = 0;
         const batchSize = 40;
 
-        await campaignRef.update({
-            status: "sending",
-            recipientCount: uniqueRecipients.length,
-            sendStartedAt: FieldValue.serverTimestamp()
+        // Claim this campaign atomically so concurrent admin requests cannot
+        // deliver the same campaign twice.
+        await admin.firestore().runTransaction(async tx => {
+            const fresh = await tx.get(campaignRef);
+            const status = fresh.data()?.status;
+            if (["sending", "sent", "delivery_unknown"].includes(status)) {
+                const error = new Error("This campaign is already sending or has been sent.");
+                error.status = 409;
+                throw error;
+            }
+            campaign = fresh.data();
+            if (!campaign.subject || !campaign.html) {
+                const error = new Error("Campaign is incomplete.");
+                error.status = 400;
+                throw error;
+            }
+            tx.update(campaignRef, {
+                status: "sending",
+                recipientCount: uniqueRecipients.length,
+                sendStartedAt: FieldValue.serverTimestamp()
+            });
         });
+        claimedRef = campaignRef;
 
         for (let i = 0; i < uniqueRecipients.length; i += batchSize) {
             const batch = uniqueRecipients.slice(i, i + batchSize);
@@ -173,19 +192,21 @@ exports.sendCampaign = functions.https.onRequest(async (req, res) => {
                     html: campaign.html + footer
                 });
             }));
-            results.forEach(result => result.status === "fulfilled" ? sent++ : failed++);
+            results.forEach(result => result.status === "fulfilled" && !result.value?.error && result.value?.data?.id ? sent++ : failed++);
         }
 
         await campaignRef.update({
             status: failed === uniqueRecipients.length ? "failed" : "sent",
             acceptedCount: sent,
-            deliveredCount: sent,
             failedCount: failed,
             sentAt: FieldValue.serverTimestamp()
         });
 
         return res.status(200).json({ success: true, sent, failed });
     } catch (error) {
+        if (claimedRef) {
+            await claimedRef.update({status: "delivery_unknown", failedAt: FieldValue.serverTimestamp()}).catch(() => {});
+        }
         console.error("Campaign send failed:", error);
         return res.status(error.status || 500).json({ success: false, message: error.status ? error.message : "Campaign delivery failed." });
     }
@@ -512,3 +533,4 @@ const notifications = require('./notifications');
 for (const name of ['deliverMail','orderNotifications','subscribeNewsletter','newsletterPreferences','sendContact']) {
     if (!exports[name]) exports[name] = notifications[name];
 }
+
