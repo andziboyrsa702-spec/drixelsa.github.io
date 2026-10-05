@@ -4,7 +4,15 @@
     "ignore": [
       "firebase.json",
       "**/.*",
-      "**/node_modules/**"
+      "**/node_modules/**",
+      "functions/**",
+      "docs/**",
+      "scripts/**",
+      "tests/**",
+      "package*.json",
+      "firestore*",
+      "README.md",
+      "START_WEBSITE.bat"
     ],
     "cleanUrls": true,
     "trailingSlash": false,
@@ -37,6 +45,15 @@
             "value": "same-origin-allow-popups"
           }
         ]
+      },
+      {
+        "source": "/api/**",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-store"
+          }
+        ]
       }
     ],
     "rewrites": [
@@ -45,20 +62,31 @@
         "function": "sendEmail"
       },
       {
-        "source": "/products/tees/**",
-        "destination": "/product.html"
-      },
-      {
-        "source": "/products/outerwear/**",
-        "destination": "/product.html"
-      },
-      {
-        "source": "/products/accessories/**",
-        "destination": "/product.html"
+        "source": "/api/newsletter",
+        "function": "newsletterPreferences"
       }
     ]
   },
   "functions": {
     "source": "functions"
+  },
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  },
+  "emulators": {
+    "firestore": {
+      "port": 8080
+    },
+    "auth": {
+      "port": 9099
+    },
+    "functions": {
+      "port": 5001
+    },
+    "hosting": {
+      "port": 5000
+    },
+    "singleProjectMode": true
   }
 }

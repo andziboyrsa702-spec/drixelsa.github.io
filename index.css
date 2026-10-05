@@ -6887,3 +6887,12 @@ img, svg, video {
         padding: 14px;
     }
 }
+
+/* Checkout feedback follows the store's monochrome palette. */
+.checkout-feedback { padding: 14px 0; font-size: 14px; line-height: 1.6; color: #222; }
+.checkout-feedback.error { border-left: 3px solid #111; padding-left: 12px; font-weight: 600; }
+button:disabled { opacity: .55; cursor: not-allowed; }
+#orderPaymentInstructions { margin-top: 24px; line-height: 1.8; }
+#orderPaymentInstructions .tracker-timeline { text-align: left; margin-top: 24px; }
+#checkoutCoupon, #pmVariants { width: 100%; padding: 12px; border: 1px solid #bbb; background: #fff; color: #111; }
+@media (prefers-reduced-motion: reduce) { .hero-video { display: none; } .hero { background: #111; } *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; } }

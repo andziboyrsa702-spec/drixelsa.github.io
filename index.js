@@ -51,6 +51,7 @@ const db = getFirestore(app);
 const firebaseFunctions = getFunctions(app);
 const syncDrixelAccount = httpsCallable(firebaseFunctions, 'syncDrixelAccount');
 let analytics = null;
+let confirmationTimer = null;
 
 // Make Firebase available globally with ALL functions
 window.firebaseApp = app;
@@ -100,14 +101,16 @@ window.firebaseCollections = {
 };
 
 // Initialize auth state listener immediately
-onAuthStateChanged(auth, (user) => {
+onAuthStateChanged(auth, async (user) => {
+    window.drixelIsAdmin = false;
+    if (user) { try {const token=await user.getIdTokenResult(); window.drixelIsAdmin=token.claims.admin===true || (user.emailVerified && [ADMIN_EMAIL,'drixelsa@gmail.com'].includes(user.email));} catch(error) {console.warn('Unable to verify admin access.');} }
     window.firebaseAuthInitialized = true;
     if (user) {
         console.log("✅ User logged in:", user.email);
         window.currentFirebaseUser = user;
 
         // Check if user is admin
-        if (user.email === ADMIN_EMAIL) {
+        if (window.drixelIsAdmin === true) {
             console.log("👑 Admin user detected on page load");
             // Show admin button after a short delay
             setTimeout(() => {
@@ -135,9 +138,9 @@ onAuthStateChanged(auth, (user) => {
         
         // Protected pages guest route redirection guard
         const path = window.location.pathname;
-        if (path.endsWith('cart.html') || path.endsWith('checkout.html') || path.endsWith('yoco-direct.html')) {
+        if (/\/(checkout|yoco-direct)(\.html)?$/.test(path)) {
             alert('Please login or create an account to view your cart or checkout.');
-            window.location.href = 'auth.html';
+            window.location.href = '/auth.html';
         }
     }
 });
@@ -149,15 +152,44 @@ setTimeout(() => {
     }
 }, 500);
 
+
+async function commerceCall(name, data = {}) {
+    const result = await httpsCallable(firebaseFunctions, name)(data);
+    return result.data;
+}
+function checkoutMessage(message, error = false) {
+    let box = document.getElementById('checkoutFeedback');
+    if (!box) {
+        box = document.createElement('p'); box.id = 'checkoutFeedback'; box.setAttribute('role', 'status');
+        (document.querySelector('.cart-summary') || document.body).appendChild(box);
+    }
+    box.textContent = message; box.className = error ? 'checkout-feedback error' : 'checkout-feedback';
+}
+let reviewedCheckout = null;
+let checkoutBusy = false;
+function checkoutInput() {
+    const user = auth.currentUser;
+    if (!user) throw new Error('Please sign in to complete checkout.');
+    const fields = ['firstName','lastName','email','phone','address','city','postalCode','province'];
+    const values = {};
+    for (const field of fields) {
+        const input = document.getElementById(field);
+        if (!input || !input.value.trim() || !input.checkValidity()) { input?.reportValidity(); throw new Error('Please complete your delivery details.'); }
+        values[field] = input.value.trim();
+    }
+    if (values.email.toLowerCase() !== user.email.toLowerCase()) throw new Error('Use your signed-in email address for this order.');
+    return { items: cart.map(i => ({productId: String(i.productId || i.id), size: i.size, color: i.color, quantity: i.quantity})),
+        customer: {name: `${values.firstName} ${values.lastName}`, email: values.email, phone: values.phone, address: values.address, city: values.city, postalCode: values.postalCode, province: values.province},
+        paymentMethod: document.querySelector('input[name="paymentMethod"]:checked')?.value,
+        couponCode: document.getElementById('checkoutCoupon')?.value.trim().toUpperCase() || '',
+        subscribed: document.getElementById('newsletterSubscription')?.checked === true };
+}
+
 // ===== CONSTANTS =====
 const ADMIN_EMAIL = "admin@drixelsa.co.za";
 const ADMIN_NAMES = "Anelisa Thelejane & Andzani Mashabane";
-const DEFAULT_YOCO_PUBLIC_KEY = "pk_live_f26b158aDmMkbm56f1c4";
-let YOCO_PUBLIC_KEY = (localStorage.getItem('drixel_yoco_public_key') || DEFAULT_YOCO_PUBLIC_KEY).trim();
-if (!YOCO_PUBLIC_KEY) {
-    YOCO_PUBLIC_KEY = DEFAULT_YOCO_PUBLIC_KEY;
-    localStorage.setItem('drixel_yoco_public_key', DEFAULT_YOCO_PUBLIC_KEY);
-}
+localStorage.removeItem('drixel_yoco_secret_key');
+localStorage.removeItem('drixel_resend_api_key');
 const SNAPSCAN_QR_URL = "https://pos.snapscan.io/qr/qvxSxlIE";
 const SNAPSCAN_REGISTRATION = "2026/000210/07";
 
@@ -254,7 +286,7 @@ document.addEventListener('DOMContentLoaded', function () {
     console.log("🚀 Drixel SA Website Initializing...");
 
     // Initialize Yoco SDK
-    loadYocoSDK();
+    // Card entry is handled only by Yoco hosted checkout.
 
     // Set up mobile menu
     const mobileMenuBtn = document.getElementById('mobileMenuBtn');
@@ -770,7 +802,7 @@ function showPage(page, hash = '') {
         'privacy': '/privacy.html',
         'refund': '/refund.html',
         'shipping': '/shipping.html',
-        'yoco-direct': '/yoco-direct.html',
+        'yoco-direct': '/checkout.html',
         'orderConfirmation': '/orderConfirmation.html'
     };
     let target = pageMap[page] || ('/' + page + '.html');
@@ -784,8 +816,9 @@ window.showPage = showPage;
 function checkAuthAndNavigate(page) {
     const currentUser = window.currentFirebaseUser;
 
-    if (!currentUser && (page === 'shop' || page === 'cart' || page === 'checkout' || page === 'yoco-direct')) {
-        alert('Please login or create an account to shop. You need an account to add items to cart and place orders.');
+    if (!currentUser && (page === 'checkout' || page === 'yoco-direct')) {
+        alert('Please sign in to complete checkout. Your bag is saved.');
+        sessionStorage.setItem('drixel_after_login', '/checkout.html');
         showPage('auth');
         return false;
     }
@@ -872,7 +905,7 @@ async function firebaseRegister() {
             name: name,
             email: email,
             phone: phone || '',
-            role: email === ADMIN_EMAIL ? 'admin' : 'customer',
+            role: 'customer',
             createdAt: new Date().toISOString(),
             subscribed: document.getElementById('registerSubscription').checked,
             emailVerified: false
@@ -885,7 +918,7 @@ async function firebaseRegister() {
         console.log("✅ Firebase registration successful:", email);
 
         setTimeout(() => {
-            showPage('home');
+            if (sessionStorage.getItem('drixel_after_login') === '/checkout.html') {sessionStorage.removeItem('drixel_after_login');window.location.href='/checkout.html';} else showPage('home');
         }, 1500);
 
     } catch (error) {
@@ -950,7 +983,7 @@ async function firebaseLogin() {
                 email: user.email,
                 name: user.email.split('@')[0],
                 createdAt: new Date().toISOString(),
-                role: email === ADMIN_EMAIL ? 'admin' : 'customer',
+                role: 'customer',
                 subscribed: document.getElementById('loginSubscription').checked
             });
         } else {
@@ -959,7 +992,7 @@ async function firebaseLogin() {
             });
         }
 
-        const userData = userDoc.exists() ? userDoc.data() : { role: email === ADMIN_EMAIL ? 'admin' : 'customer' };
+        const userData = userDoc.exists() ? userDoc.data() : { role: 'customer' };
 
         loginSuccess.textContent = 'Login successful!';
         loginSuccess.style.display = 'block';
@@ -967,7 +1000,7 @@ async function firebaseLogin() {
 
         console.log("✅ Firebase login completed successfully");
 
-        if (email === ADMIN_EMAIL) {
+        if (window.drixelIsAdmin === true) {
             console.log("👑 Admin user detected, showing admin button");
             setTimeout(() => {
                 showAdminButton();
@@ -976,7 +1009,7 @@ async function firebaseLogin() {
 
         setTimeout(() => {
             console.log("🔄 Redirecting to home page...");
-            showPage('home');
+            if (sessionStorage.getItem('drixel_after_login') === '/checkout.html') {sessionStorage.removeItem('drixel_after_login');window.location.href='/checkout.html';} else showPage('home');
         }, 1000);
 
     } catch (error) {
@@ -1108,7 +1141,7 @@ async function firebaseLogout() {
         cart = [];
         updateCartCount();
         updateAuthUI();
-        showPage('home');
+        if (sessionStorage.getItem('drixel_after_login') === '/checkout.html') {sessionStorage.removeItem('drixel_after_login');window.location.href='/checkout.html';} else showPage('home');
 
         const adminBtn = document.getElementById('adminMobileBtn');
         if (adminBtn) adminBtn.remove();
@@ -1156,7 +1189,7 @@ function updateAuthUI() {
     if (user) {
         console.log("👤 User logged in:", user.email);
 
-        const isAdmin = user.email === ADMIN_EMAIL;
+        const isAdmin = window.drixelIsAdmin === true;
 
         authLink.innerHTML = isAdmin ? `<i class="fas fa-crown"></i>` : `<i class="fas fa-sign-out-alt"></i>`;
         authLink.title = isAdmin ? `Admin: ${user.email} (Logout)` : `Logged in as ${user.email} (Logout)`;
@@ -1185,51 +1218,7 @@ function updateAuthUI() {
 }
 
 // ===== YOCO SDK =====
-function loadYocoSDK() {
-    console.log("🔄 Loading Yoco SDK...");
-
-    const sdkSources = [
-        'https://static.yoco.com/sdk/v1/yoco-sdk-web.js',
-        'https://js.yoco.com/sdk/v2/yoco-sdk-web.js',
-        'https://js.yoco.com/sdk/yoco-sdk-web.js'
-    ];
-
-    let currentIdx = 0;
-
-    function tryNextScript() {
-        if (currentIdx >= sdkSources.length) {
-            console.warn("⚠️ All Yoco SDK CDNs exhausted. Gateway fallback enabled.");
-            return;
-        }
-
-        const src = sdkSources[currentIdx++];
-        const script = document.createElement('script');
-        script.src = src;
-
-        script.onload = function () {
-            console.log("✅ Yoco SDK loaded from:", src);
-            if (window.YocoSDK) {
-                try {
-                    window.yocoSDK = new window.YocoSDK({
-                        publicKey: YOCO_PUBLIC_KEY
-                    });
-                    console.log("✅ Yoco SDK initialized");
-                } catch (error) {
-                    console.error("❌ Failed to initialize Yoco SDK:", error);
-                }
-            }
-        };
-
-        script.onerror = function () {
-            console.warn("⚠️ Failed to load Yoco SDK from:", src, "- Trying next CDN...");
-            script.remove();
-            tryNextScript();
-        };
-
-        document.head.appendChild(script);
-    }
-
-    tryNextScript();
+function loadYocoSDK() { /* Hosted checkout does not load a card SDK. */
 }
 
 // ===== PRODUCT FUNCTIONS =====
@@ -1579,7 +1568,7 @@ function viewProduct(productId) {
                             <button class="btn" onclick="addToCart('${uid}', true)">Add to Cart</button>
                         </div>
                         
-                        <button class="buy-btn" onclick="initiateYocoDirectPayment('${uid}', '${product.name.replace(/'/g, "\\'")}', ${product.price})">
+                        <button class="buy-btn" onclick="initiateYocoDirectPayment('${uid}', '${sanitizeInput(product.name.replace(/'/g, "\\'"))}', ${product.price})">
                             <i class="fas fa-bolt"></i> Quick Buy with Yoco
                         </button>
                         
@@ -1734,6 +1723,8 @@ async function addToCart(productId, fromProductPage = false) {
         }
     }
 
+    if (!Number.isInteger(quantity) || quantity < 1 || quantity > 20) { showToast('Choose a quantity between 1 and 20.', 'error'); return; }
+    if (product.stock != null && product.stock < quantity) { showToast('This item has insufficient stock.', 'error'); return; }
     const colorName = typeof color === 'string' ? color : (color.name || 'Default');
     const colorCode = typeof color === 'object' && color.code ? color.code : '#000000';
 
@@ -1744,10 +1735,12 @@ async function addToCart(productId, fromProductPage = false) {
     );
 
     if (existingItemIndex !== -1) {
+        if (cart[existingItemIndex].quantity + quantity > 20) { showToast('Maximum quantity is 20 per size and colour.', 'error'); return; }
         cart[existingItemIndex].quantity += quantity;
     } else {
         cart.push({
             id: product.id,
+            productId: product._firestoreId || String(product.id),
             name: product.name,
             price: Number(product.price) || 0,
             image: product.image,
@@ -1914,6 +1907,7 @@ function updateCartItemQuantity(index, newQuantity) {
         return;
     }
 
+    if (!Number.isInteger(newQuantity) || newQuantity > 20 || !cart[index]) return;
     cart[index].quantity = newQuantity;
     updateCartCount();
 
@@ -2458,58 +2452,25 @@ function closeOrderTracker() {
 }
 
 async function queryOrderStatus() {
-    const orderIdInput = document.getElementById('trackerOrderIdInput');
-    const resultsContainer = document.getElementById('trackerResults');
-    if (!orderIdInput || !resultsContainer) return;
-
-    let orderId = orderIdInput.value.trim();
-    if (orderId.startsWith('#')) {
-        orderId = orderId.substring(1).trim();
-    }
-    orderId = orderId.toUpperCase();
-
-    if (!orderId) {
-        alert('Please enter an Order ID.');
-        return;
-    }
-
-    resultsContainer.innerHTML = '<div class="text-center" style="padding: 20px 0;"><i class="fas fa-spinner fa-spin" style="font-size: 24px;"></i><p style="margin-top: 10px;">Querying database...</p></div>';
-
-    try {
-        const q = window.firebaseQuery(
-            window.firebaseCollection(window.firebaseDb, window.firebaseCollections.ORDERS),
-            window.firebaseWhere("orderNumber", "==", orderId)
-        );
-        const querySnapshot = await window.firebaseGetDocs(q);
-
-        if (querySnapshot.empty) {
-            const docRef = window.firebaseDoc(window.firebaseDb, window.firebaseCollections.ORDERS, orderId);
-            const docSnap = await window.firebaseGetDoc(docRef);
-
-            if (docSnap.exists()) {
-                renderTrackerTimeline(docSnap.data(), resultsContainer);
-            } else {
-                resultsContainer.innerHTML = `<div style="text-align: center; color: #888; font-size: 13px; padding: 20px 0;">❌ Order ID not found. Verify waybill format.</div>`;
-            }
-        } else {
-            const orderData = querySnapshot.docs[0].data();
-            renderTrackerTimeline(orderData, resultsContainer);
-        }
-    } catch (err) {
-        console.error("Tracker query error:", err);
-        resultsContainer.innerHTML = `<div style="text-align: center; color: #888; font-size: 13px; padding: 20px 0;">Error retrieving order details.</div>`;
-    }
+    const results=document.getElementById('trackerResults');
+    const id=document.getElementById('trackerOrderIdInput')?.value.trim().replace(/^#/, '');
+    if(!results || !id) return;
+    if(!auth.currentUser) { results.textContent='Sign in with the account used for this order to track it.'; return; }
+    results.textContent='Checking your order…';
+    try {const order=await commerceCall('getOrder',{orderId:id}); renderTrackerTimeline(order,results);}
+    catch(error) {results.textContent=error.message || 'Unable to retrieve this order.';}
 }
 
 function renderTrackerTimeline(order, container) {
     const status = (order.status || 'pending').toLowerCase();
-    const Courier = order.courierService || 'The Courier Guy';
-    const tracking = order.trackingNumber || 'Pending assignment';
-    const url = order.trackingUrl || '#';
+    const Courier = sanitizeInput(order.courierService || 'The Courier Guy');
+    const tracking = sanitizeInput(order.trackingNumber || 'Pending assignment');
+    const url = /^https:\/\//.test(order.trackingUrl || '') ? sanitizeInput(order.trackingUrl) : '#';
 
+    if (status === 'cancelled') {container.textContent='Order cancelled. Contact support if a payment was already made.';return;}
     const isPlaced = true;
-    const isConfirmed = status !== 'pending';
-    const isShipped = status === 'out_for_delivery' || status === 'delivered';
+    const isConfirmed = order.paymentStatus === 'paid';
+    const isShipped = ['shipped','out_for_delivery','delivered'].includes(status);
     const isDelivered = status === 'delivered';
 
     let timelineHtml = `
@@ -2525,7 +2486,7 @@ function renderTrackerTimeline(order, container) {
                     <div class="tracker-step ${isShipped ? 'active' : ''}">
                         <h5>Out For Delivery</h5>
                         <p>${isShipped ? `Dispatched via <strong>${Courier}</strong>. Waybill: <strong>${tracking}</strong>.` : 'Awaiting courier pickup.'}</p>
-                        ${(isShipped && url && url !== '#') ? `<div style="margin-top: 8px;"><a href="${url}" target="_blank" style="text-decoration: underline; font-weight: 600; color: var(--nike-black);">Track Waybill &rarr;</a></div>` : ''}
+                        ${(isShipped && url && url !== '#') ? `<div style="margin-top: 8px;"><a href="${url}" target="_blank" rel="noopener noreferrer" style="text-decoration: underline; font-weight: 600; color: var(--nike-black);">Track Waybill &rarr;</a></div>` : ''}
                     </div>
                     <div class="tracker-step ${isDelivered ? 'active' : ''}">
                         <h5>Delivered</h5>
@@ -2686,59 +2647,12 @@ function loadCheckoutPage() {
 }
 
 function setupPaymentMethodToggle() {
-    const payBank = document.getElementById('payBank');
-    const payYoco = document.getElementById('payYoco');
-    const paySnapScan = document.getElementById('paySnapScan');
-    const bankInfo = document.getElementById('bankTransferInfo');
-    const yocoInfo = document.getElementById('yocoPaymentInfo');
-    const snapScanInfo = document.getElementById('snapScanInfo');
-
-    if (!payBank || !payYoco || !paySnapScan) return;
-
-    payBank.addEventListener('change', function () {
-        if (this.checked) {
-            bankInfo.style.display = 'block';
-            yocoInfo.style.display = 'none';
-            snapScanInfo.style.display = 'none';
-        }
+    const methods = {bank:'bankTransferInfo',yoco:'yocoPaymentInfo',snapscan:'snapScanInfo'};
+    document.querySelectorAll('input[name="paymentMethod"]').forEach(radio => {
+        radio.onchange = () => { for (const [key,id] of Object.entries(methods)) { const element=document.getElementById(id); if(element) element.style.display=radio.value===key?'block':'none'; } reviewedCheckout=null; const b=document.querySelector('.btn-place-order'); if(b) b.textContent='Review order'; };
     });
-
-    payYoco.addEventListener('change', function () {
-        if (this.checked) {
-            bankInfo.style.display = 'none';
-            yocoInfo.style.display = 'block';
-            snapScanInfo.style.display = 'none';
-        }
-    });
-
-    paySnapScan.addEventListener('change', function () {
-        if (this.checked) {
-            bankInfo.style.display = 'none';
-            yocoInfo.style.display = 'none';
-            snapScanInfo.style.display = 'block';
-
-            const subtotal = cart.reduce((total, item) => total + (item.price * item.quantity), 0);
-            const shipping = calculateDeliveryFee(subtotal);
-            const tax = 0;
-            const total = subtotal + shipping + tax;
-
-            const reference = generateSnapScanReference();
-
-            document.getElementById('snapScanAmount').textContent = 'R ' + total.toFixed(2);
-            document.getElementById('snapScanReference').textContent = reference;
-
-            generateSnapScanQRCode(total, reference);
-
-            currentSnapScanOrder = {
-                reference: reference,
-                amount: total,
-                timestamp: new Date().toISOString(),
-                cartItems: [...cart]
-            };
-
-            console.log("✅ SnapScan order initialized:", reference, "Amount: R" + total.toFixed(2));
-        }
-    });
+    const card = document.getElementById('payYoco');
+    if (card) { card.disabled = true; commerceCall('getCheckoutConfig').then(config => {card.disabled = !config.yocoEnabled; const label=card.closest('label')?.querySelector('.pm-sub'); if(label) label.textContent=config.yocoEnabled?'Secure payment on Yoco’s website':'Currently unavailable — choose another method';}).catch(() => {}); }
 }
 
 function generateSnapScanQRCode(amount, reference) {
@@ -2826,117 +2740,11 @@ function copySnapScanReference() {
     });
 }
 
-function redirectToOrderConfirmation(orderData) {
-    const orderNum = orderData.orderNumber || orderData.order_id || orderData.id || 'ORDER';
-    
-    // Store latest order for orderConfirmation.html page render
-    try {
-        localStorage.setItem('drixel_latest_order', JSON.stringify(orderData));
-    } catch(e) {}
-
-    const path = window.location.pathname;
-    if (path.endsWith('orderConfirmation.html') || path.endsWith('orderConfirmation')) {
-        if (typeof renderOrderConfirmation === 'function') {
-            renderOrderConfirmation(orderData);
-        }
-        window.location.hash = `#order=${orderNum}`;
-    } else {
-        window.location.href = `orderConfirmation.html?orderId=${encodeURIComponent(orderNum)}`;
-    }
+function redirectToOrderConfirmation(order) { window.location.href = `/orderConfirmation.html?order=${encodeURIComponent(order.id || order.orderNumber || order.order_id)}`;
 }
 window.redirectToOrderConfirmation = redirectToOrderConfirmation;
 
-async function confirmSnapScanPayment() {
-    if (!currentSnapScanOrder) {
-        alert('No SnapScan order found. Please select SnapScan payment method first.');
-        return;
-    }
-
-    const firstName = document.getElementById('firstName').value.trim();
-    const lastName = document.getElementById('lastName').value.trim();
-    const email = document.getElementById('email').value.trim();
-    const phone = document.getElementById('phone').value.trim();
-    const address = document.getElementById('address').value.trim();
-    const city = document.getElementById('city').value.trim();
-    const postalCode = document.getElementById('postalCode').value.trim();
-    const province = document.getElementById('province').value;
-
-    if (!firstName || !lastName || !email || !phone || !address || !city || !postalCode || !province) {
-        alert('Please fill in all shipping details before confirming SnapScan payment.');
-        return;
-    }
-
-    showCustomConfirm(
-        'Confirm SnapScan Payment',
-        `Have you completed the payment of R${currentSnapScanOrder.amount.toFixed(2)} using SnapScan?\n\nReference: ${currentSnapScanOrder.reference}\n\nClick Yes to confirm your payment.`,
-        async function() {
-            try {
-                console.log("✅ Processing SnapScan payment confirmation...");
-
-                const orderNumber = generateOrderNumber();
-                const subscribed = document.getElementById('newsletterSubscription')?.checked || false;
-
-                const orderData = {
-                    order_id: orderNumber,
-                    orderNumber: orderNumber,
-                    customer: {
-                        name: `${firstName} ${lastName}`,
-                        email: email,
-                        phone: phone,
-                        address: address,
-                        city: city,
-                        postalCode: postalCode,
-                        province: province
-                    },
-                    items: [...cart],
-                    subtotal: cart.reduce((total, item) => total + (item.price * item.quantity), 0),
-                    shipping: calculateDeliveryFee(cart.reduce((total, item) => total + (item.price * item.quantity), 0)),
-                    tax: 0,
-                    total: currentSnapScanOrder.amount,
-                    paymentMethod: 'snapscan',
-                    paymentStatus: 'pending_verification',
-                    paymentReference: currentSnapScanOrder.reference,
-                    subscribed: subscribed,
-                    status: 'processing',
-                    deliveryMethod: 'The Courier Guy / PAXI',
-                    processingTime: '1-3 days',
-                    deliveryTime: '3-5 business days',
-                    userId: window.currentFirebaseUser ? window.currentFirebaseUser.uid : 'anonymous',
-                    createdAt: new Date().toISOString(),
-                    updatedAt: new Date().toISOString()
-                };
-
-                console.log("📦 Order data:", orderData);
-
-                const db = window.firebaseDb;
-                if (!db) {
-                    throw new Error("Firebase database not available");
-                }
-
-                console.log("💾 Saving order to Firebase...");
-                const orderRef = await window.firebaseAddDoc(window.firebaseCollection(db, 'orders'), orderData);
-                orderData.id = orderRef.id;
-                console.log("✅ Order saved with ID:", orderRef.id);
-
-                cart = [];
-                updateCartCount();
-                try { localStorage.removeItem('drixel_cart'); } catch(e) {}
-
-                // Send Order Confirmation email for SnapScan
-                await sendOrderConfirmationEmail(orderData).catch(e => console.error("Customer Email error:", e));
-                // Notify admin of new order
-                await sendAdminOrderNotificationEmail(orderData).catch(e => console.error("Admin Email error:", e));
-
-                alert(`✅ Payment confirmed!\n\nOrder #${orderNumber} has been created.\nA confirmation email has been sent to ${email}.`);
-
-                redirectToOrderConfirmation(orderData);
-
-            } catch (error) {
-                console.error("❌ Error processing SnapScan payment:", error);
-                alert('There was an error processing your payment. Please try again or contact support.');
-            }
-        }
-    );
+async function confirmSnapScanPayment() { return placeOrder();
 }
 
 function generateOrderNumber() {
@@ -2946,492 +2754,65 @@ function generateOrderNumber() {
 
 // ===== PLACE ORDER FUNCTION =====
 async function placeOrder() {
-    console.log("🔄 placeOrder() called");
-
-    // Get form data
-    const firstName = document.getElementById('firstName').value;
-    const lastName = document.getElementById('lastName').value;
-    const email = document.getElementById('email').value;
-    const phone = document.getElementById('phone').value;
-    const address = document.getElementById('address').value;
-    const city = document.getElementById('city').value;
-    const postalCode = document.getElementById('postalCode').value;
-    const province = document.getElementById('province').value;
-
-    // Validate form
-    if (!firstName || !lastName || !email || !phone || !address || !city || !postalCode || !province) {
-        alert('Please fill in all required shipping information.');
-        return;
-    }
-
-    // Validate email
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-        alert('Please enter a valid email address.');
-        return;
-    }
-
-    // Get payment method
-    const paymentMethod = document.querySelector('input[name="paymentMethod"]:checked')?.value;
-    if (!paymentMethod) {
-        alert('Please select a payment method.');
-        return;
-    }
-
-    // Check if cart is empty
-    if (cart.length === 0) {
-        alert('Your cart is empty. Please add items to your cart before placing an order.');
-        return;
-    }
-
-    // Calculate order totals
-    const subtotal = cart.reduce((total, item) => total + (item.price * item.quantity), 0);
-    const shipping = calculateDeliveryFee(subtotal);
-    const tax = 0;
-    const total = subtotal + shipping + tax;
-
-    // Get subscription preference
-    const subscribed = document.getElementById('newsletterSubscription').checked;
-
-    // Generate order number
-    const orderNumber = generateOrderNumber();
-
-    // Create order data
-    const orderData = {
-        order_id: orderNumber,
-        orderNumber: orderNumber,
-        customer: {
-            name: `${firstName} ${lastName}`,
-            email: email,
-            phone: phone,
-            address: address,
-            city: city,
-            postalCode: postalCode,
-            province: province
-        },
-        items: [...cart], // Copy cart items
-        subtotal: subtotal,
-        shipping: shipping,
-        tax: tax,
-        total: total,
-        paymentMethod: paymentMethod,
-        paymentStatus: paymentMethod === 'bank' ? 'pending' :
-            paymentMethod === 'yoco' ? 'paid' :
-                paymentMethod === 'snapscan' ? 'pending_verification' : 'pending',
-        subscribed: subscribed,
-        status: 'processing',
-        deliveryMethod: 'The Courier Guy / PAXI',
-        processingTime: '1-3 days',
-        deliveryTime: '3-5 business days',
-        userId: window.currentFirebaseUser ? window.currentFirebaseUser.uid : 'anonymous',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-    };
-
-    const placeOrderBtn = document.querySelector('.btn-place-order');
-    let originalBtnText = '';
-    if (placeOrderBtn) {
-        originalBtnText = placeOrderBtn.innerHTML;
-        placeOrderBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing Order...';
-        placeOrderBtn.disabled = true;
-    }
-
+    if (checkoutBusy) return;
+    const button = document.querySelector('.btn-place-order');
     try {
-        // Save order to Firebase for ALL payment methods
-        const orderId = await saveOrderToFirebase(orderData);
-        orderData.id = orderId;
-
-        console.log("🚀 [Checkout] Dispatching order emails...");
-        // Send order confirmation to customer
-        const customerEmailPromise = sendOrderConfirmationEmail(orderData).catch(e => console.error("Customer email dispatch error:", e));
-        // Send order notification to admin
-        const adminEmailPromise = sendAdminOrderNotificationEmail(orderData).catch(e => console.error("Admin email dispatch error:", e));
-
-        await Promise.allSettled([customerEmailPromise, adminEmailPromise]);
-
-        if (paymentMethod === 'bank') {
-            alert(`Order placed successfully!\n\nOrder #${orderNumber}\n\nPayment Details:\nBank: Standard Bank\nAccount: 071337873\nReference: ${orderNumber}\n\nPlease make payment and your order will be processed.`);
-        } else if (paymentMethod === 'snapscan') {
-            alert(`Order #${orderNumber} created!\n\nPlease complete your SnapScan payment using reference "${orderNumber}". Order details have been sent to your email (${email}).`);
+        checkoutBusy = true; if (button) button.disabled = true;
+        const input = checkoutInput();
+        const fingerprint = JSON.stringify(input);
+        const previousRequest = JSON.parse(sessionStorage.getItem('drixel_checkout_request') || 'null');
+        if (!reviewedCheckout && previousRequest?.fingerprint === fingerprint && previousRequest.quote) reviewedCheckout = {fingerprint,quote:previousRequest.quote};
+        if (!reviewedCheckout || reviewedCheckout.fingerprint !== fingerprint) {
+            checkoutMessage('Checking prices and availability…');
+            const quote = await commerceCall('quoteCheckout', input);
+            reviewedCheckout = {fingerprint, quote};
+            document.getElementById('checkoutTotal').textContent = `R ${quote.total.toFixed(2)}`;
+            const summary = document.getElementById('checkoutSummary');
+            if (summary) summary.innerHTML = quote.items.map(i => `<div class="summary-row"><span>${sanitizeInput(i.name)} (${sanitizeInput(i.size)}, ${sanitizeInput(i.color)}) × ${i.quantity}</span><span>R ${(i.price*i.quantity).toFixed(2)}</span></div>`).join('') + `<div class="summary-row"><span>Delivery</span><span>R ${quote.shipping.toFixed(2)}</span></div><div class="summary-row"><span>Discount</span><span>−R ${quote.discount.toFixed(2)}</span></div>`;
+            checkoutMessage(`Review your confirmed total of R ${quote.total.toFixed(2)}, including delivery. Select Confirm order to continue.`);
+            if (button) button.textContent = `Confirm order · R ${quote.total.toFixed(2)}`;
+            return;
         }
-
-        // Clear cart
-        cart = [];
-        updateCartCount();
-
-        // Show order confirmation page
-        const orderNumElem = document.getElementById('orderNumber');
-        if (orderNumElem) orderNumElem.textContent = orderNumber;
-        const deliveryFeeInfo = document.getElementById('deliveryFeeInfo');
-        if (deliveryFeeInfo) {
-            if (orderData.shipping === 0) {
-                deliveryFeeInfo.textContent = 'Delivery: FREE (Order over R1000)';
-            } else {
-                deliveryFeeInfo.textContent = `Delivery Fee: R${orderData.shipping.toFixed(2)}`;
-            }
+        // Persist the request identity before sending, so a network retry cannot create another order.
+        const saved = JSON.parse(sessionStorage.getItem('drixel_checkout_request') || 'null');
+        const requestId = saved?.fingerprint === fingerprint ? saved.requestId : crypto.randomUUID();
+        sessionStorage.setItem('drixel_checkout_request', JSON.stringify({fingerprint, requestId, quote:reviewedCheckout.quote}));
+        checkoutMessage('Saving your order…');
+        const order = await commerceCall('createOrder', {...input,requestId,expectedTotalCents:reviewedCheckout.quote.totalCents});
+        cart = []; await saveCartToStorage(); updateCartCount();
+        sessionStorage.removeItem('drixel_checkout_request');
+        if (input.paymentMethod === 'yoco') {
+            try { const payment = await commerceCall('startYocoCheckout', {orderId:order.id}); window.location.assign(payment.redirectUrl); return; }
+            catch (error) { showToast('Your unpaid order is saved. You can retry payment from its status page.', 'warning'); }
         }
-
-        try { if (typeof grecaptcha !== 'undefined') { grecaptcha.reset(); } } catch (e) { }
-        showPage('orderConfirmation', `#order=${orderNumber}`);
-
+        window.location.assign(`/orderConfirmation.html?order=${encodeURIComponent(order.id)}`);
     } catch (error) {
-        console.error("❌ Error placing order:", error);
-        alert('There was an error processing your order. Please try again.');
-    } finally {
-        if (placeOrderBtn) {
-            placeOrderBtn.innerHTML = originalBtnText;
-            placeOrderBtn.disabled = false;
-        }
-    }
+        checkoutMessage(error.message || 'Checkout is temporarily unavailable. Please retry.', true);
+        if (['functions/failed-precondition','functions/invalid-argument','functions/already-exists'].includes(error.code)) {reviewedCheckout=null;sessionStorage.removeItem('drixel_checkout_request');}
+        if (button) button.textContent = reviewedCheckout ? 'Retry order' : 'Review order';
+    } finally { checkoutBusy = false; if (button) button.disabled = false; }
 }
 
-async function saveOrderToFirebase(orderData) {
-    try {
-        const db = window.firebaseDb;
-        if (!db) {
-            throw new Error("Firebase database not available");
-        }
-
-        console.log("💾 Saving order to Firebase...");
-        const orderRef = await window.firebaseAddDoc(window.firebaseCollection(db, 'orders'), orderData);
-        console.log("✅ Order saved with ID:", orderRef.id);
-
-        return orderRef.id;
-    } catch (error) {
-        console.error("❌ Error saving order to Firebase:", error);
-        throw error;
-    }
+async function saveOrderToFirebase() { throw new Error('Orders must be created through the secure checkout.');
 }
 
-// ===== YOCO PAYMENT FUNCTIONS =====
-function showYocoPaymentModal(amount, description, metadata = {}, customer = null) {
-    currentYocoPayment = {
-        amount: amount,
-        description: description,
-        metadata: metadata,
-        customer: customer
-    };
-
-    document.getElementById('paymentAmount').textContent = amount.toFixed(2);
-
-    const receiptEmail = document.getElementById('receiptEmail');
-    if (customer && customer.email) {
-        receiptEmail.value = customer.email;
-    } else if (window.currentFirebaseUser && window.currentFirebaseUser.email) {
-        receiptEmail.value = window.currentFirebaseUser.email;
-    } else {
-        receiptEmail.value = '';
-    }
-
-    document.getElementById('yocoPaymentModal').classList.add('active');
-    document.body.style.overflow = 'hidden';
-
-    document.getElementById('yocoPaymentErrors').style.display = 'none';
-    clearYocoFormErrors();
-
-    setTimeout(() => {
-        document.getElementById('cardNumber').focus();
-    }, 100);
+// ===== HOSTED CARD CHECKOUT =====
+function showYocoPaymentModal() { return initiateYocoCheckout(); }
+function closeYocoPaymentModal() { document.getElementById('yocoPaymentModal')?.classList.remove('active'); }
+function clearYocoForm() {}
+function clearYocoFormErrors() {}
+function processYocoPayment() { return initiateYocoCheckout(); }
+async function initiateYocoDirectPayment(productId) {
+    const countBefore = cart.reduce((n,i) => n+i.quantity,0);
+    await addToCart(productId);
+    if (cart.reduce((n,i) => n+i.quantity,0) > countBefore) checkAuthAndNavigate('checkout');
 }
-
-function closeYocoPaymentModal() {
-    document.getElementById('yocoPaymentModal').classList.remove('active');
-    document.body.style.overflow = 'auto';
-    clearYocoForm();
-    clearYocoFormErrors();
-}
-
-function clearYocoForm() {
-    document.getElementById('cardNumber').value = '';
-    document.getElementById('expiryDate').value = '';
-    document.getElementById('cvc').value = '';
-    document.getElementById('cardholderName').value = '';
-    document.getElementById('receiptEmail').value = '';
-    document.getElementById('yocoPaymentErrors').style.display = 'none';
-}
-
-function clearYocoFormErrors() {
-    document.querySelectorAll('.payment-error').forEach(error => {
-        error.classList.remove('active');
-    });
-    document.querySelectorAll('.card-input').forEach(input => {
-        input.classList.remove('error');
-    });
-}
-
-
-// ===== YOCO TOKEN HELPER (supports different SDK versions) =====
-async function createYocoToken(card) {
-    // Ensure SDK exists
-    if (!window.yocoSDK && window.YocoSDK) {
-        try {
-            window.yocoSDK = new window.YocoSDK({ publicKey: YOCO_PUBLIC_KEY });
-        } catch (e) { }
-    }
-    const sdk = window.yocoSDK;
-
-    try {
-        if (sdk && typeof sdk.createToken === 'function') {
-            if (sdk.createToken.length >= 2) {
-                return await new Promise((resolve, reject) => {
-                    sdk.createToken(card, (result) => {
-                        if (result && result.error) return reject(result.error);
-                        if (result && result.id) return resolve(result);
-                        return reject(new Error('Unexpected token response'));
-                    });
-                });
-            }
-            const res = await sdk.createToken(card);
-            if (res && res.id) return res;
-        }
-
-        if (sdk && sdk.inline && typeof sdk.inline.createToken === 'function') {
-            const res = await sdk.inline.createToken(card);
-            if (res && res.id) return res;
-        }
-    } catch (err) {
-        console.warn("⚠️ Yoco SDK token error, using gateway fallback:", err.message);
-    }
-
-    // Bulletproof Fallback Token (ensures payment flow always completes cleanly)
-    return {
-        id: 'tok_live_' + Math.random().toString(36).substring(2, 15) + Date.now().toString(36),
-        created: Date.now()
-    };
-}
-
-async function processYocoPayment() {
-    console.log("🔄 processYocoPayment() called");
-
-    if (!window.yocoSDK && window.YocoSDK) {
-        try {
-            window.yocoSDK = new window.YocoSDK({ publicKey: YOCO_PUBLIC_KEY });
-        } catch (e) {}
-    }
-
-    const errorsDiv = document.getElementById('yocoPaymentErrors');
-    if (errorsDiv) {
-        errorsDiv.style.display = 'none';
-        errorsDiv.innerHTML = '';
-    }
-
-    const cardNumber = document.getElementById('cardNumber')?.value.trim().replace(/\s/g, '') || '';
-    const expiryDate = document.getElementById('expiryDate')?.value.trim() || '';
-    const cvc = document.getElementById('cvc')?.value.trim() || '';
-    const cardholderName = document.getElementById('cardholderName')?.value.trim() || 'Cardholder';
-    const receiptEmail = document.getElementById('receiptEmail')?.value.trim() || 'info@drixelsa.co.za';
-
-    const processBtn = document.getElementById('processPaymentBtn');
-    const originalText = processBtn ? processBtn.innerHTML : 'Pay Now';
-    if (processBtn) {
-        processBtn.innerHTML = '<div class="loading-spinner"></div> Processing Payment...';
-        processBtn.disabled = true;
-    }
-
-    try {
-        console.log("💳 Starting Yoco Payment...");
-
-        window.currentOrderTotalZAR = (currentYocoPayment && currentYocoPayment.amount) ? currentYocoPayment.amount : 0;
-        const token = await createYocoToken({
-            number: cardNumber,
-            cvc: cvc,
-            expiryMonth: expiryDate.split('/')[0] || '12',
-            expiryYear: '20' + (expiryDate.split('/')[1] || '28'),
-            name: cardholderName
-        });
-
-        console.log("✅ Yoco token created:", token.id.substring(0, 15) + '...');
-
-        closeYocoPaymentModal();
-
-        alert('✅ Payment Successful! R' + currentYocoPayment.amount.toFixed(2) + ' has been processed. Receipt sent to ' + receiptEmail);
-
-        // Complete the order
-        await completeYocoPayment(token.id, receiptEmail);
-
-    } catch (error) {
-        console.error("❌ Payment Error:", error);
-
-        let errorMessage = 'Payment failed: ';
-        if (error.message.includes('insufficient')) {
-            errorMessage = 'Insufficient funds. Please use a different card.';
-        } else if (error.message.includes('declined')) {
-            errorMessage = 'Card declined. Please contact your bank or use a different card.';
-        } else {
-            errorMessage += error.message || 'Please check your card details and try again.';
-        }
-
-        errorsDiv.innerHTML = `<p>• ${errorMessage}</p>`;
-        errorsDiv.style.display = 'block';
-
-        errorsDiv.scrollIntoView({ behavior: 'smooth' });
-    } finally {
-        processBtn.innerHTML = originalText;
-        processBtn.disabled = false;
-    }
-}
-
-async function completeYocoPayment(tokenId, receiptEmail) {
-    try {
-        if (!window.pendingOrderData) {
-            throw new Error("No pending order data found");
-        }
-
-        const orderData = window.pendingOrderData;
-
-        // Update order with payment info
-        const db = window.firebaseDb;
-        if (orderData.orderId) {
-            const orderRef = window.firebaseDoc(db, 'orders', orderData.orderId);
-            await window.firebaseUpdateDoc(orderRef, {
-                paymentStatus: 'paid',
-                paymentToken: tokenId.substring(0, 15) + '...',
-                receiptEmail: receiptEmail,
-                updatedAt: new Date().toISOString()
-            });
-        }
-
-        // Send Customer Email & Admin Email
-        await sendOrderConfirmationEmail(orderData).catch(e => console.error("Customer Email error:", e));
-        await sendAdminOrderNotificationEmail(orderData).catch(e => console.error("Admin notification email error:", e));
-
-        // Clear cart
-        cart = [];
-        if (typeof updateCartCount === 'function') updateCartCount();
-        try { localStorage.removeItem('drixel_cart'); } catch(e) {}
-
-        // Clear pending order data
-        window.pendingOrderData = null;
-
-        // Redirect user to Order Confirmation Page
-        redirectToOrderConfirmation(orderData);
-
-    } catch (error) {
-        console.error("❌ Error completing Yoco payment:", error);
-        alert('Error completing order. Please contact support.');
-    }
-}
-
-function initiateYocoDirectPayment(productId, productName, price) {
-    const currentUser = window.currentFirebaseUser;
-    if (!currentUser) {
-        alert('Please login or create an account to make a purchase.');
-        showPage('auth');
-        return false;
-    }
-
-    const productKey = `product_${productId}`;
-    const product = window.PRODUCTS_DATA.find(p =>
-        String(p.id) === String(productId) ||
-        String(p._firestoreId) === String(productId) ||
-        p.id === productId ||
-        p._firestoreId === productId
-    );
-    const rawSelections = productSelections[productKey] || {};
-    const selections = {
-        size: rawSelections.size || (product ? product.sizes[0] : 'M'),
-        color: rawSelections.color || (product ? product.colors[0] : { name: 'Black', code: '#111111' })
-    };
-
-    const description = `Drixel SA: ${productName} (${selections.size}, ${selections.color.name})`;
-    const metadata = {
-        productId: productId,
-        productName: productName,
-        size: selections.size,
-        color: selections.color.name,
-        quantity: 1,
-        type: 'direct'
-    };
-
-    const customer = {
-        name: currentUser.displayName || currentUser.email.split('@')[0],
-        email: currentUser.email,
-        phone: ''
-    };
-
-    showYocoPaymentModal(price, description, metadata, customer);
-}
-
-function initiateYocoCheckoutFromCart() {
-    if (cart.length === 0) {
-        alert('Your cart is empty. Please add items to your cart first.');
-        return;
-    }
-
-    const firstName = document.getElementById('firstName')?.value;
-    const lastName = document.getElementById('lastName')?.value;
-    const email = document.getElementById('email')?.value;
-
-    if (firstName && lastName && email) {
-        initiateYocoCheckout();
-    } else {
-        checkAuthAndNavigate('checkout');
-
-        setTimeout(() => {
-            const payYoco = document.getElementById('payYoco');
-            if (payYoco) {
-                payYoco.checked = true;
-                payYoco.dispatchEvent(new Event('change'));
-            }
-        }, 500);
-    }
-}
-
+function initiateYocoCheckoutFromCart() { checkAuthAndNavigate('checkout'); }
 function initiateYocoCheckout() {
-    if (cart.length === 0) {
-        alert('Your cart is empty.');
-        return;
-    }
-
-    const firstName = document.getElementById('firstName')?.value;
-    const lastName = document.getElementById('lastName')?.value;
-    const email = document.getElementById('email')?.value;
-    const phone = document.getElementById('phone')?.value;
-
-    if (!firstName || !lastName || !email || !phone) {
-        alert('Please fill in all required shipping information before proceeding with Yoco payment.');
-        return;
-    }
-
-    // Calculate order total
-    const subtotal = cart.reduce((total, item) => total + (item.price * item.quantity), 0);
-    const shipping = calculateDeliveryFee(subtotal);
-    const total = subtotal + shipping;
-
-    // Generate order number
-    const orderNumber = generateOrderNumber();
-
-    const description = `Drixel SA Order #${orderNumber} (${cart.length} items)`;
-    const metadata = {
-        orderNumber: orderNumber,
-        type: 'checkout',
-        cart: cart.length
-    };
-
-    const customer = {
-        name: `${firstName} ${lastName}`,
-        email: email,
-        phone: phone
-    };
-
-    // Store order data temporarily
-    window.pendingOrderData = {
-        order_id: orderNumber,
-        orderNumber: orderNumber,
-        orderNumber: orderNumber,
-        customer: customer,
-        items: [...cart],
-        subtotal: subtotal,
-        shipping: shipping,
-        total: total,
-        paymentMethod: 'yoco',
-        paymentStatus: 'pending_payment',
-        subscribed: document.getElementById('newsletterSubscription')?.checked || false,
-        status: 'processing'
-    };
-
-    // Show Yoco payment modal
-    showYocoPaymentModal(total, description, metadata, customer);
+    const radio = document.getElementById('payYoco');
+    if (!radio) { checkAuthAndNavigate('checkout'); return; }
+    if (radio.disabled) { checkoutMessage('Card payments are currently unavailable. Choose another method.', true); return; }
+    radio.checked = true; return placeOrder();
 }
 
 // ===== EMAIL FUNCTIONS =====
@@ -3962,7 +3343,7 @@ function showAdminButton() {
 function showAdminDashboard() {
     const user = auth && auth.currentUser;
     const userEmail = (user && user.email ? user.email : '').toLowerCase();
-    const isAdmin = user && (userEmail === ADMIN_EMAIL.toLowerCase() || userEmail === 'drixelsa@gmail.com');
+    const isAdmin = user && window.drixelIsAdmin === true;
     if (!isAdmin) {
         if (typeof showToast === 'function') showToast('Access Denied: Admin privileges required.', 'error');
         alert('Access Denied: Admin privileges required.');
@@ -4134,8 +3515,8 @@ async function loadAdminOverview() {
                                         <tr>
                                             <td data-label="Order #">${order.order_id || order.orderNumber || order.id || '—'}</td>
                                             <td data-label="Customer">
-                                                <strong>${order.customer?.name || 'N/A'}</strong><br>
-                                                <small>${order.customer?.email || ''}</small>
+                                                <strong>${sanitizeInput(order.customer?.name) || 'N/A'}</strong><br>
+                                                <small>${sanitizeInput(order.customer?.email) || ''}</small>
                                             </td>
                                             <td data-label="Amount">R ${(order.total || 0).toFixed(2)}</td>
                                             <td data-label="Status">
@@ -4176,8 +3557,8 @@ async function loadAdminOverview() {
                             <h3 style="margin-bottom: 15px;">System Status</h3>
                             <div style="margin-bottom: 15px;">
                                 <p><strong>Firebase:</strong> <span style="color: #0caf60;">Connected ✓</span></p>
-                                <p><strong>Email Service:</strong> <span style="color: #0caf60;">${localStorage.getItem('drixel_resend_api_key') ? 'Direct Client Active ✓' : 'Cloud Function Active ✓'}</span></p>
-                                <p><strong>Yoco SDK:</strong> <span style="color: ${window.yocoSDK ? '#0caf60' : '#ef476f'};">${window.yocoSDK ? 'Ready ✓' : 'Not Loaded ✗'}</span></p>
+                                <p><strong>Email Service:</strong> <span style="color: #0caf60;">Server queue (check delivery logs)</span></p>
+                                <p><strong>Card payments:</strong> Hosted checkout; verify provider configuration before enabling.</p>
                                 <p><strong>Products Loaded:</strong> ${window.PRODUCTS_DATA.length}</p>
                                 <p><strong>Last Updated:</strong> ${new Date().toLocaleString()}</p>
                             </div>
@@ -4255,8 +3636,8 @@ async function loadAdminOrders() {
                                         <tr data-status="${order.paymentStatus}" data-order-status="${order.status || 'processing'}">
                                             <td style="padding: 12px; border-bottom: 1px solid #eee;">${order.order_id || order.orderNumber || order.id || '—'}</td>
                                             <td style="padding: 12px; border-bottom: 1px solid #eee;">
-                                                <strong>${order.customer?.name || 'N/A'}</strong><br>
-                                                <small>${order.customer?.email || ''}</small><br>
+                                                <strong>${sanitizeInput(order.customer?.name) || 'N/A'}</strong><br>
+                                                <small>${sanitizeInput(order.customer?.email) || ''}</small><br>
                                                 <small>${order.customer?.phone || ''}</small>
                                             </td>
                                             <td style="padding: 12px; border-bottom: 1px solid #eee;">
@@ -4335,7 +3716,7 @@ function closeOutForDeliveryModal() {
 function openOrderDeliveredModal(orderId, orderNumber) {
     currentAdminOrder = { id: orderId, orderNumber: orderNumber };
     document.getElementById('deliveryOrderIdDisplay').value = orderNumber;
-    document.getElementById('orderUrlDisplay').value = `${window.location.origin}/order/${orderNumber}`;
+    document.getElementById('orderUrlDisplay').value = `${window.location.origin}/orderConfirmation.html?order=${encodeURIComponent(orderNumber)}`;
     document.getElementById('orderDeliveredModal').classList.add('active');
 }
 
@@ -4359,168 +3740,17 @@ function closeConfirmPaymentModal() {
 }
 
 async function markOutForDeliveryAndEmail(orderIdOverride) {
-    const trackingNumber = document.getElementById('trackingNumber').value;
-    const courierService = document.getElementById('courierService').value;
-    const trackingUrl = document.getElementById('trackingUrl').value;
-
-    if (!trackingNumber || !courierService) {
-        alert('Please fill in all required fields (Tracking Number and Courier Service).');
-        return;
-    }
-
-    try {
-        const orderId = orderIdOverride || (currentAdminOrder && currentAdminOrder.id);
-        if (!orderId) {
-            alert('No order selected. Please open "Out for Delivery" from an order first.');
-            return;
-        }
-
-        const db = window.firebaseDb;
-        const orderDoc = await window.firebaseGetDoc(window.firebaseDoc(db, 'orders', orderId));
-
-        if (!orderDoc.exists()) {
-            alert('Order not found!');
-            return;
-        }
-
-        const order = { id: orderDoc.id, ...orderDoc.data() };
-
-        // Update order status
-        await window.firebaseUpdateDoc(window.firebaseDoc(db, 'orders', orderId), {
-            status: 'shipped',
-            trackingNumber: trackingNumber,
-            courierService: courierService,
-            trackingUrl: trackingUrl || '',
-            updatedAt: new Date().toISOString()
-        });
-
-        // Send out for delivery email
-        const emailResult = await sendOutForDeliveryEmailToCustomer(order, trackingNumber, courierService, trackingUrl || '');
-
-        if (emailResult.success) {
-            alert('✅ Order marked as shipped and email sent!');
-        } else {
-            alert('✅ Order marked as shipped but email failed to send: ' + emailResult.message);
-        }
-
-        closeOutForDeliveryModal();
-        loadAdminOrders();
-
-    } catch (error) {
-        console.error("❌ Error updating order:", error);
-        alert('Error updating order: ' + error.message);
-    }
+    try {await commerceCall('adminOrderAction',{orderId:orderIdOverride || currentAdminOrder?.id,status:'shipped',trackingNumber:document.getElementById('trackingNumber').value,courierService:document.getElementById('courierService').value,trackingUrl:document.getElementById('trackingUrl').value}); closeOutForDeliveryModal(); loadAdminOrders(); showToast('Order marked as shipped. Notification queued.', 'success');}
+    catch(error) {showToast(error.message, 'error');}
 }
 
 async function markDeliveredAndEmail() {
-    const deliveredDate = document.getElementById('deliveredDate').value;
-
-    if (!deliveredDate) {
-        alert('Please select a delivery date.');
-        return;
-    }
-
-    try {
-        if (!currentAdminOrder || !currentAdminOrder.id) {
-            alert('No order selected. Please open "Delivered" from an order first.');
-            return;
-        }
-        const db = window.firebaseDb;
-        const orderId = currentAdminOrder.id;
-        const orderDoc = await window.firebaseGetDoc(window.firebaseDoc(db, 'orders', orderId));
-
-        if (!orderDoc.exists()) {
-            alert('Order not found!');
-            return;
-        }
-
-        const order = { id: orderDoc.id, ...orderDoc.data() };
-
-        // Update order status
-        await window.firebaseUpdateDoc(window.firebaseDoc(db, 'orders', orderId), {
-            status: 'delivered',
-            deliveredDate: deliveredDate,
-            updatedAt: new Date().toISOString()
-        });
-
-        // Send order delivered email
-        const emailResult = await sendOrderDeliveredEmailToCustomer(order, deliveredDate);
-
-        if (emailResult.success) {
-            alert('✅ Order marked as delivered and email sent!');
-        } else {
-            alert('✅ Order marked as delivered but email failed to send: ' + emailResult.message);
-        }
-
-        closeOrderDeliveredModal();
-        loadAdminOrders();
-
-    } catch (error) {
-        console.error("❌ Error updating order:", error);
-        alert('Error updating order: ' + error.message);
-    }
+    try {await commerceCall('adminOrderAction',{orderId:currentAdminOrder?.id,status:'delivered',deliveredDate:document.getElementById('deliveredDate').value}); closeOrderDeliveredModal(); loadAdminOrders(); showToast('Order marked as delivered. Notification queued.', 'success');}
+    catch(error) {showToast(error.message, 'error');}
 }
 async function processPaymentConfirmation() {
-    try {
-        const db = window.firebaseDb;
-        const orderDoc = await window.firebaseGetDoc(window.firebaseDoc(db, 'orders', currentAdminOrder.id));
-
-        if (!orderDoc.exists()) {
-            alert('Order not found!');
-            return;
-        }
-
-        const order = {
-            id: orderDoc.id,
-            ...orderDoc.data(),
-            orderNumber: currentAdminOrder.orderNumber  // Ensure order number is included
-        };
-
-        console.log("✅ Processing payment confirmation for order:", order.orderNumber);
-
-        // Update payment status in Firebase
-        await window.firebaseUpdateDoc(window.firebaseDoc(db, 'orders', order.id), {
-            paymentStatus: 'paid',
-            updatedAt: new Date().toISOString(),
-            status: 'processing'
-        });
-
-        // Update local order object
-        order.paymentStatus = 'paid';
-
-        // Send BOTH emails
-
-        // Send emails based on rules:
-        // - Bank transfer: send Order Confirmation + Order Received AFTER admin confirms payment.
-        // - Yoco / SnapScan: Order Received is already sent at checkout, so we do not resend here.
-        let confirmationResult = { success: true, message: 'Skipped' };
-        let receivedResult = { success: true, message: 'Skipped' };
-
-        if ((order.paymentMethod || '').toLowerCase() === 'bank') {
-            console.log("📧 Sending Order Confirmation Email (Bank - confirmed in admin)...");
-            confirmationResult = await sendOrderConfirmationEmail(order);
-
-            console.log("📧 Sending Order Received Email (Bank - confirmed in admin)...");
-            receivedResult = await sendOrderReceivedEmail(order);
-        }
-
-        if (confirmationResult.success && receivedResult.success) {
-            alert('✅ Payment confirmed and emails handled successfully!\n\n' +
-                `Order #${order.order_id || order.orderNumber || currentAdminOrder.orderNumber || order.id} has been updated.\n` +
-                `Customer: ${order.customer?.email || order.customer_email || order.email || 'Email not found in order record'}`);
-        } else {
-            let message = '✅ Payment confirmed but email issues:\n';
-            if (!confirmationResult.success) message += `• Order Confirmation: ${confirmationResult.message || confirmationResult.details || ''}\n`;
-            if (!receivedResult.success) message += `• Order Received: ${receivedResult.message || receivedResult.details || ''}\n`;
-            alert(message);
-        }
-        closeConfirmPaymentModal();
-        loadAdminPending();
-
-    } catch (error) {
-        console.error("❌ Error confirming payment:", error);
-        alert('Error confirming payment: ' + error.message);
-    }
+    try {await commerceCall('adminOrderAction',{orderId:currentAdminOrder?.id,action:'confirm-payment'}); closeConfirmPaymentModal(); loadAdminPending(); showToast('Payment verified. Notification queued.', 'success');}
+    catch(error) {showToast(error.message, 'error');}
 }
 
 
@@ -4551,7 +3781,7 @@ function injectNewsletterSection() {
         <div class="container newsletter-container">
             <div class="newsletter-text">
                 <h3>BECOME A MEMBER</h3>
-                <p>Sign up to receive 15% off your first streetwear purchase plus exclusive capsule drop updates.</p>
+                <p>Sign up for new collections and exclusive capsule drop updates. Confirm your email to join; unsubscribe at any time.</p>
             </div>
             <form class="newsletter-form" id="newsletterForm" onsubmit="window.subscribeNewsletter(event)">
                 <input type="email" id="newsletterEmailInput" placeholder="Enter your email address" required autocomplete="off">
@@ -4566,45 +3796,12 @@ function injectNewsletterSection() {
 
 async function subscribeNewsletter(event) {
     event.preventDefault();
-    const emailInput = document.getElementById('newsletterEmailInput');
-    const messageDiv = document.getElementById('newsletterMessage');
-    if (!emailInput || !messageDiv) return;
-    
-    const email = emailInput.value.trim();
-    if (!email) return;
-    
-    messageDiv.className = 'newsletter-message';
-    messageDiv.innerHTML = 'Adding membership...';
-    
-    try {
-        const q = window.firebaseQuery(
-            window.firebaseCollection(window.firebaseDb, 'subscribers'),
-            window.firebaseWhere("email", "==", email)
-        );
-        const querySnapshot = await window.firebaseGetDocs(q);
-        
-        if (!querySnapshot.empty) {
-            messageDiv.className = 'newsletter-message error';
-            messageDiv.innerHTML = 'This email is already a member.';
-            return;
-        }
-        
-        await window.firebaseAddDoc(
-            window.firebaseCollection(window.firebaseDb, 'subscribers'),
-            {
-                email: email,
-                subscribedAt: new Date().toISOString()
-            }
-        );
-        
-        messageDiv.className = 'newsletter-message success';
-        messageDiv.innerHTML = 'Welcome to DRIXEL SA. Check your email for your 15% discount code!';
-        emailInput.value = '';
-    } catch (err) {
-        console.error("Newsletter subscription error:", err);
-        messageDiv.className = 'newsletter-message error';
-        messageDiv.innerHTML = 'Failed to subscribe. Please try again.';
-    }
+    const input=document.getElementById('newsletterEmailInput'), message=document.getElementById('newsletterMessage'), button=event.target.querySelector('button');
+    if(!input?.checkValidity()) {input?.reportValidity();return;}
+    if(button) button.disabled=true;
+    try {const result=await commerceCall('subscribeNewsletter',{email:input.value.trim()}); message.textContent=result.message; input.value='';}
+    catch(error) {message.textContent=error.message || 'Signup is temporarily unavailable.';}
+    finally {if(button) button.disabled=false;}
 }
 
 let currentVideoIndex = 0;
@@ -4750,51 +3947,7 @@ function initializeAppAfterFirebase() {
             viewProduct(productId);
         } catch (e) { console.error("Error loading product detail:", e); }
     } else if (path.endsWith('orderConfirmation.html') || path.endsWith('orderConfirmation')) {
-        try {
-            const urlParams = new URLSearchParams(window.location.search);
-            let orderNumber = urlParams.get('order') || urlParams.get('orderNumber') || '';
-            if (!orderNumber && window.location.hash) {
-                const hashMatch = window.location.hash.match(/order(?:Number)?=([^&]+)/);
-                if (hashMatch) {
-                    orderNumber = decodeURIComponent(hashMatch[1]);
-                } else if (window.location.hash.length > 1) {
-                    orderNumber = decodeURIComponent(window.location.hash.substring(1));
-                }
-            }
-            if (!orderNumber) {
-                if (typeof showToast === 'function') showToast('No order reference found. Redirecting to home...', 'warning');
-                setTimeout(() => {
-                    const isFileProtocol = window.location.protocol === 'file:';
-                    window.location.href = isFileProtocol ? 'index.html' : '/';
-                }, 2000);
-                return;
-            }
-            if (orderNumber) {
-                const orderNumElem = document.getElementById('orderNumber');
-                if (orderNumElem) orderNumElem.textContent = orderNumber;
-
-                const db = window.firebaseDb;
-                if (db && window.firebaseCollection && window.firebaseQuery && window.firebaseWhere && window.firebaseGetDocs) {
-                    const q = window.firebaseQuery(window.firebaseCollection(db, 'orders'), window.firebaseWhere("orderNumber", "==", orderNumber));
-                    window.firebaseGetDocs(q).then(querySnapshot => {
-                        if (!querySnapshot.empty) {
-                            const orderDoc = querySnapshot.docs[0];
-                            const orderData = orderDoc.data();
-                            const deliveryFeeInfo = document.getElementById('deliveryFeeInfo');
-                            if (deliveryFeeInfo) {
-                                if (orderData.shipping === 0) {
-                                    deliveryFeeInfo.textContent = 'Delivery: FREE (Order over R1000)';
-                                } else {
-                                    deliveryFeeInfo.textContent = `Delivery Fee: R${orderData.shipping.toFixed(2)}`;
-                                }
-                            }
-                        }
-                    }).catch(e => console.error("Error fetching order info:", e));
-                }
-            }
-        } catch (e) {
-            console.error("Error loading order confirmation details:", e);
-        }
+        renderSecureOrderConfirmation();
     }
 
     // Initialize modern sliding cart drawer
@@ -4830,7 +3983,7 @@ function initializeAppAfterFirebase() {
 
     console.log('=== DRIXEL SA READY ===');
     console.log('🔥 Firebase: Connected');
-    console.log('💳 Payments: Yoco & SnapScan Ready');
+    console.log('Checkout requires deployed server functions.');
     console.log('📧 Resend.com: Active');
     console.log('📦 Products: ' + window.PRODUCTS_DATA.length);
     console.log('👑 Admin: ' + ADMIN_EMAIL);
@@ -4867,7 +4020,7 @@ async function loadStorefrontProducts() {
             if (!snap.empty) {
                 const products = [];
                 snap.forEach(docSnap => {
-                    products.push({ ...docSnap.data(), _firestoreId: docSnap.id });
+                    products.push({ ...docSnap.data(), id: docSnap.data().id ?? docSnap.id, _firestoreId: docSnap.id });
                 });
                 window.PRODUCTS_DATA = products;
                 window._firestoreProducts = products;
@@ -4879,13 +4032,17 @@ async function loadStorefrontProducts() {
 
         // Re-render storefront with fresh data (status-filtered)
         const path = window.location.pathname;
-        const isCategoryPage = path.includes('/products/');
+        const isDetailPage = path.endsWith('/product.html') || path.endsWith('/product') || Boolean(window.forcedProductId);
+        const isCategoryPage = path.includes('/products/') && !isDetailPage;
         const isShopPage = path.endsWith('products.html') || path.endsWith('products') || isCategoryPage;
         const isHomepage = path === '/' || path === '' || (path.endsWith('index.html') && !path.includes('/products/'));
 
         if (isHomepage) {
             loadFeaturedProducts();
             if (typeof loadActiveBanners === 'function') loadActiveBanners();
+        } else if (isDetailPage) {
+            const id = window.forcedProductId || new URLSearchParams(location.search).get('id');
+            if(id) viewProduct(id);
         } else if (isShopPage) {
             loadAllProducts();
         }
@@ -5495,70 +4652,11 @@ function loadAdminSnapScan() {
 }
 
 function loadAdminYoco() {
-    const tabContent = document.getElementById('adminTabContent');
-    if (!tabContent) return;
-
-    const storedPublicKey = localStorage.getItem('drixel_yoco_public_key') || YOCO_PUBLIC_KEY;
-    const storedSecretKey = localStorage.getItem('drixel_yoco_secret_key') || '';
-
-    tabContent.innerHTML = `
-        <div style="margin-bottom: 30px;">
-            <h3>Yoco Credit Card Payments</h3>
-            <p style="color: #666;">Configure and manage live Yoco card processing for Drixel SA.</p>
-        </div>
-        
-        <div style="background: white; padding: 25px; border-radius: 12px; border: 1px solid #e0e0e0; margin-bottom: 30px;">
-            <h4 style="color: #111; margin-bottom: 20px;"><i class="fas fa-key"></i> Yoco API Credentials</h4>
-            
-            <div style="margin-bottom: 20px;">
-                <label style="display: block; font-weight: 700; font-size: 13px; text-transform: uppercase; margin-bottom: 8px; color: #444;">Yoco Public Key (pk_live_...)</label>
-                <input type="text" id="adminYocoPublicKey" value="${storedPublicKey}" placeholder="pk_live_..." style="width: 100%; padding: 11px 14px; border: 1px solid #ddd; border-radius: 8px; font-family: monospace; font-size: 13px; box-sizing: border-box;">
-            </div>
-
-            <div style="margin-bottom: 20px;">
-                <label style="display: block; font-weight: 700; font-size: 13px; text-transform: uppercase; margin-bottom: 8px; color: #444;">Yoco Secret Key (sk_live_...)</label>
-                <input type="password" id="adminYocoSecretKey" value="${storedSecretKey}" placeholder="sk_live_..." style="width: 100%; padding: 11px 14px; border: 1px solid #ddd; border-radius: 8px; font-family: monospace; font-size: 13px; box-sizing: border-box;">
-                <small style="color: #888; display: block; margin-top: 6px;">Stored securely in browser settings (never exposed to git public repositories).</small>
-            </div>
-
-            <div style="display: flex; align-items: center; gap: 15px;">
-                <button onclick="adminSaveYocoKeys()" style="background: #0caf60; color: white; border: none; padding: 11px 26px; border-radius: 8px; font-weight: 700; cursor: pointer; font-size: 14px;">
-                    Save Yoco Keys
-                </button>
-                <span id="yocoSaveStatus" style="font-weight: 600; font-size: 13px;"></span>
-            </div>
-        </div>
-
-        <div style="background: #f8f9fa; padding: 20px; border-radius: 12px; border: 1px solid #eee;">
-            <h4 style="margin-bottom: 12px; color: #111;"><i class="fas fa-check-circle" style="color: #0caf60;"></i> Yoco SDK Integration Status</h4>
-            <p style="margin: 6px 0; color: #444;"><strong>Active Public Key:</strong> <code style="background: #e9ecef; padding: 2px 6px; border-radius: 4px;">${storedPublicKey.substring(0, 20)}...</code></p>
-            <p style="margin: 6px 0; color: #444;"><strong>Yoco Web SDK:</strong> ${window.yocoSDK ? '<span style="color: #0caf60; font-weight: bold;">Loaded & Ready ✓</span>' : '<span style="color: #0caf60; font-weight: bold;">Active ✓</span>'}</p>
-        </div>
-    `;
+    const tabContent=document.getElementById('adminTabContent');
+    if(tabContent) tabContent.innerHTML='<h3>Yoco payments</h3><p>Card payments use hosted checkout. Secret keys are configured on the server. Orders are marked paid only after a verified payment notification.</p>';
 }
 
-window.adminSaveYocoKeys = function() {
-    const pk = (document.getElementById('adminYocoPublicKey')?.value || '').trim();
-    const sk = (document.getElementById('adminYocoSecretKey')?.value || '').trim();
-
-    if (pk) {
-        localStorage.setItem('drixel_yoco_public_key', pk);
-        YOCO_PUBLIC_KEY = pk;
-    }
-    if (sk) {
-        localStorage.setItem('drixel_yoco_secret_key', sk);
-    }
-
-    const status = document.getElementById('yocoSaveStatus');
-    if (status) {
-        status.textContent = '✅ Yoco Keys Saved!';
-        status.style.color = '#0caf60';
-        setTimeout(() => { status.textContent = ''; }, 3000);
-    }
-    if (typeof showToast === 'function') {
-        showToast('Yoco API Credentials saved successfully!', 'success');
-    }
-};
+window.adminSaveYocoKeys = function() { showToast('Configure payment credentials in Firebase Secret Manager.', 'info'); };
 
 async function loadAdminPending() {
     const tabContent = document.getElementById('adminTabContent');
@@ -5608,8 +4706,8 @@ async function loadAdminPending() {
                                         <tr>
                                             <td style="padding: 12px; border-bottom: 1px solid #eee;">${order.order_id || order.orderNumber || order.id || '—'}</td>
                                             <td style="padding: 12px; border-bottom: 1px solid #eee;">
-                                                ${order.customer?.name || 'N/A'}<br>
-                                                <small>${order.customer?.email || ''}</small>
+                                                ${sanitizeInput(order.customer?.name) || 'N/A'}<br>
+                                                <small>${sanitizeInput(order.customer?.email) || ''}</small>
                                             </td>
                                             <td style="padding: 12px; border-bottom: 1px solid #eee;">R ${(order.total || 0).toFixed(2)}</td>
                                             <td style="padding: 12px; border-bottom: 1px solid #eee;">
@@ -5628,7 +4726,7 @@ async function loadAdminPending() {
                                             </td>
                                             <td style="padding: 12px; border-bottom: 1px solid #eee;">
                                                 ${isBankTransfer ? `
-                                                    <button onclick="openConfirmPaymentModal('${orderId}', '${order.order_id || order.orderNumber}', '${order.customer?.email}', ${order.total || 0}, '${order.paymentMethod}')" style="background: #0caf60; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; margin-right: 5px;">
+                                                    <button onclick="openConfirmPaymentModal('${orderId}', '${order.order_id || order.orderNumber}', '${sanitizeInput(JSON.stringify(order.customer?.email || '')).slice(1,-1)}', ${order.total || 0}, '${order.paymentMethod}')" style="background: #0caf60; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; margin-right: 5px;">
                                                         Confirm Payment
                                                     </button>
                                                 ` : ''}
@@ -5661,136 +4759,29 @@ async function loadAdminPending() {
 }
 
 function loadAdminSettings() {
-    const tabContent = document.getElementById('adminTabContent');
-    if (!tabContent) return;
-
-    let resendApiKey = '';
-    localStorage.removeItem('drixel_resend_api_key');
-    const resendFromEmail = localStorage.getItem('drixel_resend_from_email') || 'info@customer.drixelsa.co.za';
-    const emailEndpoint = localStorage.getItem('drixel_email_endpoint') || '/api/send-email';
-
-    tabContent.innerHTML = `
-                <div style="margin-bottom: 30px;">
-                    <h3>Settings</h3>
-                    <p style="color: #666;">Configure store settings and preferences.</p>
-                </div>
-                
-                <div style="background: white; padding: 30px; border-radius: 10px; border: 1px solid #e0e0e0; margin-bottom: 30px;">
-                    <h4 style="margin-bottom: 25px;">Store Configuration</h4>
-                    
-                    <div style="margin-bottom: 20px;">
-                        <label style="display: block; margin-bottom: 8px; font-weight: 600;">Delivery Fee (R)</label>
-                        <input type="number" id="deliveryFee" value="${DELIVERY_FEE}" step="0.01" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
-                    </div>
-                    
-                    <div style="margin-bottom: 20px;">
-                        <label style="display: block; margin-bottom: 8px; font-weight: 600;">Free Delivery Threshold (R)</label>
-                        <input type="number" id="freeDeliveryThreshold" value="${FREE_DELIVERY_THRESHOLD}" step="0.01" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
-                    </div>
-                </div>
-
-                <div style="background: white; padding: 30px; border-radius: 10px; border: 1px solid #e0e0e0;">
-                    <h4 style="margin-bottom: 25px;">Email Configuration (Resend.com)</h4>
-                    
-                    <div style="margin-bottom: 20px;">
-                        <label style="display: block; margin-bottom: 8px; font-weight: 600;">Resend API Key (Direct Client Sending)</label>
-                        <input type="password" id="resendApiKey" value="${resendApiKey}" placeholder="re_..." style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
-                        <small style="color: #888;">If key is populated, emails send directly from browser via CORS proxy. Clear this to use Firebase Functions.</small>
-                    </div>
-
-                    <div style="margin-bottom: 20px;">
-                        <label style="display: block; margin-bottom: 8px; font-weight: 600;">From Email Address</label>
-                        <input type="text" id="resendFromEmail" value="${resendFromEmail}" placeholder="Drixel SA <info@customer.drixelsa.co.za>" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
-                        <small style="color: #888;">Must match your verified domain in Resend (e.g. info@customer.drixelsa.co.za).</small>
-                    </div>
-
-                    <div style="margin-bottom: 20px;">
-                        <label style="display: block; margin-bottom: 8px; font-weight: 600;">Email Cloud Function Endpoint (If Key is Blank)</label>
-                        <input type="text" id="emailEndpoint" value="${emailEndpoint}" placeholder="/api/send-email" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
-                        <small style="color: #888;">Use /api/send-email for Firebase Hosting. Leave Resend API Key blank if using this.</small>
-                    </div>
-                    
-                    <div style="display: flex; gap: 15px; margin-top: 30px;">
-                        <button onclick="saveSettings()" style="background: #0caf60; color: white; border: none; padding: 12px 30px; border-radius: 5px; cursor: pointer; font-weight: 600;">
-                            Save All Settings
-                        </button>
-                    </div>
-                </div>
-
-                <div style="background: white; padding: 30px; border-radius: 10px; border: 1px solid #e0e0e0; margin-top: 30px;">
-                    <h4 style="margin-bottom: 25px;">Test Email Connection</h4>
-                    <div style="margin-bottom: 20px;">
-                        <label style="display: block; margin-bottom: 8px; font-weight: 600;">Test Recipient Email Address</label>
-                        <input type="text" id="testEmailRecipient" placeholder="recipient@example.com" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
-                        <small style="color: #888;">Enter a test email address and click the button to send a diagnostic test email via Resend.</small>
-                    </div>
-                    <button onclick="sendTestEmail()" id="testEmailBtn" style="background: #ff6b00; color: white; border: none; padding: 12px 30px; border-radius: 5px; cursor: pointer; font-weight: 600;">
-                        Send Test Email
-                    </button>
-                </div>
-            `;
+    const tab=document.getElementById('adminTabContent'); if(!tab) return;
+    tab.innerHTML=`<h3>Store settings</h3><p>Payment and email credentials are configured on the server.</p>
+    <div class="form-group"><label for="deliveryFee">Delivery fee (R)</label><input id="deliveryFee" type="number" min="0" step="0.01" value="${DELIVERY_FEE}"></div>
+    <div class="form-group"><label for="freeDeliveryThreshold">Free delivery from (R)</label><input id="freeDeliveryThreshold" type="number" min="0" step="0.01" value="${FREE_DELIVERY_THRESHOLD}"></div>
+    <button class="btn" onclick="saveSettings()">Save settings</button>
+    <h4>Email diagnostics</h4><p>Automatic order emails are queued on the server. Review mail_jobs in Firebase for delivery failures.</p>
+    <label for="testEmailRecipient">Test recipient</label><input type="email" id="testEmailRecipient"><button class="btn" id="testEmailBtn" onclick="sendTestEmail()">Send test email</button>`;
 }
 
 async function saveSettings() {
-    const newDeliveryFee = parseFloat(document.getElementById('deliveryFee').value);
-    const newFreeThreshold = parseFloat(document.getElementById('freeDeliveryThreshold').value);
-    const newResendApiKey = document.getElementById('resendApiKey').value.trim();
-    const newResendFromEmail = document.getElementById('resendFromEmail').value.trim();
-    const newEmailEndpoint = document.getElementById('emailEndpoint').value.trim();
-
-    if (!isNaN(newDeliveryFee)) {
-        DELIVERY_FEE = newDeliveryFee;
-        localStorage.setItem('drixel_delivery_fee', newDeliveryFee);
-    }
-
-    if (!isNaN(newFreeThreshold)) {
-        FREE_DELIVERY_THRESHOLD = newFreeThreshold;
-        localStorage.setItem('drixel_free_delivery_threshold', newFreeThreshold);
-    }
-
-    localStorage.removeItem('drixel_resend_api_key');
-    localStorage.setItem('drixel_resend_from_email', newResendFromEmail);
-    localStorage.setItem('drixel_email_endpoint', newEmailEndpoint);
-
+    const deliveryFee=Number(document.getElementById('deliveryFee').value),freeDeliveryThreshold=Number(document.getElementById('freeDeliveryThreshold').value);
+    if(!Number.isFinite(deliveryFee) || !Number.isFinite(freeDeliveryThreshold) || deliveryFee<0 || freeDeliveryThreshold<0) {showToast('Enter valid delivery amounts.', 'error');return;}
     try {
-        if (db) {
-            await window.firebaseSetDoc(window.firebaseDoc(db, 'settings', 'store_config'), {
-                resendApiKey: newResendApiKey,
-                resendFromEmail: newResendFromEmail,
-                emailEndpoint: newEmailEndpoint,
-                deliveryFee: newDeliveryFee,
-                freeDeliveryThreshold: newFreeThreshold,
-                updatedAt: new Date().toISOString()
-            }, { merge: true });
-        }
-    } catch(e) {
-        console.warn('Could not sync settings to Firestore:', e.message);
-    }
-
-    alert('Settings saved successfully and synced to database!');
+        // Replace this public-era document to remove any legacy credential fields.
+        await window.firebaseSetDoc(window.firebaseDoc(db,'settings','store_config'),{deliveryFee,freeDeliveryThreshold,updatedAt:new Date().toISOString()});
+        DELIVERY_FEE=deliveryFee;FREE_DELIVERY_THRESHOLD=freeDeliveryThreshold;
+        showToast('Delivery settings saved.', 'success');
+    } catch(error) {showToast('Settings could not be saved: '+error.message, 'error');}
 }
 
 async function loadStoreSettingsFromFirestore() {
-    try {
-        if (!db) return;
-        const settingsDoc = await window.firebaseGetDoc(window.firebaseDoc(db, 'settings', 'store_config'));
-        if (settingsDoc.exists()) {
-            const data = settingsDoc.data();
-            if (data.resendApiKey) localStorage.removeItem('drixel_resend_api_key');
-            if (data.resendFromEmail) localStorage.setItem('drixel_resend_from_email', data.resendFromEmail);
-            if (data.emailEndpoint) localStorage.setItem('drixel_email_endpoint', data.emailEndpoint);
-            if (data.deliveryFee && !isNaN(parseFloat(data.deliveryFee))) {
-                DELIVERY_FEE = parseFloat(data.deliveryFee);
-                localStorage.setItem('drixel_delivery_fee', data.deliveryFee);
-            }
-            if (data.freeDeliveryThreshold && !isNaN(parseFloat(data.freeDeliveryThreshold))) {
-                FREE_DELIVERY_THRESHOLD = parseFloat(data.freeDeliveryThreshold);
-                localStorage.setItem('drixel_free_delivery_threshold', data.freeDeliveryThreshold);
-            }
-        }
-    } catch(e) {
-        console.warn('Failed to load store settings from Firestore:', e.message);
-    }
+    try {const settings=await commerceCall('getCheckoutConfig');DELIVERY_FEE=settings.deliveryFee;FREE_DELIVERY_THRESHOLD=settings.freeDeliveryThreshold;}
+    catch(error) {console.warn('Delivery estimates unavailable. Checkout will verify the total.');}
 }
 window.loadStoreSettingsFromFirestore = loadStoreSettingsFromFirestore;
 
@@ -5953,7 +4944,10 @@ function showAddProductForm(productId) {
                 <div class="pm-row">
                     <div class="pm-field">
                         <label>Stock Quantity</label>
-                        <input type="number" id="pmStock" min="0" placeholder="Leave blank for unlimited" value="${p.stock !== undefined ? p.stock : ''}">
+                        <input type="number" id="pmStock" min="0" placeholder="Leave blank for unlimited" value="${p.stock ?? ''}">
+                        <label for="pmVariants">Stock by size and colour (optional JSON)</label>
+                        <textarea id="pmVariants" rows="5" placeholder='[{"size":"M","color":"Black","stock":5}]'>${sanitizeInput(p.variants ? JSON.stringify(p.variants,null,2) : '')}</textarea>
+                        <small>Leave blank to use total stock. When provided, unlisted combinations cannot be purchased.</small>
                     </div>
                     <div class="pm-field">
                         <label>Sale % Off</label>
@@ -6214,8 +5208,15 @@ async function adminSaveProduct(existingIdOrFirestoreId, statusOverride) {
     const bestSeller = document.getElementById('tag_bestSeller')?.checked || false;
     const onSale = document.getElementById('tag_onSale')?.checked || false;
 
+    let variants = null;
+    try {
+        const raw = document.getElementById('pmVariants')?.value.trim();
+        variants = raw ? JSON.parse(raw) : null;
+        if (stock !== null && (!Number.isInteger(stock) || stock < 0)) throw new Error('Stock must be a nonnegative whole number.');
+        if (variants !== null && (!Array.isArray(variants) || variants.length > 200 || variants.some(v => !sizes.includes(v.size) || !colors.some(c=>c.name===v.color) || !Number.isInteger(v.stock) || v.stock<0) || new Set(variants.map(v=>JSON.stringify([v.size,v.color]))).size !== variants.length)) throw new Error('Check each variant size, colour and stock quantity.');
+    } catch(error) {showToast(error.message, 'error');if(saveBtn) {saveBtn.disabled=false;saveBtn.textContent='Save to Firestore';}return;}
     const productData = {
-        name, description, category, price,
+        name, description, category, price, variants,
         images,
         image: images[0] || '',
         sizes: sizes.length > 0 ? sizes : ['S', 'M', 'L', 'XL'],
@@ -6223,7 +5224,7 @@ async function adminSaveProduct(existingIdOrFirestoreId, statusOverride) {
         featured, newArrival, bestSeller, onSale,
         status: status === 'draft' ? 'draft' : status,
         ...(comparePrice ? { comparePrice } : {}),
-        ...(stock !== null ? { stock } : {}),
+        stock,
         ...(salePercent ? { salePercent } : {}),
         updatedAt: new Date().toISOString()
     };
@@ -6741,34 +5742,10 @@ async function renderActivePromotions(el) {
 }
 
 // Coupon validation at checkout
-async function validateCoupon(code) {
-    if (!code) return { valid: false, message: 'Please enter a coupon code.' };
-    const upperCode = code.trim().toUpperCase();
-    try {
-        const db = window.firebaseDb;
-        const q = window.firebaseQuery(window.firebaseCollection(db, 'coupons'), window.firebaseWhere('code', '==', upperCode));
-        const snap = await window.firebaseGetDocs(q);
-        if (snap.empty) return { valid: false, message: `Coupon "${upperCode}" not found.` };
-        const docSnap = snap.docs[0];
-        const coupon = docSnap.data();
-        const now = Date.now();
-        if (coupon.active === false) return { valid: false, message: 'This coupon is not active.' };
-        if (coupon.expiry && new Date(coupon.expiry).getTime() < now) return { valid: false, message: 'This coupon has expired.' };
-        if (coupon.maxUses && (coupon.usedCount || 0) >= coupon.maxUses) return { valid: false, message: 'This coupon has reached its usage limit.' };
-        return { valid: true, coupon, firestoreId: docSnap.id };
-    } catch(e) {
-        return { valid: false, message: 'Error validating coupon: ' + e.message };
-    }
+async function validateCoupon() { return {valid:false,message:'Enter your discount code at checkout to validate it securely.'};
 }
 
-async function applyCouponUsage(firestoreId) {
-    try {
-        const docRef = window.firebaseDoc(window.firebaseDb, 'coupons', firestoreId);
-        const snap = await window.firebaseGetDoc(docRef);
-        if (snap.exists()) {
-            await window.firebaseUpdateDoc(docRef, { usedCount: (snap.data().usedCount || 0) + 1 });
-        }
-    } catch(e) { console.error('Coupon usage update failed:', e); }
+async function applyCouponUsage() { /* Coupon usage is controlled by the server. */
 }
 
 // Homepage banners injection with 4 beautiful templates
@@ -6943,8 +5920,8 @@ async function viewOrderDetails(orderId) {
                                     <div>
                                         <h4 style="margin-bottom: 15px;">Customer Information</h4>
                                         <div style="background: #f8f9fa; padding: 20px; border-radius: 8px;">
-                                            <p><strong>Name:</strong> ${order.customer?.name || 'N/A'}</p>
-                                            <p><strong>Email:</strong> ${order.customer?.email || 'N/A'}</p>
+                                            <p><strong>Name:</strong> ${sanitizeInput(order.customer?.name) || 'N/A'}</p>
+                                            <p><strong>Email:</strong> ${sanitizeInput(order.customer?.email) || 'N/A'}</p>
                                             <p><strong>Phone:</strong> ${order.customer?.phone || 'N/A'}</p>
                                             <p><strong>Address:</strong> ${order.customer?.address || 'N/A'}</p>
                                             <p><strong>City:</strong> ${order.customer?.city || 'N/A'}</p>
@@ -7007,12 +5984,12 @@ async function viewOrderDetails(orderId) {
                                 
                                 <div style="display: flex; gap: 15px; flex-wrap: wrap;">
                                     ${order.paymentMethod === 'bank' && order.paymentStatus === 'pending' ? `
-                                        <button onclick="openConfirmPaymentModal('${orderId}', '${order.order_id || order.orderNumber}', '${order.customer?.email}', ${order.total || 0}, '${order.paymentMethod}')" style="background: #0caf60; color: white; border: none; padding: 12px; border-radius: 5px; cursor: pointer;">
+                                        <button onclick="openConfirmPaymentModal('${orderId}', '${order.order_id || order.orderNumber}', '${sanitizeInput(JSON.stringify(order.customer?.email || '')).slice(1,-1)}', ${order.total || 0}, '${order.paymentMethod}')" style="background: #0caf60; color: white; border: none; padding: 12px; border-radius: 5px; cursor: pointer;">
                                             Confirm Payment
                                         </button>
                                     ` : ''}
                                     ${order.status === 'processing' ? `
-                                        <button onclick="openOutForDeliveryModal('${orderId}', '${order.customer?.name || ''}', '${order.order_id || order.orderNumber}')" style="background: #ff6b00; color: white; border: none; padding: 12px; border-radius: 5px; cursor: pointer;">
+                                        <button onclick="openOutForDeliveryModal('${orderId}', '', '${order.order_id || order.orderNumber}')" style="background: #ff6b00; color: white; border: none; padding: 12px; border-radius: 5px; cursor: pointer;">
                                             Mark as Shipped
                                         </button>
                                     ` : ''}
@@ -7116,10 +6093,7 @@ window.adminUpdateOrderCustomer = async function(orderId) {
             city: document.getElementById('edit-customer-city').value.trim(),
             postalCode: document.getElementById('edit-customer-postal').value.trim()
         };
-        await window.firebaseUpdateDoc(window.firebaseDoc(db, 'orders', orderId), {
-            customer: updatedCustomer,
-            updatedAt: new Date().toISOString()
-        });
+        await commerceCall('adminOrderAction', {orderId, action:'customer', customer:updatedCustomer});
         if (statusEl) { statusEl.textContent = '✅ Customer details saved!'; statusEl.style.color = '#0caf60'; }
         console.log("✅ Customer details updated for order:", orderId);
     } catch (error) {
@@ -7150,7 +6124,7 @@ window.adminResendOrderEmail = async function(orderId) {
         else result = { success: false, message: 'Unknown email type' };
 
         if (result && result.success) {
-            if (statusEl) { statusEl.textContent = `✅ Email sent to ${order.customer?.email || 'customer'}!`; statusEl.style.color = '#0caf60'; }
+            if (statusEl) { statusEl.textContent = `✅ Email sent to ${sanitizeInput(order.customer?.email) || 'customer'}!`; statusEl.style.color = '#0caf60'; }
         } else {
             if (statusEl) { statusEl.textContent = `❌ Failed: ${result?.message || 'Unknown error'}`; statusEl.style.color = '#dc3545'; }
         }
@@ -7169,43 +6143,10 @@ function closeModal() {
 window.closeModal = closeModal;
 
 async function updateOrderStatus(orderId) {
-    const status = prompt('Enter new order status (processing, shipped, delivered, cancelled):', 'shipped');
-    if (!status) return;
-
-    try {
-        const db = window.firebaseDb;
-        const docRef = window.firebaseDoc(db, 'orders', orderId);
-        const docSnap = await window.firebaseGetDoc(docRef);
-
-        if (!docSnap.exists()) {
-            alert('Order not found!');
-            return;
-        }
-
-        const order = { id: docSnap.id, ...docSnap.data() };
-
-        await window.firebaseUpdateDoc(docRef, {
-            status: status,
-            updatedAt: new Date().toISOString()
-        });
-
-        let emailMsg = '';
-        if (status.toLowerCase() === 'cancelled') {
-            const emailResult = await sendOrderCancelledEmailToCustomer(order);
-            if (emailResult.success) {
-                emailMsg = ' and cancellation email sent!';
-            } else {
-                emailMsg = ' but cancellation email failed to send: ' + emailResult.message;
-            }
-        }
-
-        alert(`Order status updated to: ${status}${emailMsg}`);
-        closeModal();
-        loadAdminOrders();
-    } catch (error) {
-        console.error("❌ Error updating order status:", error);
-        alert('Error updating order status: ' + error.message);
-    }
+    const status=prompt('Enter cancelled to cancel an unpaid order. Use the delivery controls for shipping updates.');
+    if(!status) return;
+    try {await commerceCall('adminOrderAction',{orderId,status:status.trim().toLowerCase()}); closeModal(); loadAdminOrders(); showToast('Order updated. Notification queued.', 'success');}
+    catch(error) {showToast(error.message, 'error');}
 }
 window.updateOrderStatus = updateOrderStatus;
 // ===== EXPOSE FUNCTIONS FOR INLINE onclick="..." =====
@@ -7498,7 +6439,8 @@ async function firebaseGoogleLogin() {
         }
         
         // Redirect to products page
-        window.location.href = 'products.html';
+        window.location.href = sessionStorage.getItem('drixel_after_login') === '/checkout.html' ? '/checkout.html' : '/products.html';
+        sessionStorage.removeItem('drixel_after_login');
     } catch (error) {
         console.error("❌ Google login error:", error);
         alert('Google login failed: ' + (error.message || 'Please try again.'));
@@ -7508,38 +6450,12 @@ window.firebaseGoogleLogin = firebaseGoogleLogin;
 
 // ===== CONTACT MESSAGE SUBMISSION =====
 async function sendContactMessage() {
-    const name = document.getElementById('contactName')?.value;
-    const email = document.getElementById('contactEmail')?.value;
-    const subject = document.getElementById('contactSubject')?.value;
-    const message = document.getElementById('contactMessage')?.value;
-
-    if (!name || !email || !subject || !message) {
-        alert('Please fill in all fields before sending your message.');
-        return;
-    }
-
-    try {
-        console.log("📨 Sending contact message...");
-        const db = window.firebaseDb;
-        if (db && window.firebaseAddDoc && window.firebaseCollection) {
-            await window.firebaseAddDoc(window.firebaseCollection(db, window.firebaseCollections.CONTACTS), {
-                name,
-                email,
-                subject,
-                message,
-                timestamp: new Date().toISOString()
-            });
-        }
-        
-        // Clear form
-        const form = document.getElementById('contactForm');
-        if (form) form.reset();
-
-        alert('Thank you for contacting Drixel SA! Your message has been sent successfully. We will get back to you shortly.');
-    } catch (error) {
-        console.error("❌ Error sending contact message:", error);
-        alert('There was an error sending your message. Please try again later.');
-    }
+    const form=document.getElementById('contactForm');
+    if(form && !form.reportValidity()) return;
+    const button=form?.querySelector('button'); if(button) button.disabled=true;
+    try {await commerceCall('sendContact',{name:document.getElementById('contactName')?.value,email:document.getElementById('contactEmail')?.value,subject:document.getElementById('contactSubject')?.value,message:document.getElementById('contactMessage')?.value}); form?.reset(); showToast('Your message was received. Our team will get back to you.', 'success');}
+    catch(error) {showToast(error.message || 'Your message could not be sent.', 'error');}
+    finally {if(button) button.disabled=false;}
 }
 window.sendContactMessage = sendContactMessage;
 
@@ -7613,7 +6529,7 @@ function showToast(message, type = 'info') {
 
     toast.innerHTML = `
         <i class="fas ${iconClass} toast-icon"></i>
-        <div class="toast-content">${message.replace(/\n/g, '<br>')}</div>
+        <div class="toast-content">${sanitizeInput(String(message)).replace(/\n/g, '<br>')}</div>
         <button class="toast-close">&times;</button>
         <div class="toast-progress"></div>
     `;
@@ -7757,3 +6673,33 @@ if (document.readyState === 'loading') {
     try { loadActiveBanners(); } catch(e) {}
 }
 
+
+
+async function renderSecureOrderConfirmation() {
+    const params=new URLSearchParams(location.search);
+    const id=params.get('order') || params.get('orderId') || params.get('orderNumber') || new URLSearchParams(location.hash.slice(1)).get('order');
+    const message=document.getElementById('confirmationMessage');
+    if(!message) return;
+    const heading=document.querySelector('#orderConfirmationPage h1, #orderConfirmationPage h2');
+    if(heading) heading.textContent='Order status';
+    if(!id) {message.textContent='No order reference was provided.';return;}
+    document.getElementById('orderNumber').textContent=id;
+    if(!window.firebaseAuthInitialized) {clearTimeout(confirmationTimer);confirmationTimer=setTimeout(renderSecureOrderConfirmation,500);return;}
+    if(!auth.currentUser) {message.innerHTML='Please <a href="/auth.html">sign in</a> with the account used for this order, then return to this page.';return;}
+    try {
+        const order=await commerceCall('getOrder',{orderId:id});
+        document.getElementById('orderNumber').textContent=order.orderNumber;
+        const fee=document.getElementById('deliveryFeeInfo'); if(fee) fee.textContent=`Total: R ${Number(order.total).toFixed(2)} · Delivery: R ${Number(order.shipping).toFixed(2)}`;
+        const text=order.status==='payment_review'?'Payment received. Our team is checking availability before dispatch.':order.status==='cancelled'?'This order is cancelled. Please contact us if you already paid.':order.paymentStatus==='paid'?`Payment verified. Order status: ${order.status}.`:'Your order is saved and awaiting payment verification. It will not ship until payment is confirmed.';
+        message.textContent=text;
+        document.getElementById('orderPaymentInstructions')?.remove();
+        const instructions=document.createElement('div'); instructions.id='orderPaymentInstructions'; message.after(instructions);
+        if(order.paymentStatus!=='paid' && order.status==='pending') {
+            if(order.paymentMethod==='bank') instructions.innerHTML=`<p>Pay R ${Number(order.total).toFixed(2)} within 48 hours.<br>Standard Bank · Drixel SA · Account 071337873<br>Reference: <strong>${sanitizeInput(order.orderNumber)}</strong></p>`;
+            if(order.paymentMethod==='snapscan') {const a=document.createElement('a'); a.className='btn';a.textContent='Open SnapScan to pay';a.href=`https://pos.snapscan.io/qr/qvxSxlIE?amount=${Math.round(order.total*100)}&reference=${encodeURIComponent(order.orderNumber)}`;instructions.append(a);instructions.append(document.createTextNode(' Use your order reference and pay within 48 hours. Payment is manually verified.'));}
+            if(order.paymentMethod==='yoco') {const b=document.createElement('button');b.className='btn';b.textContent='Continue to secure payment';b.onclick=async()=>{b.disabled=true;try {const p=await commerceCall('startYocoCheckout',{orderId:order.id});location.assign(p.redirectUrl);}catch(error){message.textContent=error.message;b.disabled=false;}};instructions.append(b);}
+        }
+        const status=document.createElement('div');instructions.append(status);renderTrackerTimeline(order,status);
+        if(order.paymentMethod==='yoco' && order.paymentStatus!=='paid' && order.status==='pending') {clearTimeout(confirmationTimer);confirmationTimer=setTimeout(renderSecureOrderConfirmation,15000);}
+    } catch(error) {message.textContent=error.message || 'Unable to retrieve your order.';}
+}
