@@ -1,3 +1,4 @@
+import{useAdminData}from"./useAdminData.js";import AdminDataState from"./AdminDataState.jsx";
 import React,{useEffect,useState}from"react";
 import{addDoc,collection,doc,onSnapshot,serverTimestamp,updateDoc}from"firebase/firestore";
 import{db}from"../config/firebase-react.js";
@@ -5,34 +6,19 @@ import{useDialog}from"../components/DialogProvider.jsx";
 
 export default function ReturnsAdmin(){
   const dialog=useDialog();
-  const[rows,setRows]=useState([]);
-  const[orders,setOrders]=useState([]);
-  const[form,setForm]=useState({orderId:"",reason:"",notes:""});
-
-  useEffect(()=>{
-    const stopReturns=onSnapshot(collection(db,"returns"),snap=>{
-      setRows(snap.docs.map(item=>({id:item.id,...item.data()})));
-    });
-    const stopOrders=onSnapshot(collection(db,"orders"),snap=>{
-      setOrders(
-        snap.docs
-          .map(item=>({id:item.id,...item.data()}))
-          .filter(order=>order.paymentStatus==="paid")
-      );
-    });
-    return()=>{
-      stopReturns();
-      stopOrders();
-    };
-  },[]);
+  const connection=useAdminData(["returns","orders"]);
+  const rows=connection.data.returns||[],orders=(connection.data.orders||[]).filter(order=>order.paymentStatus==="paid");
+  const[form,setForm]=useState({orderId:"",reason:"",notes:""}),[busy,setBusy]=useState(false);
 
   async function create(e){
     e.preventDefault();
+    if(busy)return;
     const order=orders.find(item=>item.id===form.orderId);
     if(!order||!form.reason.trim()){
       dialog.toast("Choose an order and enter a return reason.","error");
       return;
     }
+    setBusy(true);
     try{
       await addDoc(collection(db,"returns"),{
         orderId:order.id,
@@ -48,10 +34,11 @@ export default function ReturnsAdmin(){
       dialog.toast("Return case created.","success");
     }catch(error){
       dialog.toast(error.message||"Unable to create return.","error");
-    }
+    }finally{setBusy(false)}
   }
 
   async function changeStatus(item,next){
+    if(busy)return;
     if(next===(item.status||"requested"))return;
     const ok=await dialog.confirm({
       title:"Update return",
@@ -59,6 +46,7 @@ export default function ReturnsAdmin(){
       confirmLabel:"Update"
     });
     if(!ok)return;
+    setBusy(true);
     try{
       await updateDoc(doc(db,"returns",item.id),{
         status:next,
@@ -67,9 +55,10 @@ export default function ReturnsAdmin(){
       dialog.toast("Return updated.","success");
     }catch(error){
       dialog.toast(error.message||"Unable to update return.","error");
-    }
+    }finally{setBusy(false)}
   }
 
+  if(connection.error||connection.loading)return <AdminDataState {...connection}/>;
   return(
     <div className="ra-studio-grid">
       <form className="ra-panel ra-composer" onSubmit={create}>
@@ -94,7 +83,7 @@ export default function ReturnsAdmin(){
           Internal notes
           <textarea rows="5" value={form.notes} onChange={e=>setForm(current=>({...current,notes:e.target.value}))}/>
         </label>
-        <button type="submit">Create return</button>
+        <button type="submit" disabled={busy}>{busy?"Saving…":"Create return"}</button>
       </form>
 
       <section className="ra-panel">
@@ -113,7 +102,7 @@ export default function ReturnsAdmin(){
                 </div>
                 <div>
                   <b>{item.status||"requested"}</b>
-                  <select value={item.status||"requested"} onChange={e=>changeStatus(item,e.target.value)}>
+                  <select aria-label={"Return status for "+(item.orderNumber||item.orderId)} disabled={busy} value={item.status||"requested"} onChange={e=>changeStatus(item,e.target.value)}>
                     <option value="requested">Requested</option>
                     <option value="approved">Approved</option>
                     <option value="received">Received</option>
@@ -131,3 +120,4 @@ export default function ReturnsAdmin(){
     </div>
   );
 }
+

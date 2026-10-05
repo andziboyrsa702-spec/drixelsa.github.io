@@ -11,7 +11,8 @@
     "check": "node scripts/check-site.cjs",
     "test:rules": "firebase emulators:exec --only firestore --project demo-drixel \"node --test tests/firestore.test.cjs\"",
     "test:browser": "node tests/storefront.cjs",
-    "test:layout": "node tests/react-layout.cjs"
+    "test:layout": "node tests/react-layout.cjs",
+    "test:admin": "node tests/admin.cjs"
   },
   "dependencies": {
     "firebase": "12.19.0",
