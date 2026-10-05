@@ -10,7 +10,9 @@ import {
     onAuthStateChanged,
     sendPasswordResetEmail,
     GoogleAuthProvider,
-    signInWithPopup
+    OAuthProvider,
+    signInWithPopup,
+    linkWithPopup
 } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
 import {
     getFirestore,
@@ -997,6 +999,90 @@ async function firebaseLogin() {
     }
 }
 window.firebaseLogin = firebaseLogin;
+
+const DRIXEL_ID_PROVIDER_ID = "oidc.drixel";
+
+async function firebaseDrixelIdLogin() {
+    const auth = window.firebaseAuth;
+    const loginError = document.getElementById('loginError');
+    const loginSuccess = document.getElementById('loginSuccess');
+    if (loginError) loginError.style.display = 'none';
+    if (loginSuccess) loginSuccess.style.display = 'none';
+
+    if (!auth) {
+        if (loginError) {
+            loginError.textContent = 'Sign-in is not ready. Refresh the page and try again.';
+            loginError.style.display = 'block';
+        }
+        return;
+    }
+
+    try {
+        const provider = new OAuthProvider(DRIXEL_ID_PROVIDER_ID);
+        provider.addScope('email');
+        provider.addScope('profile');
+
+        // When a customer is already signed in, link Drixel ID to that Firebase
+        // UID so their orders and profile stay attached to the same account.
+        const result = auth.currentUser
+            ? await linkWithPopup(auth.currentUser, provider)
+            : await signInWithPopup(auth, provider);
+        const user = result.user;
+
+        if (!user.email) {
+            throw new Error('Drixel ID did not return an email address. Contact support.');
+        }
+
+        const db = window.firebaseDb;
+        const userRef = window.firebaseDoc(db, window.firebaseCollections.USERS, user.uid);
+        const userDoc = await window.firebaseGetDoc(userRef);
+        if (!userDoc.exists()) {
+            await window.firebaseSetDoc(userRef, {
+                uid: user.uid,
+                email: user.email,
+                name: user.displayName || user.email.split('@')[0],
+                createdAt: new Date().toISOString(),
+                role: 'customer',
+                subscribed: false,
+                authProvider: 'drixel-id'
+            });
+        } else {
+            await window.firebaseUpdateDoc(userRef, {
+                lastLogin: new Date().toISOString(),
+                authProvider: 'drixel-id'
+            });
+        }
+
+        if (loginSuccess) {
+            loginSuccess.textContent = auth.currentUser && auth.currentUser.uid === user.uid
+                ? 'Drixel ID connected to this account.'
+                : 'Signed in with Drixel ID.';
+            loginSuccess.style.display = 'block';
+        }
+        window.currentFirebaseUser = user;
+        updateAuthUI();
+        setTimeout(() => showPage('home'), 700);
+    } catch (error) {
+        console.error('Drixel ID sign-in failed:', error);
+        let message = error?.message || 'Please try again.';
+        if (error?.code === 'auth/operation-not-allowed') {
+            message = 'Drixel ID is not configured. Enable OpenID Connect in Firebase Authentication with Identity Platform and add the Drixel provider first.';
+        } else if (error?.code === 'auth/account-exists-with-different-credential') {
+            message = 'This email already has a Drixel SA sign-in. Sign in with that existing method, then use “Link Drixel ID” to connect accounts.';
+        } else if (error?.code === 'auth/credential-already-in-use' || error?.code === 'auth/provider-already-linked') {
+            message = 'This Drixel ID is already linked to a Drixel SA account.';
+        }
+        if (loginError) {
+            loginError.textContent = message;
+            loginError.style.display = 'block';
+        } else if (typeof window.showToast === 'function') {
+            window.showToast(message, 'error');
+        } else {
+            alert(message);
+        }
+    }
+}
+window.firebaseDrixelIdLogin = firebaseDrixelIdLogin;
 
 async function firebaseLogout() {
     try {
