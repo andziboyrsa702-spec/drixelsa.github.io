@@ -12,7 +12,8 @@
     "test:rules": "firebase emulators:exec --only firestore --project demo-drixel \"node --test tests/firestore.test.cjs\"",
     "test:browser": "node tests/storefront.cjs",
     "test:layout": "node tests/react-layout.cjs",
-    "test:admin": "node tests/admin.cjs"
+    "test:admin": "node tests/admin.cjs",
+    "test:marketing": "node tests/marketing-browser.cjs"
   },
   "dependencies": {
     "firebase": "12.19.0",

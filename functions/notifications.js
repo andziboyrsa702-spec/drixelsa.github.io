@@ -5,6 +5,7 @@ const crypto=require('node:crypto');
 const {hash,email,text,escapeHtml:e,CommerceError}=require('./commerce-core');
 const db=()=>getFirestore();
 const storeUrl=()=>new URL(process.env.STORE_URL || 'https://drixelsa.co.za').origin;
+const newsletterUrl=()=>new URL(process.env.PUBLIC_SITE_URL || 'https://drixel-sa.web.app').origin;
 async function enqueue(id,job) {
     try {await db().collection('mail_jobs').doc(hash(id)).create({...job,status:'queued',createdAt:new Date().toISOString()});}
     catch(error) {if(error.code!==6 && error.code!=='already-exists') throw error;}
@@ -52,10 +53,10 @@ async function subscribe(address) {
     await db().runTransaction(async tx=>{
         const snap=await tx.get(ref),old=snap.data();
         if(old?.status==='active' || (old?.requestedAt && Date.now()-Date.parse(old.requestedAt)<86400000)) return;
-        tx.set(ref,{email:normalized,status:'pending',tokenHash:hash(token),requestedAt:new Date().toISOString(),consent:'newsletter-v1'});
+        tx.set(ref,{email:normalized,status:'pending',source:'checkout',tokenHash:hash(token),requestedAt:new Date().toISOString(),consent:'newsletter-v1'});
         tx.create(db().collection('mail_jobs').doc(hash(`subscribe:${id}:${token}`)),{
             to:[normalized],subject:'Confirm your Drixel SA updates',status:'queued',createdAt:new Date().toISOString(),
-            html:`<h1>Drixel SA</h1><p>Confirm that you want to receive collection news and offers.</p><p><a href="${storeUrl()}/api/newsletter?id=${id}&amp;token=${token}">Manage subscription</a></p><p>If you did not request this, ignore this email. You are not subscribed yet.</p>`
+            html:`<h1>Drixel SA</h1><p>Confirm that you want to receive collection news and offers.</p><p><a href="${newsletterUrl()}/api/newsletter?id=${id}&amp;token=${token}">Manage subscription</a></p><p>If you did not request this, ignore this email. You are not subscribed yet.</p>`
         });
     });
 }
