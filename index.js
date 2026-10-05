@@ -1021,10 +1021,11 @@ async function firebaseDrixelIdLogin() {
         const provider = new OAuthProvider(DRIXEL_ID_PROVIDER_ID);
         provider.addScope('email');
         provider.addScope('profile');
+        const linkingExistingAccount = Boolean(auth.currentUser);
 
         // When a customer is already signed in, link Drixel ID to that Firebase
         // UID so their orders and profile stay attached to the same account.
-        const result = auth.currentUser
+        const result = linkingExistingAccount
             ? await linkWithPopup(auth.currentUser, provider)
             : await signInWithPopup(auth, provider);
         const user = result.user;
@@ -1043,18 +1044,16 @@ async function firebaseDrixelIdLogin() {
                 name: user.displayName || user.email.split('@')[0],
                 createdAt: new Date().toISOString(),
                 role: 'customer',
-                subscribed: false,
-                authProvider: 'drixel-id'
+                subscribed: false
             });
         } else {
             await window.firebaseUpdateDoc(userRef, {
-                lastLogin: new Date().toISOString(),
-                authProvider: 'drixel-id'
+                lastLogin: new Date().toISOString()
             });
         }
 
         if (loginSuccess) {
-            loginSuccess.textContent = auth.currentUser && auth.currentUser.uid === user.uid
+            loginSuccess.textContent = linkingExistingAccount
                 ? 'Drixel ID connected to this account.'
                 : 'Signed in with Drixel ID.';
             loginSuccess.style.display = 'block';
@@ -1127,9 +1126,13 @@ async function resetPasswordFromLogin() {
 
 
 function updateAuthUI() {
+    const user = window.currentFirebaseUser;
+    const drixelIdButton = document.getElementById('drixelIdAuthButton');
+    if (drixelIdButton) {
+        drixelIdButton.textContent = user ? 'Link Drixel ID' : 'Continue with Drixel ID';
+    }
     const authLink = document.getElementById('authLink');
     if (!authLink) return;
-    const user = window.currentFirebaseUser;
 
     if (user) {
         console.log("👤 User logged in:", user.email);
