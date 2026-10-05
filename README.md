@@ -15,7 +15,7 @@ npm run test:rules
 npx playwright install chromium --with-deps
 ```
 
-For the isolated browser tests, run `python -m http.server 8765` in one terminal and `npm run test:browser` in another. They mock Firebase and make no real orders, payments or email requests.
+For the isolated browser tests, run `python -m http.server 8765` in one terminal and `npm run test:browser` and `npm run test:layout` in another. The layout suite checks all 45 HTML pages at 320, 360, 390, 768, 1024 and 1440 pixels, including populated product templates, checkout control alignment and mobile navigation. They mock Firebase and make no real orders, payments or email requests.
 
 ## Before deploying
 

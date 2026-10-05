@@ -293,8 +293,30 @@ document.addEventListener('DOMContentLoaded', function () {
     const navLinks = document.getElementById('navLinks');
 
     if (mobileMenuBtn && navLinks) {
-        mobileMenuBtn.addEventListener('click', function () {
-            navLinks.classList.toggle('active');
+        mobileMenuBtn.setAttribute('role', 'button');
+        mobileMenuBtn.setAttribute('tabindex', '0');
+        mobileMenuBtn.setAttribute('aria-label', 'Toggle navigation');
+        mobileMenuBtn.setAttribute('aria-controls', 'navLinks');
+        const setMenuOpen = open => {
+            navLinks.classList.toggle('active', open);
+            mobileMenuBtn.setAttribute('aria-expanded', String(open));
+        };
+        setMenuOpen(false);
+        mobileMenuBtn.addEventListener('click', () => setMenuOpen(!navLinks.classList.contains('active')));
+        mobileMenuBtn.addEventListener('keydown', event => {
+            if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                mobileMenuBtn.click();
+            }
+        });
+        document.addEventListener('keydown', event => {
+            if (event.key === 'Escape' && navLinks.classList.contains('active')) {
+                setMenuOpen(false);
+                mobileMenuBtn.focus();
+            }
+        });
+        navLinks.addEventListener('click', event => {
+            if (event.target.closest('a')) setMenuOpen(false);
         });
     }
 
@@ -3784,7 +3806,7 @@ function injectNewsletterSection() {
                 <p>Sign up for new collections and exclusive capsule drop updates. Confirm your email to join; unsubscribe at any time.</p>
             </div>
             <form class="newsletter-form" id="newsletterForm" onsubmit="window.subscribeNewsletter(event)">
-                <input type="email" id="newsletterEmailInput" placeholder="Enter your email address" required autocomplete="off">
+                <input type="email" id="newsletterEmailInput" aria-label="Email address for newsletter" placeholder="Enter your email address" required autocomplete="off">
                 <button type="submit">Join Us</button>
             </form>
             <div class="newsletter-message" id="newsletterMessage"></div>
@@ -3941,7 +3963,7 @@ function initializeAppAfterFirebase() {
         try {
             const urlParams = new URLSearchParams(window.location.search);
             // Read as string to support both numeric (local) and string (Firestore) IDs
-            const rawId = window.forcedProductId || urlParams.get('id') || '';
+            const rawId = String(window.forcedProductId || urlParams.get('id') || '');
             // For legacy numeric IDs, try parsing as number first
             const productId = rawId && !isNaN(rawId) && !rawId.includes('-') ? parseInt(rawId) : (rawId || 1);
             viewProduct(productId);

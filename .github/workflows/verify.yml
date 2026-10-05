@@ -30,3 +30,4 @@ jobs:
           trap 'kill "$SERVER_PID"' EXIT
           node -e 'const wait=async()=>{for(let i=0;i<50;i++){try{await fetch("http://127.0.0.1:8765/");return}catch{}await new Promise(r=>setTimeout(r,100))}process.exit(1)};wait()'
           npm run test:browser
+          npm run test:layout
