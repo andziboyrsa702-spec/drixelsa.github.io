@@ -15,19 +15,28 @@ export function checkoutUrl(value){const url=new URL(value);if(url.protocol!=='h
 export async function startCheckout({orderId,req},{db=getFirestore(),request=fetch}={}){const config=cardConfig();if(!config.enabled)fail('Card payments are not connected yet. Choose bank transfer.',409);const ref=db.doc('orders/'+orderId),snap=await ref.get(),order=snap.data();if(!order||order.paymentMethod!=='yoco'||order.inventoryStatus!=='reserved'||order.status==='cancelled')fail('This order is no longer payable.');if(order.paymentMode&&order.paymentMode!==config.mode)fail('This checkout belongs to a different payment mode. Contact Drixel before paying.');if(order.paymentStatus==='paid'||order.paymentStatus==='test_paid')fail('This order has already been paid. Open your orders.');if(order.yocoCheckoutId&&order.yocoRedirectUrl)return {id:order.yocoCheckoutId,redirectUrl:checkoutUrl(order.yocoRedirectUrl)};
  const amount=Math.round(Number(order.total)*100);if(!Number.isSafeInteger(amount)||amount<=0||order.currency!=='ZAR')fail('Invalid order amount.');const origin=returnOrigin(req),path=result=>origin+'/za/payment/yoco/'+result+'?order='+encodeURIComponent(orderId);
  // Persist the exact body: a retry key must always identify the same provider request.
+ let retryKey=order.yocoIdempotencyKey||hash('yoco/'+orderId);
  let body=order.yocoRequestBody||JSON.stringify({amount,currency:'ZAR',successUrl:path('success'),cancelUrl:path('cancel'),failureUrl:path('failure'),metadata:{orderId,orderNumber:order.orderNumber},externalId:orderId});
  let saved;try{saved=JSON.parse(body);}catch{fail('Saved checkout requires payment review.',409);}
  if(saved.amount!==amount||saved.currency!=='ZAR'||saved.externalId!==orderId||saved.metadata?.orderId!==orderId)fail('Saved checkout details changed. Contact Drixel before paying.',409);
  await ref.update({paymentMode:config.mode,paymentProvider:'yoco',yocoRequestBody:body,updatedAt:FieldValue.serverTimestamp()});
- const send=async()=>{let response;try{response=await request('https://payments.yoco.com/api/checkouts',{method:'POST',signal:AbortSignal.timeout(15000),headers:{Authorization:'Bearer '+process.env.YOCO_SECRET_KEY,'Content-Type':'application/json','Idempotency-Key':hash('yoco/'+orderId)},body});}catch{fail('Payment setup could not be confirmed. Your bag and reservation are saved; retry the same checkout.',503);}const raw=await response.text();let data;try{data=JSON.parse(raw);}catch{data={message:raw.slice(0,2000)};}return {response,data};};
+ const send=async()=>{let response;try{response=await request('https://payments.yoco.com/api/checkouts',{method:'POST',signal:AbortSignal.timeout(15000),headers:{Authorization:'Bearer '+process.env.YOCO_SECRET_KEY,'Content-Type':'application/json','Idempotency-Key':retryKey},body});}catch{fail('Payment setup could not be confirmed. Your bag and reservation are saved; retry the same checkout.',503);}const raw=await response.text();let data;try{data=JSON.parse(raw);}catch{data={message:raw.slice(0,2000)};}return {response,data};};
  let {response,data}=await send();
  // Older deployments used the requesting localhost as the return origin. Recover only
  // after an explicit mismatch, never a timeout, and never issue a different retry key.
  const local=req.get('Origin');
- if(response.status===422&&config.mode==='live'&&new URL(saved.successUrl).origin!==local&&/^http:\/\/(localhost|127\.0\.0\.1):\d+$/.test(local||'')){
+ if(response.status===422&&retryKey===hash('yoco/'+orderId)&&config.mode==='live'&&new URL(saved.successUrl).origin!==local&&/^http:\/\/(localhost|127\.0\.0\.1):\d+$/.test(local||'')){
    const originalPath=result=>local+'/za/payment/yoco/'+result+'?order='+encodeURIComponent(orderId);
    body=JSON.stringify({amount,currency:'ZAR',successUrl:originalPath('success'),cancelUrl:originalPath('cancel'),failureUrl:originalPath('failure'),metadata:{orderId,orderNumber:order.orderNumber},externalId:orderId});
    await ref.update({yocoRequestBody:body,updatedAt:FieldValue.serverTimestamp()});
+   ({response,data}=await send());
+ }
+ // A definitive URL validation rejection cannot be paid. Replace this rejected
+ // legacy request with a stable HTTPS request; uncertain results never rotate keys.
+ if(response.status===400&&providerDiagnostic(data).categories.includes('url')&&/^http:\/\/(localhost|127\.0\.0\.1):\d+$/.test(new URL(JSON.parse(body).successUrl).origin)){
+   body=JSON.stringify({amount,currency:'ZAR',successUrl:path('success'),cancelUrl:path('cancel'),failureUrl:path('failure'),metadata:{orderId,orderNumber:order.orderNumber},externalId:orderId});
+   retryKey=hash('yoco/'+orderId+'/https-return-v2');
+   await ref.update({yocoRequestBody:body,yocoIdempotencyKey:retryKey,updatedAt:FieldValue.serverTimestamp()});
    ({response,data}=await send());
  }
  if(!response.ok){const candidate=data?.errorCode||data?.code||data?.error?.code;const code=typeof candidate==='string'&&/^[A-Za-z0-9_-]{1,80}$/.test(candidate)?candidate:'unspecified';console.error('Yoco checkout rejected',JSON.stringify({status:response.status,code,mode:config.mode,returnOrigin:new URL(JSON.parse(body).successUrl).origin,...providerDiagnostic(data)}));fail('Yoco could not start payment (provider HTTP '+response.status+'). Your reservation is saved; retry or contact Drixel with your order reference.',502);}if(!data.id||data.amount!==amount||data.currency!=='ZAR'||data.processingMode!==config.mode)fail('Yoco returned an unexpected checkout. Contact Drixel before retrying.',502);const redirectUrl=checkoutUrl(data.redirectUrl);
