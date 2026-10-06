@@ -64,3 +64,16 @@ test('campaign queue records are server-owned while administrators can edit draf
 test('only safe storefront settings are public',async()=>{await env.withSecurityRulesDisabled(async ctx=>{await setDoc(doc(ctx.firestore(),'settings/store'),{brandName:'Drixel'});await setDoc(doc(ctx.firestore(),'settings/storefront'),{resendApiKey:'private'});});const db=env.unauthenticatedContext().firestore();await assertSucceeds(getDoc(doc(db,'settings/store')));await assertFails(getDoc(doc(db,'settings/storefront')));await assertFails(getDoc(doc(db,'settings/markets')));});
 
 test('studio media metadata is restricted to administrators',async()=>{const admin=user('admin',{admin:true});await assertSucceeds(setDoc(doc(admin,'media_assets/photo'),{url:'https://example.com/image.png'}));await assertSucceeds(getDocs(collection(admin,'media_assets')));await assertFails(getDocs(collection(env.unauthenticatedContext().firestore(),'media_assets')));await assertFails(setDoc(doc(user('alice'),'media_assets/customer'),{url:'https://example.com/fake.png'}));});
+
+test('passkey protection cannot be bypassed by directly writing to Firestore',async()=>{
+ const stamp=Math.floor(Date.now()/1000);await env.withSecurityRulesDisabled(async ctx=>{await setDoc(doc(ctx.firestore(),'security_config/admin'),{passkeysRequired:true});await setDoc(doc(ctx.firestore(),'admin_security/admin'),{enabled:true,version:'v1'});});
+ await assertFails(setDoc(doc(user('admin',{admin:true}),'products/passkey'),{price:100}));
+ await assertSucceeds(setDoc(doc(user('admin',{admin:true,drixel_admin_verified_at:stamp,drixel_admin_key_version:'v1'}),'products/passkey'),{price:100}));
+ for(const claims of [{drixel_admin_verified_at:stamp-901,drixel_admin_key_version:'v1'},{drixel_admin_verified_at:stamp+60,drixel_admin_key_version:'v1'},{drixel_admin_verified_at:stamp,drixel_admin_key_version:'old'}])await assertFails(setDoc(doc(user('admin',{admin:true,...claims}),'products/blocked'),{price:100}));
+ await assertFails(setDoc(doc(user('admin',{admin:true,drixel_admin_verified_at:stamp,drixel_admin_key_version:'v1'}),'admin_security/admin'),{enabled:false}));
+});
+
+test('public clients cannot enumerate discount codes or write arbitrary contact documents',async()=>{
+ const db=env.unauthenticatedContext().firestore();await assertFails(getDocs(collection(db,'coupons')));await assertFails(setDoc(doc(db,'contacts/spam'),{html:'arbitrary content'}));
+ await assertSucceeds(setDoc(doc(user('admin',{admin:true}),'coupons/test'),{code:'PRIVATE',active:true}));
+});

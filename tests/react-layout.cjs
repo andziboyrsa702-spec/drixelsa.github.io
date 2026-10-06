@@ -7,7 +7,7 @@ const quote={items:order.items,subtotal:500,shipping:70,total:570};
 const snap=(id,data)=>({id,exists:()=>Boolean(data),data:()=>data});
 const modules={
  app:'export const getApps=()=>[];export const initializeApp=()=>({});',
- auth:`const user={...${JSON.stringify(user)},getIdToken:async()=> 'layout-token',getIdTokenResult:async()=>({claims:{admin:true}})};export const connectAuthEmulator=()=>{};export const getAuth=()=>({currentUser:user});export const onAuthStateChanged=(a,cb)=>{cb(user);return()=>{}};export class GoogleAuthProvider{};export const createUserWithEmailAndPassword=async()=>({user});export const signInWithEmailAndPassword=createUserWithEmailAndPassword;export const signInWithPopup=createUserWithEmailAndPassword;export const signOut=async()=>{};export const updateProfile=async()=>{};export const sendPasswordResetEmail=async()=>{};`,
+ auth:`const user={...${JSON.stringify(user)},getIdToken:async()=> 'layout-token',getIdTokenResult:async()=>({claims:{admin:true}})};export const connectAuthEmulator=()=>{};export const getAuth=()=>({currentUser:user});export const onAuthStateChanged=(a,cb)=>{cb(user);return()=>{}};export class GoogleAuthProvider{};export const createUserWithEmailAndPassword=async()=>({user});export const signInWithEmailAndPassword=createUserWithEmailAndPassword;export const signInWithCustomToken=async()=>({user});export const signInWithPopup=createUserWithEmailAndPassword;export const signOut=async()=>{};export const updateProfile=async()=>{};export const sendPasswordResetEmail=async()=>{};`,
  firestore:`const product=${JSON.stringify(product)},order=${JSON.stringify(order)};const snap=${snap.toString()};const data=ref=>ref.name==='products'?product:ref.name==='orders'?order:ref.name==='users'?{name:'Layout Buyer',defaultAddress:{firstName:'Layout',lastName:'Buyer'}}:null;const result=ref=>{const docs=['products','orders'].includes(ref.name)?[snap(ref.name==='products'?'tee':'order1',data(ref))]:[];return {docs,empty:!docs.length,size:docs.length,forEach:cb=>docs.forEach(cb)}};export const connectFirestoreEmulator=()=>{};export const getFirestore=()=>({});export const collection=(db,name)=>({name});export const doc=(db,name,id)=>({name,id});export const getDoc=async ref=>snap(ref.id,data(ref));export const getDocs=async ref=>result(ref);export const query=(ref,...args)=>ref;export const where=()=>({});export const limit=()=>({});export const onSnapshot=(ref,cb)=>{cb(ref.id?snap(ref.id,data(ref)):result(ref));return()=>{}};export const addDoc=async()=>({id:'mock'});export const updateDoc=async()=>{};export const deleteDoc=async()=>{};export const setDoc=async()=>{};export const runTransaction=async(db,fn)=>fn({get:getDoc,set:()=>{}});export const serverTimestamp=()=>null;`
 };
 const paths=['/za','/za/checkout','/za/cart','/za/w/new-featured','/za/t/drixel-tee/tee','/za/about','/za/contact','/za/search','/za/wishlist','/za/member/login','/za/member/profile','/za/member/orders','/za/member/orders/order1','/za/order-confirmation/DRX-123','/za/help/shipping-policy','/za/help/returns-policy','/za/help/privacy-policy','/za/help/terms-of-use'];
@@ -19,7 +19,7 @@ const paths=['/za','/za/checkout','/za/cart','/za/w/new-featured','/za/t/drixel-
   const u=new URL(route.request().url());
   const firebase=u.pathname.match(/firebase_(app|auth|firestore)\.js$/);
   if(firebase)return route.fulfill({contentType:'application/javascript',body:modules[firebase[1]]});
-  if(u.pathname.startsWith('/api/'))return route.fulfill({contentType:'application/json',body:JSON.stringify(u.pathname.includes('checkout-quote')?quote:u.pathname.includes('exchange-rates')?{rate:1}:{} )});
+  if(u.pathname.startsWith('/api/'))return route.fulfill({contentType:'application/json',body:JSON.stringify(u.pathname.includes('payments/config')?{bank:{enabled:true,bankName:'Test Bank',bankAccountHolder:'Drixel',bankAccountNumber:'123',bankBranchCode:'456',bankAccountType:'Business'},yoco:{enabled:false},snapscan:{enabled:false}}:u.pathname.includes('checkout-quote')?quote:u.pathname.includes('exchange-rates')?{rate:1}:{} )});
   if(/\.(png|jpg|jpeg)$/i.test(u.pathname))return route.fulfill({contentType:'image/svg+xml',body:'<svg xmlns="http://www.w3.org/2000/svg" width="600" height="600"><rect width="600" height="600" fill="#ddd"/></svg>'});
   if(u.pathname.endsWith('.mp4'))return route.fulfill({body:''});
   if(u.hostname==='127.0.0.1')return route.continue();
@@ -33,7 +33,7 @@ const paths=['/za','/za/checkout','/za/cart','/za/w/new-featured','/za/t/drixel-
  await page.route('**/api/checkout-quote',route=>quoteFailures-- > 0?route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({message:'Quote service unavailable'})}):route.fulfill({contentType:'application/json',body:JSON.stringify(quote)}));
  await page.goto('http://127.0.0.1:5173/za/checkout');
  await page.getByRole('button',{name:'Retry order quote'}).waitFor();
- assert.equal(await page.getByRole('button',{name:'Place order'}).isDisabled(),true);
+ assert.equal(await page.getByRole('button',{name:'Place bank-transfer order'}).isDisabled(),true);
  await page.getByRole('button',{name:'Retry order quote'}).click();
  await page.waitForFunction(()=>{const b=document.querySelector('.dx-place');return b&&!b.disabled});
  await page.unroute('**/api/checkout-quote');
@@ -41,7 +41,7 @@ const paths=['/za','/za/checkout','/za/cart','/za/w/new-featured','/za/t/drixel-
  await page.route('**/api/create-order',route=>{submittedOrder=route.request().postDataJSON();return route.fulfill({contentType:'application/json',body:JSON.stringify({success:true,orderNumber:'DRX-123'})})});
  for(const [label,value] of [['First name','Layout'],['Last name','Buyer'],['Phone','0712345678'],['Street address','10 Main Road'],['City','Cape Town'],['Postal / ZIP code','7700']])await page.getByLabel(label,{exact:true}).fill(value);
  await page.locator('select[name="province"]').selectOption({label:'Western Cape'});
- await page.getByRole('button',{name:'Place order'}).click();
+ await page.getByRole('button',{name:'Place bank-transfer order'}).click();
  await page.waitForURL('**/order-confirmation/DRX-123');
  assert.equal(submittedOrder.customer.address,'10 Main Road');
  assert.equal(submittedOrder.customer.firstName,'Layout');

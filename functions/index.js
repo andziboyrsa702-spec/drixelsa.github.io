@@ -44,23 +44,8 @@ exports.sendEmail = functions.runWith({ secrets: ["RESEND_API_KEY"] }).https.onR
         return res.status(405).json({ success: false, message: "Method not allowed." });
     }
 
-    const authorization = req.get("Authorization") || "";
-    const match = authorization.match(/^Bearer (.+)$/);
-    if (!match) {
-        return res.status(401).json({ success: false, message: "Authentication required." });
-    }
-
-    let decodedToken;
-    try {
-        decodedToken = await getAuth().verifyIdToken(match[1]);
-    } catch (error) {
-        console.warn("Rejected invalid Firebase ID token.");
-        return res.status(401).json({ success: false, message: "Invalid authentication token." });
-    }
-
-    if (!(decodedToken.admin === true || decodedToken.role === "admin" || (decodedToken.email_verified === true && decodedToken.email && ALLOWED_ADMIN_EMAILS.has(decodedToken.email.toLowerCase())))) {
-        return res.status(403).json({ success: false, message: "Administrator access required." });
-    }
+    try { await requireAdmin(req); }
+    catch(error) { return res.status(error.status||503).json({success:false,message:error.status?error.message:'Administrator verification is temporarily unavailable.'}); }
 
     const { to, cc, subject, html } = req.body || {};
     const recipients = normalizeRecipients(to);
@@ -110,6 +95,11 @@ async function requireAdmin(req) {
         const error = new Error("Administrator access required.");
         error.status = 403;
         throw error;
+    }
+    const database=admin.firestore(),policy=(await database.doc('admin_security/'+decoded.uid).get()).data(),config=(await database.doc('security_config/admin').get()).data();
+    const stamp=Number(decoded.drixel_admin_verified_at),now=Date.now()/1000;
+    if ((config?.passkeysRequired&&!policy?.enabled)||(policy?.enabled&&!(decoded.drixel_admin_key_version===policy.version&&Number.isFinite(stamp)&&stamp<=now&&stamp>now-900))) {
+        const error=new Error('Verify your administrator passkey to continue.');error.status=403;throw error;
     }
     return decoded;
 }

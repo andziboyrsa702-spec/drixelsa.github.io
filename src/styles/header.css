@@ -1,0 +1,14 @@
+/* Storefront navigation: restrained type, generous targets and responsive rows. */
+.dx-header{padding:22px clamp(20px,4vw,64px);gap:32px;min-height:88px;align-items:center}
+.dx-header .dx-wordmark{font-size:30px;font-weight:900;letter-spacing:-1.7px;line-height:1;text-decoration:none}
+.dx-header .dx-main-nav,.dx-header .dx-header-actions{align-items:center;gap:22px}
+.dx-header .dx-main-nav a,.dx-header .dx-header-actions a{position:relative;display:inline-flex;align-items:center;min-height:44px;font-size:12px;font-weight:600;letter-spacing:.015em;line-height:1.3}
+.dx-header .dx-main-nav a::after{content:"";position:absolute;bottom:5px;left:0;right:0;height:2px;background:#111;transform:scaleX(0);transform-origin:left;transition:transform .18s ease}
+.dx-header .dx-main-nav a:hover::after,.dx-header .dx-main-nav a:focus-visible::after{transform:scaleX(1)}
+.dx-header .dx-header-actions a:hover{opacity:.6}
+.dx-header .dx-header-actions select{appearance:none;width:170px;min-height:44px;padding:10px 30px 10px 14px;border:1px solid #e4e4e4!important;border-radius:6px!important;font-family:inherit;font-size:12px;cursor:pointer;background:#f7f7f7 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='m1 1 5 5 5-5' fill='none' stroke='%23111' stroke-width='1.5'/%3E%3C/svg%3E") no-repeat right 12px center!important}
+.dx-header a:focus-visible{outline:2px solid #111;outline-offset:5px;border-radius:2px}
+@media(min-width:1201px){.dx-header .dx-main-nav{flex:1;justify-content:center}.dx-header .dx-header-actions{gap:18px}}
+@media(max-width:1200px){.dx-header{padding:20px clamp(20px,4vw,48px);gap:12px 24px}.dx-header .dx-main-nav{border-top:1px solid #eee;padding-top:10px}.dx-header .dx-header-actions{gap:16px}}
+@media(max-width:700px){.dx-header{padding:20px 18px 12px;gap:12px}.dx-header .dx-wordmark{font-size:29px}.dx-header .dx-main-nav{gap:4px 18px;flex-wrap:wrap}.dx-header .dx-main-nav a{font-size:12px;min-height:36px}.dx-header .dx-header-actions{gap:6px 8px;border-top:1px solid #eee;padding-top:10px}.dx-header .dx-header-actions select{width:200px}.dx-header .dx-header-actions a{justify-content:center;min-height:40px}}
+@media(prefers-reduced-motion:reduce){.dx-header .dx-main-nav a::after{transition:none}}

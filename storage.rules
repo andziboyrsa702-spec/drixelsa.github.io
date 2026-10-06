@@ -1,7 +1,7 @@
 rules_version = '2';
 service firebase.storage {
  match /b/{bucket}/o {
-  function admin() { return request.auth != null && (request.auth.token.get('admin',false)==true || request.auth.token.get('role','')=='admin' || (request.auth.token.get('email_verified',false)==true && request.auth.token.get('email','') in ['admin@drixelsa.co.za','drixelsa@gmail.com'])); }
+  function admin() { return request.auth != null && request.auth.token.get('drixel_admin_verified_at',0) * 1000 <= request.time.toMillis() && request.auth.token.get('drixel_admin_verified_at',0) * 1000 > request.time.toMillis()-900000 && (request.auth.token.get('admin',false)==true || request.auth.token.get('role','')=='admin' || (request.auth.token.get('email_verified',false)==true && request.auth.token.get('email','') in ['admin@drixelsa.co.za','drixelsa@gmail.com'])); }
   match /admin-media/{uid}/{file} {
    allow read: if true;
    allow create: if resource == null && admin() && request.auth.uid==uid && ((request.resource.contentType in ['image/jpeg','image/png','image/webp'] && request.resource.size<=15*1024*1024) || (request.resource.contentType in ['video/mp4','video/webm'] && request.resource.size<=150*1024*1024));

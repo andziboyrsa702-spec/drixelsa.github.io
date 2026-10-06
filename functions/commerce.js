@@ -134,8 +134,13 @@ async function releaseStock(tx,order) {
     }
     if(coupon?.exists) tx.update(coupon.ref,{usedCount:Math.max(0,(coupon.data().usedCount || 0)-1)});
 }
+async function requireAdminDevice(user) {
+ const policy=(await db().doc('admin_security/'+user.uid).get()).data(),config=(await db().doc('security_config/admin').get()).data(),token=user.token,now=Date.now()/1000,stamp=Number(token.drixel_admin_verified_at);
+ if((config?.passkeysRequired&&!policy?.enabled)||(policy?.enabled&&!(token.drixel_admin_key_version===policy.version&&Number.isFinite(stamp)&&stamp<=now&&stamp>now-900)))core.fail('Verify your administrator passkey to continue.','permission-denied');
+}
 exports.adminOrderAction=functions.https.onCall(callable(async(data,context)=>{
     if(!isAdmin(context.auth)) core.fail('Verified administrator access required.','permission-denied');
+    await requireAdminDevice(context.auth);
     const id=core.text(data.orderId,'order',100); if(id.includes('/')) core.fail('Invalid order.');
     const ref=db().collection('orders').doc(id);
     await db().runTransaction(async tx=>{
@@ -160,7 +165,9 @@ exports.getOrder=functions.https.onCall(callable(async(data,context)=>{
     const order=snap?.data();
     const owner=order?.userId===user.uid || (!order?.userId && user.token.email_verified===true && order?.customer?.email===user.token.email);
     if(!order || (!owner && !isAdmin(user))) core.fail('Order not found for this account.','not-found');
+    if(!owner)await requireAdminDevice(user);
     return {id:snap.id,orderNumber:order.orderNumber,status:order.status,paymentStatus:order.paymentStatus,paymentMethod:order.paymentMethod,total:order.total,shipping:order.shipping,trackingNumber:order.trackingNumber || '',courierService:order.courierService || '',trackingUrl:order.trackingUrl || '',stockReleased:order.stockReleased===true};
 }));
 exports.isStoreAdmin=isAdmin;
 exports._internal={transactionQuote,releaseStock};
+

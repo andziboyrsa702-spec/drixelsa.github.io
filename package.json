@@ -18,6 +18,7 @@
     "test:storage": "firebase emulators:exec --only storage --project demo-drixel \"node --test tests/storage-rules.cjs\""
   },
   "dependencies": {
+    "@simplewebauthn/browser": "13.3.0",
     "firebase": "12.19.0",
     "react": "19.1.1",
     "react-dom": "19.1.1",
