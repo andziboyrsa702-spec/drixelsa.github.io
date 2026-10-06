@@ -26,10 +26,10 @@ export default function OrderDetailAdmin(){
  const created=order.createdAt?.seconds?new Date(order.createdAt.seconds*1000):new Date(order.createdAt);
  return <section className="ra-panel">
   <div className="ra-panel-head"><div><p className="ra-eyebrow">ORDER DETAILS</p><h2>{order.orderNumber||order.id}</h2><p>{!isNaN(created)?created.toLocaleString('en-ZA'):'Creation date unavailable'}</p></div><Link className="ra-cell-link" to={`/${market}/admin/orders`}>Back to orders</Link></div>
-  <div className="ra-admin-actions">
+  {order.paymentStatus==="test_paid"&&<p className="ra-notice">TEST ORDER: no real funds were collected. Do not dispatch.</p>}{["yoco","snapscan"].includes(provider)&&order.paymentStatus==="pending"&&<p className="ra-notice">Provider confirmation is pending. Reconcile the payment with the provider before cancellation. Reserved stock stays protected while the payment can complete.</p>}<div className="ra-admin-actions">
    {!paid&&!cancelled&&!refunded&&manual&&<button disabled={!!busy} onClick={()=>act('mark_paid')}>Mark manual payment paid</button>}
-   {!paid&&!cancelled&&!refunded&&<button className="danger" disabled={!!busy} onClick={()=>act('cancel')}>Cancel unpaid order</button>}
-   {paid&&!cancelled&&next&&<button disabled={!!busy} onClick={()=>act(next)}>{busy?'Updating…':`Mark ${next}`}</button>}
+   {!paid&&!cancelled&&!refunded&&manual&&<button className="danger" disabled={!!busy} onClick={()=>act('cancel')}>Cancel unpaid order</button>}
+   {paid&&!cancelled&&order.status!=="payment_review"&&next&&<button disabled={!!busy} onClick={()=>act(next)}>{busy?'Updating…':`Mark ${next}`}</button>}
   </div>
   <div className="ra-metrics" style={{marginTop:24}}>
    <Metric label="Payment" value={order.paymentStatus||'pending'} note={provider||'Method unavailable'}/>

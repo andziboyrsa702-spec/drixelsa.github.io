@@ -145,3 +145,7 @@ Campaigns use one recipient per scheduled run and support up to 1,000 records in
 Cloudflare has a 100,000 requests/day free allowance and limited CPU/subrequests. Cloudinary's free credits are shared across storage, transformations and bandwidth. Keep images compressed and videos short; reaching a quota can interrupt service. No automatic paid upgrade is configured by this repository.
 
 Firebase Spark still has its own Firestore quotas. Periodically check provider dashboards. Real deployed smoke tests are required; local tests cannot verify real credentials, DNS, inbox placement, or production free CPU limits.
+
+## Payments
+
+Bank-transfer instructions, verified Yoco checkout/webhooks and SnapScan merchant QR/API/webhooks are now available in the Worker. Follow [PAYMENTS_SETUP.md](PAYMENTS_SETUP.md). Bank transfer requires the admin to save verified receiving-account details; cards stay disabled until keys and the matching webhook are configured. Yoco test payments are restricted to administrators and cannot authorize dispatch.

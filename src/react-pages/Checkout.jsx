@@ -2,6 +2,7 @@ import { apiUrl } from "../utils/api.js";
 import React, { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { doc, getDoc } from "firebase/firestore";
+import BankInstructions from "../components/BankInstructions.jsx";
 import Layout from "../components/Layout.jsx";
 import useAuth from "../hooks/useAuth.js";
 import { db } from "../config/firebase-react.js";
@@ -28,6 +29,8 @@ export default function Checkout() {
     user = useAuth(),
     cart = useCart(),
     nav = useNavigate(),
+    [paymentConfig,setPaymentConfig]=useState(null),
+    [paymentMethod,setPaymentMethod]=useState("bank"),
     [quote, setQuote] = useState(),
     [address, setAddress] = useState({}),
     [error, setError] = useState(""),
@@ -36,6 +39,7 @@ export default function Checkout() {
     [couponBusy, setCouponBusy] = useState(false),
     [quoteBusy, setQuoteBusy] = useState(false),
     [addressWarning, setAddressWarning] = useState("");
+  useEffect(()=>{let active=true;Promise.resolve(user?.getIdToken()).then(token=>fetch(apiUrl('/api/payments/config'),{headers:token?{Authorization:'Bearer '+token}:{}})).then(async r=>{const d=await readApi(r);if(!r.ok)throw Error(d.message||'Payment options unavailable.');if(active){setPaymentConfig(d);setPaymentMethod(d.bank?.enabled?'bank':d.yoco?.enabled&&market==='za'?'yoco':d.snapscan?.enabled&&market==='za'?'snapscan':'');}}).catch(e=>{if(active)setError(e.message);});return()=>{active=false;};},[market,user]);
   const quoteAttempt=useRef(0);
   const clean = () => cart.items.map(x => ({
     productId: x.productId,
@@ -104,7 +108,7 @@ export default function Checkout() {
           body: JSON.stringify({
             items: clean(),
             customer,
-            paymentMethod: "bank",
+            paymentMethod,
             idempotencyKey: attempt,
             market,
             couponCode: quote?.appliedCoupon?.code || ""
@@ -112,8 +116,13 @@ export default function Checkout() {
         }),
         d = await readApi(r);
       if (!r.ok) throw new Error(d.message || "Checkout failed.");
-      cart.clear();
-      sessionStorage.removeItem("drixel_checkout_attempt");
+      if(paymentMethod==='yoco'){
+        const url=new URL(d.redirectUrl);if(url.protocol!=='https:'||url.hostname!=='c.yoco.com'||url.username||url.password)throw Error('The payment link could not be verified. Your bag is saved.');
+        window.location.assign(url.href);return;
+      }
+      if(paymentMethod==="snapscan")sessionStorage.setItem("drixel_pending_snapscan_order",d.orderId);
+      if(paymentMethod!=="snapscan")cart.clear();
+      if(paymentMethod!=="snapscan")sessionStorage.removeItem("drixel_checkout_attempt");
       nav(path("/za/order-confirmation/" + encodeURIComponent(d.orderNumber)));
     } catch (x) {
       setError(x.message);
@@ -125,7 +134,7 @@ export default function Checkout() {
   return <Layout><main className="dx-checkout"><header className="dx-checkout-head"><p>SECURE CHECKOUT · {info.country}</p><h1>Finish your order.</h1><span>Prices are shown in {info.currency}; product pricing, delivery and availability are verified by Drixel's backend.</span></header>{!pricingReady && <div className="dx-error">{pricingError || "Pricing for this market is temporarily unavailable. You can browse, but checkout is paused until a verified exchange rate is available."}</div>}{addressWarning && <p role="status" className="dx-notice">{addressWarning}</p>}{!quote && <div className="dx-error" role="alert">{error}<button type="button" disabled={quoteBusy} onClick={() => {
           setError("");
           loadQuote(coupon.trim()).catch(e => setError(e.message));
-        }}>{quoteBusy ? "Preparing…" : "Retry order quote"}</button></div>}<form className="dx-checkout-grid" onSubmit={submit}><div><section><h2>Delivery details</h2><div className="dx-fields"><label>First name<input name="firstName" defaultValue={address.firstName || ""} required /></label><label>Last name<input name="lastName" defaultValue={address.lastName || ""} required /></label><label className="full">Email<input name="email" value={user?.email || ""} readOnly /></label><label className="full">Phone<input name="phone" defaultValue={address.phone || ""} required /></label><label className="full">Street address<input name="address" defaultValue={address.address || ""} required /></label><label>City<input name="city" defaultValue={address.city || ""} required /></label><label>Postal / ZIP code<input name="postalCode" defaultValue={address.postalCode || ""} required /></label><label>{info.addressLabel}{regions.length ? <select name="province" defaultValue={address.province || ""} required><option value="">Select</option>{regions.map(x => <option key={x}>{x}</option>)}</select> : <input name="province" defaultValue={address.province || ""} required />}</label><input type="hidden" name="country" value={info.country} /><input type="hidden" name="countryCode" value={info.countryCode} /></div></section><section><h2>Payment</h2><div className="dx-notice"><strong>Bank transfer</strong><br />Online card payments are temporarily unavailable while the payment provider is being connected. No card details are collected by Drixel.</div>{error && <div className="dx-error">{error}</div>}<button className="dx-place" disabled={busy || quoteBusy || !quote || !pricingReady}>{busy ? "Creating order…" : pricingReady ? "Place order" : "Checkout unavailable"}</button></section></div><aside><h2>Order summary</h2>{quote?.items?.map((x, i) => <div className="dx-order-item" key={i}><img src={x.image || ""} alt={x.name || "Product"} /><div><strong>{x.name}</strong><p>{[x.color, x.size, x.sku].filter(Boolean).join(" · ")} × {x.quantity}</p></div><b>{money(x.lineTotal)}</b></div>)}<div className="dx-coupon"><label>Discount code<input value={coupon} onChange={e => setCoupon(e.target.value.toUpperCase())} placeholder="ENTER CODE" /></label><button type="button" disabled={couponBusy} onClick={async () => {
+        }}>{quoteBusy ? "Preparing…" : "Retry order quote"}</button></div>}<form className="dx-checkout-grid" onSubmit={submit}><div><section><h2>Delivery details</h2><div className="dx-fields"><label>First name<input name="firstName" defaultValue={address.firstName || ""} required /></label><label>Last name<input name="lastName" defaultValue={address.lastName || ""} required /></label><label className="full">Email<input name="email" value={user?.email || ""} readOnly /></label><label className="full">Phone<input name="phone" defaultValue={address.phone || ""} required /></label><label className="full">Street address<input name="address" defaultValue={address.address || ""} required /></label><label>City<input name="city" defaultValue={address.city || ""} required /></label><label>Postal / ZIP code<input name="postalCode" defaultValue={address.postalCode || ""} required /></label><label>{info.addressLabel}{regions.length ? <select name="province" defaultValue={address.province || ""} required><option value="">Select</option>{regions.map(x => <option key={x}>{x}</option>)}</select> : <input name="province" defaultValue={address.province || ""} required />}</label><input type="hidden" name="country" value={info.country} /><input type="hidden" name="countryCode" value={info.countryCode} /></div></section><section><h2>Payment</h2><div className="dx-payment-options" role="group" aria-label="Payment method">{paymentConfig?.bank?.enabled&&<label className={paymentMethod==='bank'?'is-selected':''}><input type="radio" name="paymentChoice" value="bank" checked={paymentMethod==='bank'} onChange={()=>setPaymentMethod('bank')} /><span><strong>Bank transfer</strong><small>Pay by EFT using your order reference. We verify funds before dispatch.</small></span></label>}{paymentConfig?.yoco?.enabled&&market==='za'&&<label className={paymentMethod==='yoco'?'is-selected':''}><input type="radio" name="paymentChoice" value="yoco" checked={paymentMethod==='yoco'} onChange={()=>setPaymentMethod('yoco')} /><span><strong>{paymentConfig.yoco.mode==='test'?'Card payment · TEST MODE':'Card payment'}</strong><small>{paymentConfig.yoco.mode==='test'?'Testing only. No order will be dispatched.':'Continue to Yoco’s secure payment page.'}</small></span></label>}{paymentConfig?.snapscan?.enabled&&market==='za'&&<label className={paymentMethod==='snapscan'?'is-selected':''}><input type="radio" name="paymentChoice" value="snapscan" checked={paymentMethod==='snapscan'} onChange={()=>setPaymentMethod('snapscan')}/><span><strong>SnapScan</strong><small>Scan an order-specific QR code or pay on your phone. Payment is verified before dispatch.</small></span></label>}</div>{paymentMethod==='bank'&&<BankInstructions details={paymentConfig?.bank} />}{!paymentMethod&&<p className="dx-notice">{paymentConfig?'Payment options are being configured. Please contact Drixel before ordering.':'Loading secure payment options…'}</p>}{error && <div className="dx-error">{error}</div>}<button className="dx-place" disabled={busy || quoteBusy || !quote || !pricingReady || !paymentMethod}>{busy ? "Creating order…" : pricingReady ? paymentMethod==="yoco"?"Continue to secure payment":paymentMethod==="snapscan"?"Continue to SnapScan":"Place bank-transfer order" : "Checkout unavailable"}</button></section></div><aside><h2>Order summary</h2>{quote?.items?.map((x, i) => <div className="dx-order-item" key={i}><img src={x.image || ""} alt={x.name || "Product"} /><div><strong>{x.name}</strong><p>{[x.color, x.size, x.sku].filter(Boolean).join(" · ")} × {x.quantity}</p></div><b>{money(x.lineTotal)}</b></div>)}<div className="dx-coupon"><label>Discount code<input value={coupon} onChange={e => setCoupon(e.target.value.toUpperCase())} placeholder="ENTER CODE" /></label><button type="button" disabled={couponBusy} onClick={async () => {
               setCouponBusy(true);
               setError("");
               try {

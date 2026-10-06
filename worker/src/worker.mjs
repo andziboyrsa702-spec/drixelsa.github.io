@@ -1,4 +1,6 @@
+import {snapscanConfig,snapscanCheckout,verifySnapscan,snapscanWebhook} from './snapscan.mjs';
 import handlers from '../generated/handlers.cjs';
+import {paymentConfig,cardConfig,bankConfig,verifyPayment,yocoWebhook,resumePayment} from './payments.mjs';
 import {adminUser} from './auth.mjs';
 import {getFirestore} from './firestore.mjs';
 import {queueOrderUpdate,tickOrderMail} from './order-mail.mjs';
@@ -13,15 +15,18 @@ export default {
   const url=new URL(request.url),res=responseAdapter(),origin=request.headers.get('Origin');
   if(origin){const local=env.ALLOW_LOCAL_ORIGINS==='true'&&/^http:\/\/(localhost|127\.0\.0\.1):\d+$/.test(origin);if(!origins.has(origin)&&!local)return res.status(403).json({message:'Website origin is not allowed.'}).result();res.set('Access-Control-Allow-Origin',origin).set('Vary','Origin');}
   if(request.method==='OPTIONS')return res.status(204).set('Access-Control-Allow-Methods','GET, POST, OPTIONS').set('Access-Control-Allow-Headers','Authorization, Content-Type').result();
-  if(url.pathname==='/api/health')return res.json({service:'drixel-api',configured:{firebase:Boolean(env.FIREBASE_SERVICE_ACCOUNT),email:Boolean(env.RESEND_API_KEY),media:Boolean(env.CLOUDINARY_API_KEY&&env.CLOUDINARY_API_SECRET),webhook:Boolean(env.RESEND_WEBHOOK_SECRET),apiUrl:Boolean(env.PUBLIC_SITE_URL)},cardPayments:false}).result();
-  const handler=url.pathname==='/api/media/sign'?uploadSignature:handlers[routes[url.pathname]];if(!handler)return res.status(404).json({message:'API route not found.'}).result();
+  if(url.pathname==='/api/health')return res.json({service:'drixel-api',configured:{firebase:Boolean(env.FIREBASE_SERVICE_ACCOUNT),email:Boolean(env.RESEND_API_KEY),media:Boolean(env.CLOUDINARY_API_KEY&&env.CLOUDINARY_API_SECRET),webhook:Boolean(env.RESEND_WEBHOOK_SECRET),apiUrl:Boolean(env.PUBLIC_SITE_URL),snapscan:Boolean(env.SNAPSCAN_API_KEY&&env.SNAPSCAN_WEBHOOK_AUTH_KEY)},cardPayments:cardConfig(env).enabled}).result();
+  const paymentRoutes={'/api/payments/snapscan/checkout':snapscanCheckout,'/api/payments/snapscan/verify':verifySnapscan,'/api/payments/snapscan/webhook':snapscanWebhook,'/api/payments/config':paymentConfig,'/api/payments/yoco/verify':verifyPayment,'/api/payments/yoco/webhook':yocoWebhook,'/api/payments/yoco/resume':resumePayment};const handler=paymentRoutes[url.pathname]||(url.pathname==='/api/media/sign'?uploadSignature:handlers[routes[url.pathname]]);if(!handler)return res.status(404).json({message:'API route not found.'}).result();
   try{
    let raw=new Uint8Array();if(request.body){const reader=request.body.getReader(),chunks=[];let size=0;while(true){const {value,done}=await reader.read();if(done)break;size+=value.length;if(size>250000){await reader.cancel();return res.status(413).json({message:'Request too large.'}).result();}chunks.push(value);}raw=Buffer.concat(chunks);}
    const text=Buffer.from(raw).toString(),contentType=request.headers.get('Content-Type')||'',body=text?(contentType.includes('application/x-www-form-urlencoded')?Object.fromEntries(new URLSearchParams(text)):JSON.parse(text)):{};
    const req={method:request.method,body,rawBody:Buffer.from(raw),query:Object.fromEntries(url.searchParams),get:key=>request.headers.get(key),headers:Object.fromEntries(request.headers),protocol:url.protocol.slice(0,-1)};
    if(['/api/queue-campaign','/api/send-campaign'].includes(url.pathname)&&!env.PUBLIC_SITE_URL)return res.status(503).json({message:'Set PUBLIC_SITE_URL to the Worker URL before queueing emails.'}).result();
    if(url.pathname==='/api/media/sign'&&request.method!=='POST')return res.status(405).json({message:'Use POST.'}).result();
-   if(url.pathname==='/api/create-order'&&body.paymentMethod!=='bank')return res.status(409).json({message:'Card payments are not connected yet. Choose bank transfer.'}).result();
+   if(url.pathname==='/api/create-order'&&body.paymentMethod==='yoco'&&!cardConfig(env).enabled)return res.status(409).json({message:'Card payments are not connected yet. Choose bank transfer.'}).result();
+   if(url.pathname==='/api/create-order'&&body.paymentMethod==='yoco'&&cardConfig(env).mode==='test')await adminUser(req);
+   if(url.pathname==='/api/create-order'&&body.paymentMethod==='bank'){const bank=bankConfig((await getFirestore().doc('settings/store').get()).data());req.paymentBank=bank;if(!bank.enabled)return res.status(409).json({message:'Bank transfer instructions have not been configured. Please contact Drixel.'}).result();}
+   if(url.pathname==='/api/create-order'&&body.paymentMethod==='snapscan'){const config=snapscanConfig((await getFirestore().doc('settings/store').get()).data(),env);if(!config.enabled)return res.status(409).json({message:'SnapScan is not connected yet. Choose another available method.'}).result();req.snapscanCode=config.snapCode;}
    if(url.pathname==='/api/subscribe'&&request.method==='POST')await rateLimit(req);
    await handler(req,res);const result=res.result();if(url.pathname==='/api/admin/order-action'&&result.ok){try{await queueOrderUpdate(body.orderId,body.action);}catch{await getFirestore().doc('operations_health/orderMail').set({status:'failed',lastError:'Order update email could not be queued.'},{merge:true}).catch(()=>{});}}return result;
   }catch(e){console.error('API request failed',e.code||e.status||'internal');return res.status(e.status||503).json({success:false,message:e.status?e.message:'Service temporarily unavailable. Check backend configuration.'}).result();}
