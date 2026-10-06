@@ -1,3 +1,4 @@
+import MediaUpload from './MediaUpload.jsx';
 import { campaignAudience, scheduleUtc } from '../utils/campaignAudience.js';
 import React, { useMemo, useState } from 'react';
 import { addDoc, collection, doc, runTransaction, serverTimestamp } from 'firebase/firestore';
@@ -166,7 +167,7 @@ export default function EmailCampaignAdmin({
       body: JSON.stringify(payload)
     });
     const data = await response.json().catch(() => ({}));
-    if (!response.ok || data.success !== true) throw Error(data.message || (response.status === 404 ? 'Email service is unavailable. Deploy the marketing Functions and Firebase Hosting, or start the local emulator.' : 'The email service did not confirm this request. Check the campaign record before retrying.'));
+    if (!response.ok || data.success !== true) throw Error(data.message || (response.status === 404 || response.ok ? 'Email service is unavailable. Deploy the marketing Functions and Firebase Hosting, or start the local emulator.' : 'The email request was not confirmed. Check Campaigns before retrying; the provider may have accepted it.'));
     return data;
   }
   async function test() {
@@ -291,7 +292,7 @@ export default function EmailCampaignAdmin({
               rows: 3
             })}{updates && <p className="mk-field-note">Templates are starting points. Confirm the facts, affected services and next update time before sending.</p>}</fieldset><fieldset disabled={Boolean(busy)}><legend><span>03</span> Destination & artwork</legend><div className="ra-form-two">{field('ctaLabel', 'Button label')}{field('ctaUrl', 'Destination URL', {
                 type: 'url'
-              })}</div>{field('imageUrl', 'Campaign image URL')}{field('imageAlt', 'Image description')}{d.layout === 'gallery' && field('secondaryImageUrl', 'Second image URL')}<div className="mk-image-strip">{Array.from({
+              })}</div>{field('imageUrl', 'Campaign image URL')}{field('imageAlt', 'Image description')}{d.layout === 'gallery' && field('secondaryImageUrl', 'Second image URL')}<MediaUpload label="Upload email artwork" accept="image/jpeg,image/png,image/webp" disabled={Boolean(busy)} onUploaded={asset=>setD(x=>({...x,imageUrl:asset.url}))}/><div className="mk-image-strip">{Array.from({
                 length: 9
               }, (_, i) => '/assets/campaigns/campaign-' + String(i + 1).padStart(2, '0') + '.jpeg').map(x => <button type="button" className={d.imageUrl === x ? 'active' : ''} onClick={() => setD(v => ({
                 ...v,

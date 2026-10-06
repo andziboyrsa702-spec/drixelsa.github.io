@@ -22,7 +22,9 @@ export function CartProvider({
     count: items.reduce((n, x) => n + Number(x.quantity || 0), 0),
     subtotal: items.reduce((n, x) => n + Number(x.price || 0) * Number(x.quantity || 0), 0),
     add(item) {
-      if (!validCart([item]).length) return;
+      const normalized = validCart([item])[0];
+      if (!normalized) return false;
+      item = normalized;
       setItems(old => {
         const i = old.findIndex(x => x.productId === item.productId && x.sku === item.sku && x.size === item.size && x.color === item.color);
         if (i < 0) return [...old, {
@@ -34,6 +36,7 @@ export function CartProvider({
           quantity: cartQuantity(x.quantity + 1)
         } : x);
       });
+      return true;
     },
     quantity(i, q) {
       setItems(old => old.map((x, n) => n === i ? {

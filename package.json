@@ -14,7 +14,8 @@
     "test:layout": "node tests/react-layout.cjs",
     "test:admin": "node tests/admin.cjs",
     "test:marketing": "node tests/marketing-browser.cjs",
-    "test:campaigns": "node --test tests/admin-campaign.cjs tests/campaign-engine.cjs"
+    "test:campaigns": "node --test tests/admin-campaign.cjs tests/campaign-engine.cjs",
+    "test:storage": "firebase emulators:exec --only storage --project demo-drixel \"node --test tests/storage-rules.cjs\""
   },
   "dependencies": {
     "firebase": "12.19.0",

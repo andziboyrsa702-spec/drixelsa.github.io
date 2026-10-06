@@ -11,7 +11,7 @@ npm --prefix functions install
 npm run dev -- --force
 ```
 
-The frontend development proxy expects Functions on port 5001. In a second terminal run `npx firebase emulators:start --only "functions,firestore,auth" --project drixel-sa`. Use Java 21; after installation close and reopen VS Code so its terminal inherits the updated PATH. `VITE_USE_FIREBASE_EMULATORS=true` connects Firebase browser SDKs to the local emulators. Do not mix production SDK writes with local emulator API calls.
+The frontend development proxy expects Functions on port 5001. In a second terminal run `npx firebase emulators:start --only "functions,firestore,auth,storage" --project drixel-sa`. Use Java 21; after installation close and reopen VS Code so its terminal inherits the updated PATH. `VITE_USE_FIREBASE_EMULATORS=true` connects Firebase browser SDKs to the local emulators. Do not mix production SDK writes with local emulator API calls.
 
 ## Production setup
 
@@ -21,7 +21,7 @@ Deployment needs an authenticated Firebase account with project access, billing 
 npx firebase functions:secrets:set RESEND_API_KEY --project drixel-sa
 npx firebase functions:secrets:set RESEND_WEBHOOK_SECRET --project drixel-sa
 npm run build
-npx firebase deploy --only "hosting,firestore,functions" --project drixel-sa
+npx firebase deploy --only "hosting,firestore,storage,functions" --project drixel-sa
 ```
 
 Review the Functions deployment plan before confirming deletions of any unrelated existing Functions. The deployment includes the queue endpoints, scheduled worker, signed email webhook, checkout reservation fixes, and existing API endpoints. Deploy rules and indexes before enabling the queue UI. Wait for the campaign_jobs status/dueAt index to become ready. Pages publishing only updates the frontend; it does not deploy this backend.
@@ -60,3 +60,13 @@ Backups have separate billing. Record a restore drill to a separate database bef
 3. Schedule a controlled campaign, confirm SAST conversion, cancel it, and verify no unsent batch runs. Check worker health and provider logs.
 4. Use bank/manual checkout with a test product to verify trusted prices, single stock reservation, duplicate-request protection and cancellation restoration. Card checkout remains disabled pending provider setup and an end-to-end verification.
 5. Test direct Pages/Hosting links, mobile layouts, administrator access and customer isolation using deployed rules. Do not send a production-audience campaign as a smoke test.
+
+## Product and studio media
+
+Products → Edit product now has separate Front view and Back view upload buttons. Front is the shop cover; back appears on pointer hover and keyboard focus. On touch devices both are available on the product page. Gallery images can also be uploaded. Blank variant-price overrides inherit the base product price. Products without variants have an explicit stock field.
+
+Content → Media stores uploaded studio images and videos. Storefront editor has a hero video upload; Campaign Content and Campaign Studio have artwork uploads. Uploaded assets persist in Firebase Storage and metadata in the administrator-only media_assets collection. Uploads do not publish a product or message automatically: save/publish the editor afterward.
+
+Enable Storage for drixel-sa in Firebase Console, confirm the configured bucket drixel-sa.firebasestorage.app, and deploy storage.rules and firestore.rules before uploading. Rules permit public reading of admin-media assets and restrict creation to administrators in their own path; images are limited to JPEG/PNG/WebP at 15 MB and MP4/WebM videos to 150 MB. Other Storage paths remain denied by this rules file; review any pre-existing paths before deployment. Local emulator mode also needs the Storage emulator on port 9199.
+
+The live API routes returned 404 during the source check. Frontend publication cannot repair this. Deploy Functions and Firebase Hosting, then verify /api/market returns JSON. Set VITE_API_BASE_URL only to a verified deployed backend when running locally without emulators. Never silently redirect local checkout writes to production.

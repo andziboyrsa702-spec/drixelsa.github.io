@@ -29,7 +29,7 @@
 .ra-shell button,.ra-shell input,.ra-shell select,.ra-shell textarea{border-radius:0}.ra-shell button{font-family:var(--dx-display)}.ra-panel{border-radius:0!important;box-shadow:none!important}.ra-composer>button,.ra-admin-actions>button,.ra-discount-row button,.ra-return-list button,.ra-fulfilment-list button{border:1px solid #111!important;background:#111!important;color:#fff!important;min-height:42px;padding:0 15px;font-size:10px;font-weight:850;text-transform:uppercase;letter-spacing:.05em}.ra-admin-actions>button.danger{background:#fff!important;color:#111!important}.ra-composer input,.ra-composer textarea,.ra-composer select,.ra-admin-search input{border:1px solid #ccc!important;background:#fff!important;color:#111!important;outline:none}.ra-composer input:focus,.ra-composer textarea:focus,.ra-composer select:focus,.ra-admin-search input:focus{border-color:#111!important;box-shadow:0 0 0 1px #111}.ra-nav{border-radius:0!important}
 
 /* One final, scoped admin layout; storefront rules must not shape these controls. */
-.ra-shell {--ra-bg:#f5f5f4;--ra-muted:#626262;--ra-line:#ddd;grid-template-columns:232px minmax(0,1fr);font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.5;isolation:isolate}
+.ra-shell {--ra-bg:#f5f5f4;--ra-muted:#626262;--ra-line:#ddd;grid-template-columns:232px minmax(0,1fr);font-family:var(--dx-display);font-size:14px;line-height:1.5;isolation:isolate}
 .ra-shell *, .admin-gate * {box-sizing:border-box}
 .ra-shell :is(button,input,select,textarea) {font:inherit;border-radius:0}
 .ra-shell :is(button,a,input,select,textarea):focus-visible {outline:2px solid #111;outline-offset:3px}
@@ -195,7 +195,7 @@
 .ra-data-state h2,.ra-data-state p {margin:0}
 .ra-loading-mark {width:26px;height:26px;border:2px solid #ddd;border-top-color:#111;border-radius:50%;animation:ra-spin .8s linear infinite}
 @keyframes ra-spin {to{transform:rotate(360deg)}}
-.admin-gate {padding:32px;gap:16px;font-family:Arial,Helvetica,sans-serif}
+.admin-gate {padding:32px;gap:16px;font-family:var(--dx-display)}
 .admin-gate span {max-width:480px;font-size:14px;line-height:1.7}
 .admin-gate a {color:#111;text-decoration:underline}
 .admin-gate button {background:#111;color:#fff;border:1px solid #111;padding:12px 18px;font:inherit}
@@ -270,7 +270,7 @@
 .ra-shell .ra-preview-toggle button.active {background:#111;color:#fff;border-color:#111}
 
 /* Marketing studio MKT.02: editorial typography and actual email artwork. */
-.mk-workspace{--mk-muted:#656560;--mk-rule:#deded9;display:grid;gap:28px;font-family:Arial,Helvetica,sans-serif}
+.mk-workspace{--mk-muted:#656560;--mk-rule:#deded9;display:grid;gap:28px;font-family:var(--dx-display)}
 .mk-workspace button,.mk-workspace input,.mk-workspace select,.mk-workspace textarea{font-family:inherit;font-size:13px;letter-spacing:0;text-transform:none;line-height:1.5}
 .mk-workspace button:focus-visible{outline:2px solid #111;outline-offset:4px}
 .mk-workspace-head{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(240px,.7fr);gap:40px;padding:20px 0 32px;border-bottom:1px solid var(--mk-rule);align-items:end}
@@ -299,3 +299,4 @@
 .mk-audience-summary{display:flex;gap:18px;justify-content:space-between;font-size:11px;line-height:1.6;color:var(--mk-muted);margin:0 0 20px;flex-wrap:wrap}.mk-workspace .mk-subscriber-email{font-size:12px;color:var(--mk-muted)}.mk-workspace .mk-audience td strong{font-weight:500}.mk-audience td{white-space:nowrap}.mk-audience td:first-child{min-width:240px}.mk-workspace .mk-state-active{background:#111;color:#fff;border-color:#111}
 
 .mk-record-actions{display:flex;flex-direction:column;gap:8px;min-width:0;max-width:190px}.mk-record-actions button{white-space:normal}.mk-reconciliation{display:grid;gap:18px;max-width:900px}.mk-reconciliation label{display:grid;gap:8px;font-size:12px}.mk-reconciliation input,.mk-reconciliation textarea,.mk-reconciliation select{width:100%;min-width:0;border:1px solid var(--mk-rule);padding:12px;font:inherit}.mk-send-panel .ra-form-two{margin:18px 0}.mk-state-scheduled,.mk-state-queued{background:#eee}.mk-state-cancelled{background:#ddd}@media(max-width:600px){.mk-record-actions{max-width:none}.mk-reconciliation{padding:18px}}
+.ra-upload{display:grid;gap:10px;margin:16px 0;padding:18px;border:1px dashed #bbb;background:#fafafa;min-width:0}.ra-upload>button{justify-self:start;min-height:44px;padding:12px 18px;background:#111;color:#fff;border:1px solid #111;font:inherit}.ra-upload>span{font-size:11px;color:#666}.ra-upload progress{width:100%}.ra-upload p{font-size:12px;overflow-wrap:anywhere}.ra-file-input{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;clip-path:inset(50%);overflow:hidden}.ra-product-photography{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px;margin:24px 0}.ra-product-photography>div{min-width:0}.ra-product-photography img{width:100%;height:220px;object-fit:contain;background:#f5f5f5}.ra-product-photography p,.ra-media-library>p{font-size:12px;line-height:1.7;color:#666}.ra-media-library video{width:100%;height:240px;object-fit:contain;background:#111}.ra-media-library input{width:100%;min-width:0;font:inherit;padding:12px;border:1px solid #ddd}.ra-media-library article>div{display:grid;gap:12px}.ra-media-library label{display:grid;gap:10px}@media(max-width:600px){.ra-product-photography{grid-template-columns:minmax(0,1fr)}}
