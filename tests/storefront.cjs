@@ -30,4 +30,3 @@ const {mockStorefront}=require('./browser-fixtures.cjs');
  console.log(JSON.stringify({errors,checkout:'review then confirm',payment:'pending until verified',guestCart:true,newsletter:true}));
  await browser.close();assert.deepEqual(errors,[]);
 })().catch(e=>{console.error(e);process.exit(1)});
-
