@@ -3,7 +3,7 @@ const admin = require("firebase-admin");
 const { initializeApp, getApps } = require("firebase-admin/app");
 const { getAuth } = require("firebase-admin/auth");
 const { FieldValue } = require("firebase-admin/firestore");
-const { Resend } = require("resend");
+const {submitBatch,unsubscribeMarkup,deliveryKey,pause} = require("./marketing-delivery");
 const { sendMail } = require("./notifications");
 
 if (!getApps().length) {
@@ -24,7 +24,20 @@ function normalizeRecipients(value) {
     return recipients.filter(isValidEmail).slice(0, 20);
 }
 
+function marketingCors(req,res){
+    const origin=req.get("Origin");
+    const allowed=new Set(["https://drixelsa.co.za","https://www.drixelsa.co.za","https://drixel-sa.web.app","https://drixel-sa.firebaseapp.com","https://andziboyrsa702-spec.github.io"]);
+    if(process.env.PUBLIC_SITE_URL){try{allowed.add(new URL(process.env.PUBLIC_SITE_URL).origin);}catch{}}
+    if(process.env.FUNCTIONS_EMULATOR==="true"&&/^http:\/\/(localhost|127\.0\.0\.1):\d+$/.test(origin||""))allowed.add(origin);
+    if(origin&&!allowed.has(origin)){res.status(403).json({success:false,message:"This website is not allowed to use the email service."});return true;}
+    if(origin){res.set("Access-Control-Allow-Origin",origin);res.set("Vary","Origin");}
+    res.set("Cache-Control","no-store");
+    if(req.method==="OPTIONS"){res.set("Access-Control-Allow-Methods","POST, OPTIONS");res.set("Access-Control-Allow-Headers","Authorization, Content-Type");res.status(204).send("");return true;}
+    return false;
+}
+
 exports.sendEmail = functions.runWith({ secrets: ["RESEND_API_KEY"] }).https.onRequest(async (req, res) => {
+    if(marketingCors(req,res))return;
     if (req.method !== "POST") {
         res.set("Allow", "POST");
         return res.status(405).json({ success: false, message: "Method not allowed." });
@@ -92,7 +105,7 @@ async function requireAdmin(req) {
         error.status = 401;
         throw error;
     }
-    if (decoded.admin !== true && decoded.role !== "admin") {
+    if (!(decoded.admin === true || decoded.role === "admin" || (decoded.email_verified === true && ALLOWED_ADMIN_EMAILS.has(String(decoded.email||"").toLowerCase())))) {
         const error = new Error("Administrator access required.");
         error.status = 403;
         throw error;
@@ -100,115 +113,61 @@ async function requireAdmin(req) {
     return decoded;
 }
 
-exports.sendCampaign = functions.runWith({ secrets: ["RESEND_API_KEY"] }).https.onRequest(async (req, res) => {
-    if (req.method !== "POST") {
-        res.set("Allow", "POST");
-        return res.status(405).json({ success: false, message: "Method not allowed." });
-    }
-
+exports.sendCampaign = functions.runWith({ secrets: ["RESEND_API_KEY"],timeoutSeconds:540,memory:"512MB" }).https.onRequest(async (req, res) => {
+    if(marketingCors(req,res))return;
+    if(req.method!=="POST"){res.set("Allow","POST");return res.status(405).json({success:false,message:"Method not allowed."});}
     let claimedRef;
-    try {
+    try{
         await requireAdmin(req);
-        const campaignId = req.body && req.body.campaignId;
-        if (!campaignId || typeof campaignId !== "string") {
-            return res.status(400).json({ success: false, message: "Campaign ID is required." });
-        }
-
-        const campaignRef = admin.firestore().collection("email_campaigns").doc(campaignId);
-        const campaignSnap = await campaignRef.get();
-        if (!campaignSnap.exists) {
-            return res.status(404).json({ success: false, message: "Campaign not found." });
-        }
-
-        let campaign = campaignSnap.data();
-        if (!campaign.subject || !campaign.html) {
-            return res.status(400).json({ success: false, message: "Campaign is incomplete." });
-        }
-        if (campaign.status === "sent") {
-            return res.status(409).json({ success: false, message: "Campaign has already been sent." });
-        }
-
-        const subscriberSnap = await admin.firestore().collection("subscribers").get();
-        const recipients = [];
-        subscriberSnap.forEach(docSnap => {
-            const subscriber = docSnap.data();
-            if (isValidEmail(subscriber.email) && subscriber.status !== "unsubscribed") {
-                recipients.push({ id: docSnap.id, email: subscriber.email.toLowerCase(), token: subscriber.unsubscribeToken || "" });
-            }
-        });
-        const uniqueRecipients = [...new Map(recipients.map(r => [r.email, r])).values()];
-        if (!uniqueRecipients.length) {
-            return res.status(400).json({ success: false, message: "No active subscribers." });
-        }
-        if (uniqueRecipients.length > 5000) {
-            return res.status(413).json({ success: false, message: "Audience is too large for this campaign sender." });
-        }
-
-        const apiKey = process.env.RESEND_API_KEY;
-        if (!apiKey) {
-            return res.status(500).json({ success: false, message: "Email service is not configured." });
-        }
-
-        const resend = new Resend(apiKey);
-        let sent = 0;
-        let failed = 0;
-        const batchSize = 40;
-
-        // Claim this campaign atomically so concurrent admin requests cannot
-        // deliver the same campaign twice.
-        await admin.firestore().runTransaction(async tx => {
-            const fresh = await tx.get(campaignRef);
-            const status = fresh.data()?.status;
-            if (["sending", "sent", "delivery_unknown"].includes(status)) {
-                const error = new Error("This campaign is already sending or has been sent.");
-                error.status = 409;
-                throw error;
-            }
-            campaign = fresh.data();
-            if (!campaign.subject || !campaign.html) {
-                const error = new Error("Campaign is incomplete.");
-                error.status = 400;
-                throw error;
-            }
-            tx.update(campaignRef, {
-                status: "sending",
-                recipientCount: uniqueRecipients.length,
-                sendStartedAt: FieldValue.serverTimestamp()
+        const campaignId=req.body?.campaignId;
+        if(typeof campaignId!=="string"||!campaignId||campaignId.length>128||campaignId.includes("/"))return res.status(400).json({success:false,message:"A valid campaign ID is required."});
+        if(!process.env.RESEND_API_KEY)return res.status(503).json({success:false,message:"Email service is not configured. Set RESEND_API_KEY and verify the sending domain."});
+        const db=admin.firestore(),ref=db.collection("email_campaigns").doc(campaignId);
+        const snapshot=await ref.get();
+        if(!snapshot.exists)return res.status(404).json({success:false,message:"Campaign not found."});
+        const audience=await db.collection("subscribers").get(),recipients=new Map();
+        audience.forEach(snap=>{const s=snap.data(),email=String(s.email||"").trim().toLowerCase();if(isValidEmail(email)&&(!s.status||s.status==="active"))recipients.set(email,{id:snap.id,email,token:s.unsubscribeToken||""});});
+        const people=[...recipients.values()];
+        if(!people.length)return res.status(400).json({success:false,message:"No active subscribers. Pending and unsubscribed subscribers are excluded."});
+        if(people.length>5000)return res.status(413).json({success:false,message:"The sender supports up to 5,000 subscribers per campaign."});
+        let campaign;
+        await db.runTransaction(async tx=>{
+            const fresh=await tx.get(ref);campaign=fresh.data();
+            if(!fresh.exists||campaign.status!=="draft"){const error=Error("Only a saved draft can be sent. This campaign may already be sending or have been submitted.");error.status=409;throw error;}
+            if(typeof campaign.subject!=="string"||!campaign.subject.trim()||campaign.subject.length>300||typeof campaign.html!=="string"||!campaign.html.trim()||campaign.html.length>200000){const error=Error("Campaign content is incomplete or too large.");error.status=400;throw error;}
+            tx.update(ref,{status:"sending",recipientCount:people.length,acceptedCount:0,failedCount:0,lastError:"",sendStartedAt:FieldValue.serverTimestamp()});
+        });claimedRef=ref;
+        // Legacy/checkout subscriptions also need working preference links.
+        for(let offset=0;offset<people.length;offset+=100)await Promise.all(people.slice(offset,offset+100).map(async person=>{
+            if(/^[a-f0-9]{64}$/.test(person.token))return;
+            const subscriberRef=db.collection("subscribers").doc(person.id);
+            person.token=await db.runTransaction(async tx=>{
+                const fresh=await tx.get(subscriberRef),existing=fresh.data()?.unsubscribeToken;
+                if(/^[a-f0-9]{64}$/.test(existing||""))return existing;
+                const token=require("node:crypto").randomBytes(32).toString("hex");
+                tx.set(subscriberRef,{unsubscribeToken:token},{merge:true});return token;
             });
-        });
-        claimedRef = campaignRef;
-
-        for (let i = 0; i < uniqueRecipients.length; i += batchSize) {
-            const batch = uniqueRecipients.slice(i, i + batchSize);
-            const baseUrl = publicBaseUrl(req);
-            const results = await Promise.allSettled(batch.map(recipient => {
-                const unsubscribeUrl = recipient.token ? baseUrl + "/api/unsubscribe?id=" + encodeURIComponent(recipient.id) + "&token=" + encodeURIComponent(recipient.token) : "";
-                const footer = unsubscribeUrl ? `<div style="max-width:620px;margin:24px auto 0;padding:20px;text-align:center;color:#777;font:12px Arial,sans-serif"><a style="color:#777" href="${unsubscribeUrl}">Unsubscribe</a> from Drixel marketing emails.</div>` : "";
-                return resend.emails.send({
-                    from: "Drixel SA <info@customer.drixelsa.co.za>",
-                    to: [recipient.email],
-                    subject: campaign.subject.trim(),
-                    ...(campaign.preheader ? { headers: { "X-Entity-Ref-ID": campaignId } } : {}),
-                    html: campaign.html + footer
-                });
-            }));
-            results.forEach(result => result.status === "fulfilled" && !result.value?.error && result.value?.data?.id ? sent++ : failed++);
+        }));
+        let sent=0,failed=0,lastError="";
+        for(let i=0;i<people.length;i+=100){
+            if(i)await pause(650);
+            const batch=people.slice(i,i+100);
+            const messages=batch.map(person=>{
+                const url=publicBaseUrl(req)+"/api/unsubscribe?id="+encodeURIComponent(person.id)+"&token="+encodeURIComponent(person.token);
+                const footer=unsubscribeMarkup(url);
+                const html=campaign.html.includes("</body>")?campaign.html.replace("</body>",footer+"</body>"):campaign.html+footer;
+                return {from:process.env.MAIL_FROM||"Drixel SA <info@customer.drixelsa.co.za>",to:[person.email],subject:campaign.subject.trim(),html,headers:{"List-Unsubscribe":"<"+url+">","List-Unsubscribe-Post":"List-Unsubscribe=One-Click"}};
+            });
+            try{await submitBatch(messages,deliveryKey(campaignId,i/100));sent+=batch.length;}
+            catch(error){if(error.unknown)throw error;failed+=batch.length;lastError=error.message;}
+            await ref.update({acceptedCount:sent,failedCount:failed,lastError});
         }
-
-        await campaignRef.update({
-            status: failed === uniqueRecipients.length ? "failed" : "sent",
-            acceptedCount: sent,
-            failedCount: failed,
-            sentAt: FieldValue.serverTimestamp()
-        });
-
-        return res.status(200).json({ success: true, sent, failed });
-    } catch (error) {
-        if (claimedRef) {
-            await claimedRef.update({status: "delivery_unknown", failedAt: FieldValue.serverTimestamp()}).catch(() => {});
-        }
-        console.error("Campaign send failed:", error);
-        return res.status(error.status || 500).json({ success: false, message: error.status ? error.message : "Campaign delivery failed." });
+        await ref.update({status:failed===people.length?"failed":failed?"partial":"sent",acceptedCount:sent,failedCount:failed,lastError,sentAt:FieldValue.serverTimestamp()});
+        return res.status(200).json({success:true,sent,failed});
+    }catch(error){
+        if(claimedRef)await claimedRef.update({status:"delivery_unknown",lastError:String(error.message||"Send interrupted. Check provider logs before resending.").slice(0,300),failedAt:FieldValue.serverTimestamp()}).catch(()=>{});
+        console.error("Campaign send failed:",error);
+        return res.status(error.status||500).json({success:false,message:error.status?error.message:"Send interrupted. Check the campaign status and provider logs before starting another campaign."});
     }
 });
 
@@ -220,44 +179,40 @@ function newsletterDocId(email) {
 function publicBaseUrl(req) {
     const configured = process.env.PUBLIC_SITE_URL;
     if (configured) return configured.replace(/\/$/, "");
-    const forwardedProto = req.get("x-forwarded-proto") || "https";
-    return forwardedProto + "://" + req.get("host");
+    return "https://drixel-sa.web.app";
 }
 
 exports.subscribeNewsletter = functions.https.onRequest(async (req, res) => {
-    if (req.method !== "POST") {
-        res.set("Allow", "POST");
-        return res.status(405).json({ success: false, message: "Method not allowed." });
-    }
-    const email = String(req.body && req.body.email || "").trim().toLowerCase();
-    if (!isValidEmail(email)) {
-        return res.status(400).json({ success: false, message: "Enter a valid email address." });
-    }
-    const ref = admin.firestore().collection("subscribers").doc(newsletterDocId(email));
-    const snap = await ref.get();
-    const existing = snap.exists ? snap.data() : {};
-    const unsubscribeToken = existing.unsubscribeToken || require("crypto").randomBytes(32).toString("hex");
-    await ref.set({
-        email,
-        status: "active",
-        source: existing.source || "website",
-        unsubscribeToken,
-        subscribedAt: existing.subscribedAt || FieldValue.serverTimestamp(),
-        updatedAt: FieldValue.serverTimestamp()
-    }, { merge: true });
-    return res.status(200).json({ success: true, message: "You're on the list." });
+    if(marketingCors(req,res))return;
+    if(req.method!=="POST"){res.set("Allow","POST");return res.status(405).json({success:false,message:"Method not allowed."});}
+    const email=String(req.body?.email||"").trim().toLowerCase();
+    if(!isValidEmail(email))return res.status(400).json({success:false,message:"Enter a valid email address."});
+    try{
+        const ref=admin.firestore().collection("subscribers").doc(newsletterDocId(email));
+        const source=["footer","storefront","checkout"].includes(req.body?.source)?req.body.source:"website";
+        await admin.firestore().runTransaction(async tx=>{
+            const snap=await tx.get(ref),existing=snap.exists?snap.data():{};
+            tx.set(ref,{email,status:"active",source:existing.source||source,unsubscribeToken:existing.unsubscribeToken||require("node:crypto").randomBytes(32).toString("hex"),consent:"newsletter-v1",subscribedAt:existing.subscribedAt||FieldValue.serverTimestamp(),updatedAt:FieldValue.serverTimestamp()},{merge:true});
+        });
+        return res.status(200).json({success:true,message:"You're on the list."});
+    }catch(error){console.error("Newsletter signup failed:",error);return res.status(503).json({success:false,message:"We could not save your subscription. Please try again."});}
 });
 
 exports.unsubscribeNewsletter = functions.https.onRequest(async (req, res) => {
     if (!["GET", "POST"].includes(req.method)) return res.status(405).send("Method not allowed.");
     const id = String((req.query && req.query.id) || (req.body && req.body.id) || "");
     const token = String((req.query && req.query.token) || (req.body && req.body.token) || "");
-    if (!/^[a-f0-9]{64}$/.test(id) || !/^[a-f0-9]{64}$/.test(token)) return res.status(400).send("Invalid unsubscribe link.");
+    if (!/^[A-Za-z0-9_-]{1,128}$/.test(id) || !/^[a-f0-9]{64}$/.test(token)) return res.status(400).send("Invalid unsubscribe link.");
     const ref = admin.firestore().collection("subscribers").doc(id), snap = await ref.get();
     if (!snap.exists || snap.data().unsubscribeToken !== token) return res.status(404).send("Unsubscribe link not found.");
-    await ref.update({ status: "unsubscribed", unsubscribedAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() });
-    res.set("Content-Type", "text/html; charset=utf-8");
-    return res.status(200).send('<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><title>Unsubscribed | Drixel</title><body style="margin:0;background:#050505;color:#fff;font-family:Arial,sans-serif;display:grid;place-items:center;min-height:100vh"><main style="max-width:560px;padding:40px;text-align:center"><b style="font-size:28px;letter-spacing:-2px">DRIXEL</b><h1 style="font-size:48px;letter-spacing:-3px">You’re unsubscribed.</h1><p style="color:#999;line-height:1.6">You will no longer receive Drixel marketing emails at this address.</p></main></body>');
+    res.set("Cache-Control","no-store");
+    res.set("Referrer-Policy","no-referrer");
+    res.set("Content-Security-Policy","default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; frame-ancestors 'none'");
+    res.set("Content-Type","text/html; charset=utf-8");
+    // Email scanners may open GET links. Only an explicit POST changes preferences.
+    if(req.method==="GET")return res.status(200).send('<!doctype html><html lang="en"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Email preferences | Drixel</title><body style="margin:0;background:#f4f4f1;color:#111;font-family:Arial,sans-serif;display:grid;place-items:center;min-height:100vh"><main style="max-width:480px;padding:40px"><b style="font-size:28px;letter-spacing:-1px">DRIXEL</b><h1 style="font-size:36px;line-height:1.1">Your inbox. Your choice.</h1><p style="color:#666;line-height:1.7">Choose below to stop receiving Drixel marketing and service updates sent to the subscriber list.</p><form method="post"><button style="background:#111;color:#fff;border:0;padding:16px 24px;font:14px Arial">Unsubscribe</button></form></main></body></html>');
+    await ref.update({status:"unsubscribed",unsubscribedAt:FieldValue.serverTimestamp(),updatedAt:FieldValue.serverTimestamp()});
+    return res.status(200).send('<!doctype html><html lang="en"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Unsubscribed | Drixel</title><body style="margin:0;background:#f4f4f1;color:#111;font-family:Arial,sans-serif;display:grid;place-items:center;min-height:100vh"><main style="max-width:480px;padding:40px"><b style="font-size:28px">DRIXEL</b><h1 style="font-size:36px">You are unsubscribed.</h1><p style="color:#666;line-height:1.7">You will no longer receive emails sent to the Drixel subscriber list.</p></main></body></html>');
 });
 
 
