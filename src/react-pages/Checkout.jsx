@@ -9,11 +9,11 @@ import { useCart } from "../context/CartContext.jsx";
 import { useMarket } from "../context/MarketContext.jsx";
 async function readApi(r) {
   const text = await r.text();
-  if (!text) throw new Error(r.ok ? "The checkout service returned an empty response." : "Checkout API is not running. Start Firebase emulators for local checkout testing.");
+  if (!text) throw new Error(r.ok ? "The checkout service returned an empty response." : (import.meta.env.DEV ? "Checkout is unavailable. Start Firebase emulators or configure VITE_API_BASE_URL for the deployed backend." : "Checkout is temporarily unavailable. The store backend needs deployment or recovery; your bag is saved."));
   try {
     return JSON.parse(text);
   } catch {
-    throw new Error("The checkout service returned an invalid response.");
+    throw new Error("The checkout endpoint returned a website page instead of order data. Check the backend deployment and API routing; your bag is saved.");
   }
 }
 export default function Checkout() {

@@ -28,6 +28,7 @@ jobs:
       - run: npm test
       - run: node -e 'require("./functions/index.js")'
       - run: npm run test:rules
+      - run: npm run test:storage
       - run: npm run build
       - run: npx playwright install chromium --with-deps
       - name: Verify React storefront alignment
@@ -39,6 +40,7 @@ jobs:
           npm run test:layout
           npm run test:admin
           npm run test:marketing
+          node tests/product-media-browser.cjs
       - name: Verify campaign send safeguards
         run: node --test tests/admin-campaign.cjs tests/campaign-engine.cjs tests/storefront-resilience.test.js
       - name: Verify Firebase hosting output

@@ -48,7 +48,7 @@ if(require.main===module)(async()=>{
       const a=children[i].getBoundingClientRect(),b=children[j].getBoundingClientRect();if(Math.min(a.right,b.right)-Math.max(a.left,b.left)>2&&Math.min(a.bottom,b.bottom)-Math.max(a.top,b.top)>2)problems.push(selector+' overlaps');
      }
     }
-    const inputs=[...document.querySelectorAll('.ra-view input:not([type=checkbox]),.ra-view select')];
+    const inputs=[...document.querySelectorAll('.ra-view input:not([type=checkbox]):not([type=file]),.ra-view select')];
     if(inputs.some(input=>input.getBoundingClientRect().width<70))problems.push('Cramped form control');
     if(!document.querySelector('h1')?.textContent)problems.push('Missing page title');if(document.querySelector('.ra-view')?.textContent.includes('This workspace could not open'))problems.push('Workspace crashed');
     return problems;

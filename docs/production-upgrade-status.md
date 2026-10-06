@@ -20,3 +20,9 @@ The code is not a substitute for deployment. Firebase Functions, rules, indexes 
 Card payments remain disabled pending provider setup and end-to-end payment verification. Daily backups and external monitoring notification channels require Google Cloud configuration. Managed email artwork needs verification on the chosen host before changing the build variable. The static sitemap does not enumerate live products. A Firebase dependency chunk remains above Vite's size warning threshold despite reducing the main entry bundle.
 
 Follow [marketing operations and rollout](marketing-operations.md) for exact local-update, deployment, monitoring and acceptance steps. Pull the `react-v3-migration` branch; finish any existing merge first. Hosting/Pages publishing alone does not deploy the email backend.
+
+## Product media and bag follow-up
+
+Product records now preserve the real Firestore document ID even when old stored fields contain a different ID. Add-to-bag reports validation failure instead of navigating to an empty bag, and blank variant price overrides inherit the base price. A browser regression covers this complete flow and reload persistence.
+
+Separate front/back uploads, hover/focus image switching, gallery uploads, a studio media library, email/campaign artwork uploads and a homepage-video upload are implemented. Inter is hosted locally with its font license; storefront controls share typography and styled dropdowns. Firebase Storage rules and administrator-only media metadata rules are included and tested. Live upload permission still depends on enabling Storage and deploying these rules. The live Firebase API routes returned 404 during this follow-up; email/checkout cannot work there until the backend is deployed.
