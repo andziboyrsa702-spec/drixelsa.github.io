@@ -1,3 +1,5 @@
+> For the current no-Blaze deployment, follow [FREE_DEPLOYMENT.md](FREE_DEPLOYMENT.md). Firebase Functions/Storage deployment notes below describe the previous paid-provider option.
+
 # Drixel store management
 
 Open `/za/admin/dashboard` after signing in. The country prefix remains in admin navigation and login redirects. Access follows the existing Firestore and Functions policy: a Firebase admin claim, the admin role claim, or one of the existing verified owner accounts. A profile document cannot grant administrator access.

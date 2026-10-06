@@ -1,3 +1,5 @@
+> For the current no-Blaze deployment, follow [FREE_DEPLOYMENT.md](FREE_DEPLOYMENT.md). Firebase Functions/Storage deployment notes below describe the previous paid-provider option.
+
 # Marketing operations and rollout
 
 ## Update the local copy

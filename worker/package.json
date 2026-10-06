@@ -1,0 +1,16 @@
+{
+  "name": "drixel-free-api",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs",
+    "dev": "npm run build && wrangler dev",
+    "deploy": "npm run build && wrangler deploy",
+    "check": "npm run build && wrangler deploy --dry-run",
+    "test": "npm run build && node --test test/*.test.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "0.25.10",
+    "wrangler": "4.147.0"
+  }
+}

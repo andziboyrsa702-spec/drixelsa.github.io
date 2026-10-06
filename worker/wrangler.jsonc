@@ -1,0 +1,20 @@
+{
+  "name": "drixel-api",
+  "account_id": "89605ad9729e5860c860760bc8e3b743",
+  "main": "dist/worker.mjs",
+  "compatibility_date": "2026-08-03",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": true,
+  "triggers": {"crons": ["*/5 * * * *"]},
+  "vars": {
+    "FIREBASE_PROJECT_ID": "drixel-sa",
+    "CLOUDINARY_CLOUD_NAME": "mxuxx9kn",
+    "CLOUDINARY_UPLOAD_PRESET": "drixel_signed",
+    "MAIL_FROM": "Drixel SA <hello@sales.drixelsa.co.za>",
+    "STORE_URL": "https://drixelsa.co.za",
+    "CARD_PAYMENTS_ENABLED": "false",
+    "CAMPAIGN_BATCH_SIZE": "1",
+    "CAMPAIGN_TICK_LIMIT": "1",
+    "CAMPAIGN_AUDIENCE_LIMIT": "1000"
+  }
+}
