@@ -62,3 +62,9 @@ npm run test:marketing
 Browser checks require a running Vite server and Playwright Chromium. They use isolated Firebase and email fixtures; they do not send real email or write production subscriptions.
 
 For local Firebase data, opt in with `VITE_USE_FIREBASE_EMULATORS=true` in `.env.local`, restart Vite and run the Functions, Auth and Firestore emulators. Local users and subscriber records are separate from production. Do not assume a locally authenticated admin or subscriber already exists.
+
+## Artwork previews and sent email
+
+The library thumbnails and composer resolve bundled artwork against the current website origin, so local Vite previews load local files. Outgoing HTML uses verified public JPEGs pinned to repository revision `768eb98e781d23c7223bad847b988c4093548ea8` for the nine bundled campaign photos; it does not use localhost or depend on the missing custom-domain asset URLs. Custom image URLs are preserved. Destination links continue to point to the public store.
+
+Marketing browser checks load the real bundled JPEGs and assert successful decoding in all advertisement thumbnails and both Lookbook images. Keep `public/assets/campaigns` in the checkout and build.

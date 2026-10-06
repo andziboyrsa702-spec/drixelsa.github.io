@@ -38,12 +38,23 @@ export const EMAIL_TEMPLATES=[
  update('policy','Policy Update','Announcements','A CLEARER WAY FORWARD.','We are updating a store policy. Explain what changes, when it takes effect and where customers can read the full policy.',{statusLabel:'Policy update'}),
  update('community','Community Announcement','Announcements','FROM OUR TEAM TO YOU.','Share a brand milestone, community event or important company update with the Drixel list.',{statusLabel:'Community update'})
 ];
-export const emailAssetUrl=value=>{if(!String(value||'').trim())return '';try{const url=new URL(String(value).trim(),'https://drixelsa.co.za');return ['https:','http:'].includes(url.protocol)?url.href:''}catch{return ''}};
+export const emailAssetUrl=(value,baseUrl='https://drixelsa.co.za')=>{if(!String(value||'').trim())return '';try{const url=new URL(String(value).trim(),baseUrl);return ['https:','http:'].includes(url.protocol)?url.href:''}catch{return ''}};
+// Pin bundled artwork to a publicly verified repository revision. This keeps
+// campaign emails independent of whether the custom site has deployed assets.
+const campaignAssetRoot='https://raw.githubusercontent.com/andziboyrsa702-spec/drixelsa.github.io/768eb98e781d23c7223bad847b988c4093548ea8/public';
+export function emailImageUrl(value,previewOrigin){
+ if(previewOrigin)return emailAssetUrl(value,previewOrigin);
+ const url=emailAssetUrl(value);
+ if(!url)return '';
+ const parsed=new URL(url);
+ if(['drixelsa.co.za','www.drixelsa.co.za'].includes(parsed.hostname)&&/^\/assets\/campaigns\/campaign-0[1-9]\.jpeg$/.test(parsed.pathname))return campaignAssetRoot+parsed.pathname;
+ return url;
+}
 const esc=s=>String(s||'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 const text=s=>esc(s).replace(/\n/g,'<br>');
-export function emailHtml(d){
+export function emailHtml(d,{assetBaseUrl}={}){
  const dark=d.layout==='dark',notice=d.layout==='notice',letter=['letter','minimal'].includes(d.layout),fg=dark?'#ffffff':'#111111',muted=dark?'#b8b8b8':'#626262',bg=dark?'#111111':'#ffffff';
- const image=emailAssetUrl(d.imageUrl),image2=emailAssetUrl(d.secondaryImageUrl);
+ const image=emailImageUrl(d.imageUrl,assetBaseUrl),image2=emailImageUrl(d.secondaryImageUrl,assetBaseUrl);
  const art=(url,width=640)=>url?`<img src="${esc(url)}" width="${width}" alt="${esc(d.imageAlt||'Drixel campaign')}" style="display:block;width:100%;height:auto;border:0">`:'';
  const kicker=`<p style="margin:0 0 18px;font:700 11px Arial,Helvetica,sans-serif;letter-spacing:2px;color:${muted}">${esc(d.kicker||'DRIXEL / CAMPAIGN')}</p>`;
  const heading=`<h1 style="margin:0 0 24px;font-family:${d.layout==='editorial'?'Georgia,serif':'Arial,Helvetica,sans-serif'};font-size:${letter?38:notice?42:52}px;line-height:1.06;letter-spacing:-1.5px;font-weight:${d.layout==='editorial'?400:700};overflow-wrap:break-word">${esc(d.headline)}</h1>`;
