@@ -148,4 +148,4 @@ Firebase Spark still has its own Firestore quotas. Periodically check provider d
 
 ## Payments
 
-Bank-transfer instructions and signed Yoco checkout/webhook support are now available in the Worker. Follow [PAYMENTS_SETUP.md](PAYMENTS_SETUP.md). Bank transfer requires the admin to save verified receiving-account details; cards stay disabled until keys and the matching webhook are configured. Yoco test payments are restricted to administrators and cannot authorize dispatch.
+Bank-transfer instructions, verified Yoco checkout/webhooks and SnapScan merchant QR/API/webhooks are now available in the Worker. Follow [PAYMENTS_SETUP.md](PAYMENTS_SETUP.md). Bank transfer requires the admin to save verified receiving-account details; cards stay disabled until keys and the matching webhook are configured. Yoco test payments are restricted to administrators and cannot authorize dispatch.
