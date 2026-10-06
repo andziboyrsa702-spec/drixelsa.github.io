@@ -106,6 +106,22 @@
         "function": "sendEmail"
       },
       {
+        "source": "/api/queue-campaign",
+        "function": "enqueueCampaign"
+      },
+      {
+        "source": "/api/cancel-campaign",
+        "function": "cancelCampaign"
+      },
+      {
+        "source": "/api/reconcile-campaign",
+        "function": "reconcileCampaign"
+      },
+      {
+        "source": "/api/email-events",
+        "function": "emailProviderWebhook"
+      },
+      {
         "source": "**",
         "destination": "/index.html"
       }

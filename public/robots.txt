@@ -1,0 +1,9 @@
+User-agent: *
+Disallow: /*/admin/
+Disallow: /*/member/
+Disallow: /*/checkout
+Disallow: /*/cart
+Disallow: /*/search
+Disallow: /*/payment/
+Disallow: /api/
+Sitemap: https://drixelsa.co.za/sitemap.xml

@@ -12,6 +12,9 @@ const firebaseFunctions={
   "/api/subscribe":"subscribeNewsletter",
   "/api/unsubscribe":"unsubscribeNewsletter",
   "/api/send-campaign":"sendCampaign",
+  "/api/queue-campaign":"enqueueCampaign",
+  "/api/cancel-campaign":"cancelCampaign",
+  "/api/reconcile-campaign":"reconcileCampaign",
   "/api/send-email":"sendEmail"
 };
 
@@ -36,3 +39,4 @@ export default defineConfig({
     }
   }
 });
+

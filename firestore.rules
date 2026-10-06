@@ -12,7 +12,7 @@ service cloud.firestore {
     }
     function ownsOrder() {
       return signedIn() && (
-        (resource.data.keys().hasAny(['customer']) && resource.data.customer.uid == request.auth.uid) ||
+        (resource.data.keys().hasAny(['customer']) && resource.data.customer.get('uid','') == request.auth.uid) ||
         (resource.data.keys().hasAny(['userId']) && resource.data.userId == request.auth.uid)
       );
     }
@@ -21,7 +21,7 @@ service cloud.firestore {
     match /banners/{id} { allow read: if true; allow write: if isAdmin(); }
     match /coupons/{id} { allow read: if true; allow write: if isAdmin(); }
     match /collections/{id} { allow read: if true; allow write: if isAdmin(); }
-    match /settings/{id} { allow read: if true; allow write: if isAdmin(); }
+    match /settings/{id} { allow read: if isAdmin() || (id in ['store','storefront'] && !resource.data.keys().hasAny(['resendApiKey','yocoSecretKey','RESEND_API_KEY','YOCO_SECRET_KEY'])); allow write: if isAdmin(); }
     match /returns/{id} { allow read, write: if isAdmin(); }
     match /audit_logs/{id} { allow read, create: if isAdmin(); allow update, delete: if false; }
     match /order_audit/{id} { allow read: if isAdmin(); allow write: if false; }
@@ -35,7 +35,7 @@ service cloud.firestore {
     match /orders/{id} {
       allow create: if false;
       allow read: if isAdmin() || ownsOrder();
-      allow update, delete: if isAdmin();
+      allow update, delete: if false;
     }
 
     match /carts/{uid} {
@@ -54,7 +54,18 @@ service cloud.firestore {
     }
 
     match /subscribers/{id} { allow read, create, update, delete: if isAdmin(); }
-    match /email_campaigns/{id} { allow read, create, update, delete: if isAdmin(); }
+    match /email_campaigns/{id} {
+      allow read: if isAdmin();
+      allow create: if isAdmin() && request.resource.data.status == 'draft';
+      allow update: if isAdmin() && resource.data.status == 'draft' && request.resource.data.status == 'draft';
+      allow delete: if isAdmin() && resource.data.status == 'draft';
+    }
+    match /campaign_jobs/{id} { allow read: if isAdmin(); allow write: if false; }
+    match /email_deliveries/{id} { allow read: if isAdmin(); allow write: if false; }
+    match /email_events/{id} { allow read: if isAdmin(); allow write: if false; }
+    match /email_suppressions/{id} { allow read: if isAdmin(); allow write: if false; }
+    match /operations_health/{id} { allow read: if isAdmin(); allow write: if false; }
+    match /campaign_keys/{id} { allow read, write: if false; }
     match /contacts/{id} { allow read, update, delete: if isAdmin(); allow create: if true; }
 
     match /{document=**} { allow read, write: if false; }

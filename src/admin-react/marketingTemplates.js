@@ -47,7 +47,7 @@ export function emailImageUrl(value,previewOrigin){
  const url=emailAssetUrl(value);
  if(!url)return '';
  const parsed=new URL(url);
- if(['drixelsa.co.za','www.drixelsa.co.za'].includes(parsed.hostname)&&/^\/assets\/campaigns\/campaign-0[1-9]\.jpeg$/.test(parsed.pathname))return campaignAssetRoot+parsed.pathname;
+ if(['drixelsa.co.za','www.drixelsa.co.za'].includes(parsed.hostname)&&/^\/assets\/campaigns\/campaign-0[1-9]\.jpeg$/.test(parsed.pathname)){const managed=import.meta.env?.VITE_EMAIL_ASSET_BASE_URL;if(managed&&/^https:\/\//.test(managed)&&!new URL(managed).hostname.match(/^(localhost|127\.)/))return managed.replace(/\/$/,'')+parsed.pathname;return campaignAssetRoot+parsed.pathname;}
  return url;
 }
 const esc=s=>String(s||'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));

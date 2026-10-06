@@ -1,8 +1,9 @@
 const functions = require("firebase-functions/v1");
-const admin = require("firebase-admin");
 const { initializeApp, getApps } = require("firebase-admin/app");
 const { getAuth } = require("firebase-admin/auth");
-const { FieldValue } = require("firebase-admin/firestore");
+const { FieldValue, getFirestore } = require("firebase-admin/firestore");
+// Keep existing handlers on the modular Admin SDK (v14 has no namespaced services).
+const admin = { auth: getAuth, firestore: getFirestore };
 const {submitBatch,unsubscribeMarkup,deliveryKey,pause} = require("./marketing-delivery");
 const { sendMail } = require("./notifications");
 
@@ -29,10 +30,10 @@ function marketingCors(req,res){
     const allowed=new Set(["https://drixelsa.co.za","https://www.drixelsa.co.za","https://drixel-sa.web.app","https://drixel-sa.firebaseapp.com","https://andziboyrsa702-spec.github.io"]);
     if(process.env.PUBLIC_SITE_URL){try{allowed.add(new URL(process.env.PUBLIC_SITE_URL).origin);}catch{}}
     if(process.env.FUNCTIONS_EMULATOR==="true"&&/^http:\/\/(localhost|127\.0\.0\.1):\d+$/.test(origin||""))allowed.add(origin);
-    if(origin&&!allowed.has(origin)){res.status(403).json({success:false,message:"This website is not allowed to use the email service."});return true;}
+    if(origin&&!allowed.has(origin)){res.status(403).json({success:false,message:"This website is not allowed to use this service."});return true;}
     if(origin){res.set("Access-Control-Allow-Origin",origin);res.set("Vary","Origin");}
     res.set("Cache-Control","no-store");
-    if(req.method==="OPTIONS"){res.set("Access-Control-Allow-Methods","POST, OPTIONS");res.set("Access-Control-Allow-Headers","Authorization, Content-Type");res.status(204).send("");return true;}
+    if(req.method==="OPTIONS"){res.set("Access-Control-Allow-Methods","GET, POST, OPTIONS");res.set("Access-Control-Allow-Headers","Authorization, Content-Type");res.status(204).send("");return true;}
     return false;
 }
 
@@ -126,7 +127,7 @@ exports.sendCampaign = functions.runWith({ secrets: ["RESEND_API_KEY"],timeoutSe
         const snapshot=await ref.get();
         if(!snapshot.exists)return res.status(404).json({success:false,message:"Campaign not found."});
         const audience=await db.collection("subscribers").get(),recipients=new Map();
-        audience.forEach(snap=>{const s=snap.data(),email=String(s.email||"").trim().toLowerCase();if(isValidEmail(email)&&(!s.status||s.status==="active"))recipients.set(email,{id:snap.id,email,token:s.unsubscribeToken||""});});
+        audience.forEach(snap=>{const s=snap.data(),email=String(s.email||"").trim().toLowerCase();if(isValidEmail(email)&&!s.suppressed&&(!s.status||s.status==="active"))recipients.set(email,{id:snap.id,email,token:s.unsubscribeToken||""});});
         const people=[...recipients.values()];
         if(!people.length)return res.status(400).json({success:false,message:"No active subscribers. Pending and unsubscribed subscribers are excluded."});
         if(people.length>5000)return res.status(413).json({success:false,message:"The sender supports up to 5,000 subscribers per campaign."});
@@ -192,7 +193,7 @@ exports.subscribeNewsletter = functions.https.onRequest(async (req, res) => {
         const source=["footer","storefront","checkout"].includes(req.body?.source)?req.body.source:"website";
         await admin.firestore().runTransaction(async tx=>{
             const snap=await tx.get(ref),existing=snap.exists?snap.data():{};
-            tx.set(ref,{email,status:"active",source:existing.source||source,unsubscribeToken:existing.unsubscribeToken||require("node:crypto").randomBytes(32).toString("hex"),consent:"newsletter-v1",subscribedAt:existing.subscribedAt||FieldValue.serverTimestamp(),updatedAt:FieldValue.serverTimestamp()},{merge:true});
+            tx.set(ref,{email,status:"active",market:["za","us","ng","bw"].includes(req.body?.market)?req.body.market:existing.market||"",source:existing.source||source,unsubscribeToken:existing.unsubscribeToken||require("node:crypto").randomBytes(32).toString("hex"),consent:"newsletter-v1",subscribedAt:existing.subscribedAt||FieldValue.serverTimestamp(),updatedAt:FieldValue.serverTimestamp()},{merge:true});
         });
         return res.status(200).json({success:true,message:"You're on the list."});
     }catch(error){console.error("Newsletter signup failed:",error);return res.status(503).json({success:false,message:"We could not save your subscription. Please try again."});}
@@ -268,8 +269,9 @@ async function buildTrustedQuote(rawItems, market="za", couponCode="") {
             );
             if (!variant) { const error = new Error("A selected product option is no longer available."); error.status = 409; throw error; }
             const stock = Number(variant.stock ?? variant.quantity ?? 0);
-            if (stock < item.quantity) { const error = new Error("There is not enough stock for " + (product.name || product.title || "an item") + "."); error.status = 409; throw error; }
+            if (!Number.isSafeInteger(stock) || stock < item.quantity) { const error = new Error("There is not enough stock for " + (product.name || product.title || "an item") + "."); error.status = 409; throw error; }
         }
+        if(!variant){const stock=Number(product.stock??product.quantity??0);if(!Number.isSafeInteger(stock)||stock<item.quantity){const error=Error("There is not enough stock for this product.");error.status=409;throw error;}}
         const unitPrice = Number(variant && variant.price != null ? variant.price : product.price);
         if (!Number.isFinite(unitPrice) || unitPrice < 0) { const error = new Error("A product has an invalid store price."); error.status = 409; throw error; }
         lines.push({
@@ -300,6 +302,8 @@ async function requireCustomer(req) {
 function validText(value, max) { return typeof value === "string" && value.trim().length > 0 && value.trim().length <= max; }
 
 exports.checkoutQuote = functions.https.onRequest(async (req, res) => {
+    if(marketingCors(req,res))return;
+
     if (req.method !== "POST") return res.status(405).json({ success: false, message: "Method not allowed." });
     try {
         const market=String(req.body&&req.body.market||"za").toLowerCase();if(!MARKET_CONFIG[market])return res.status(400).json({success:false,message:"Unsupported market."});
@@ -324,12 +328,12 @@ async function restoreOrderInventory(orderRef) {
         const updates=[];
         for(const [productId,lines] of grouped.entries()){
             const snap=snaps.get(productId);if(!snap.exists)continue;
-            const product=snap.data();if(!Array.isArray(product.variants)||!product.variants.length)continue;
+            const product=snap.data();if(!Array.isArray(product.variants)||!product.variants.length){if(order.inventoryReservationVersion===2)updates.push({ref:snap.ref,stock:Number(product.stock??product.quantity??0)+lines.reduce((n,line)=>n+Number(line.quantity||0),0)});continue;}
             const variants=product.variants.map(v=>({...v}));
             lines.forEach(line=>{const i=variants.findIndex(v=>(!line.sku||String(v.sku||"")===line.sku)&&(!line.size||String(v.size||"")===line.size)&&(!line.color||String(v.color||"")===line.color));if(i>=0)variants[i].stock=Number(variants[i].stock??variants[i].quantity??0)+Number(line.quantity||0)});
             updates.push({ref:snap.ref,variants});
         }
-        updates.forEach(x=>tx.update(x.ref,{variants:x.variants,updatedAt:FieldValue.serverTimestamp()}));
+        updates.forEach(x=>tx.update(x.ref,{...(x.variants?{variants:x.variants}:{stock:x.stock}),updatedAt:FieldValue.serverTimestamp()}));
         tx.update(orderRef,{inventoryStatus:"restored",updatedAt:FieldValue.serverTimestamp()});
         return true;
     });
@@ -339,8 +343,12 @@ async function restoreOrderInventory(orderRef) {
 const YOCO_API_BASE="https://payments.yoco.com/api";
 function appOrigin(req){return String(process.env.PUBLIC_APP_URL||("https://"+req.get("host"))).replace(/\/$/,"")}
 async function createYocoCheckout({orderId,orderNumber,total,idempotencyKey,req}){const secret=process.env.YOCO_SECRET_KEY;if(!secret){const e=new Error("Yoco test payments are not configured on the server.");e.status=503;throw e}const origin=appOrigin(req),amount=Math.round(Number(total)*100);const response=await fetch(YOCO_API_BASE+"/checkouts",{method:"POST",headers:{"Authorization":"Bearer "+secret,"Content-Type":"application/json","Idempotency-Key":idempotencyKey},body:JSON.stringify({amount,currency:"ZAR",successUrl:origin+"/za/payment/yoco/success?order="+encodeURIComponent(orderId),cancelUrl:origin+"/za/payment/yoco/cancel?order="+encodeURIComponent(orderId),failureUrl:origin+"/za/payment/yoco/failure?order="+encodeURIComponent(orderId),metadata:{orderId,orderNumber}})});const data=await response.json().catch(()=>({}));if(!response.ok||!data.redirectUrl){console.error("Yoco checkout creation failed",response.status);const e=new Error("Yoco could not start the payment.");e.status=502;throw e}return data}
-exports.verifyYocoPayment=functions.https.onRequest(async(req,res)=>{if(req.method!=="POST")return res.status(405).json({success:false,message:"Method not allowed."});try{const user=await requireCustomer(req),orderId=String(req.body?.orderId||""),ref=admin.firestore().collection("orders").doc(orderId),snap=await ref.get();if(!snap.exists)return res.status(404).json({success:false,message:"Order not found."});const order=snap.data();if(order.customer?.uid!==user.uid)return res.status(403).json({success:false,message:"This order does not belong to your account."});if(!order.yocoCheckoutId)return res.status(409).json({success:false,message:"No Yoco checkout is attached to this order."});const secret=process.env.YOCO_SECRET_KEY;if(!secret)return res.status(503).json({success:false,message:"Yoco is not configured."});const response=await fetch(YOCO_API_BASE+"/checkouts/"+encodeURIComponent(order.yocoCheckoutId),{headers:{Authorization:"Bearer "+secret}}),data=await response.json().catch(()=>({}));if(!response.ok)return res.status(502).json({success:false,message:"Could not verify payment with Yoco."});const paid=data.status==="succeeded"||data.payment?.status==="succeeded";if(paid&&order.paymentStatus!=="paid")await ref.set({paymentStatus:"paid",paidAt:FieldValue.serverTimestamp(),paymentVerifiedBy:"yoco-api",updatedAt:FieldValue.serverTimestamp()},{merge:true});return res.status(200).json({success:true,paid,status:data.status||data.payment?.status||"pending",orderNumber:order.orderNumber})}catch(error){return res.status(error.status||500).json({success:false,message:error.status?error.message:"Payment verification failed."})}});
+exports.verifyYocoPayment=functions.https.onRequest(async(req,res)=>{
+    if(marketingCors(req,res))return;
+if(req.method!=="POST")return res.status(405).json({success:false,message:"Method not allowed."});try{const user=await requireCustomer(req),orderId=String(req.body?.orderId||""),ref=admin.firestore().collection("orders").doc(orderId),snap=await ref.get();if(!snap.exists)return res.status(404).json({success:false,message:"Order not found."});const order=snap.data();if(order.customer?.uid!==user.uid)return res.status(403).json({success:false,message:"This order does not belong to your account."});if(!order.yocoCheckoutId)return res.status(409).json({success:false,message:"No Yoco checkout is attached to this order."});const secret=process.env.YOCO_SECRET_KEY;if(!secret)return res.status(503).json({success:false,message:"Yoco is not configured."});const response=await fetch(YOCO_API_BASE+"/checkouts/"+encodeURIComponent(order.yocoCheckoutId),{headers:{Authorization:"Bearer "+secret}}),data=await response.json().catch(()=>({}));if(!response.ok)return res.status(502).json({success:false,message:"Could not verify payment with Yoco."});const paid=data.status==="succeeded"||data.payment?.status==="succeeded";if(paid&&order.paymentStatus!=="paid")await ref.set({paymentStatus:"paid",paidAt:FieldValue.serverTimestamp(),paymentVerifiedBy:"yoco-api",updatedAt:FieldValue.serverTimestamp()},{merge:true});return res.status(200).json({success:true,paid,status:data.status||data.payment?.status||"pending",orderNumber:order.orderNumber})}catch(error){return res.status(error.status||500).json({success:false,message:error.status?error.message:"Payment verification failed."})}});
 exports.createOrder = functions.https.onRequest(async (req, res) => {
+    if(marketingCors(req,res))return;
+
     if (req.method !== "POST") return res.status(405).json({ success:false,message:"Method not allowed." });
     try {
         const user=await requireCustomer(req),customer=req.body&&req.body.customer||{},email=String(customer.email||"").trim().toLowerCase();
@@ -373,18 +381,22 @@ async function createOrderIdempotent({user,customer,quote,paymentMethod,idempote
         if(keySnap.exists){const x=keySnap.data();return{orderRef:db.collection("orders").doc(x.orderId),orderNumber:x.orderNumber,reused:true,market:x.market||"za",currency:x.currency||"ZAR",rate:Number(x.exchangeRate||1),displayTotal:Number(x.displayTotal||quote.total)}}
         const grouped=new Map();quote.items.forEach(line=>{const list=grouped.get(line.productId)||[];list.push(line);grouped.set(line.productId,list)});
         const snaps=new Map();for(const productId of grouped.keys())snaps.set(productId,await tx.get(db.collection("products").doc(productId)));
-        for(const [productId,lines] of grouped.entries()){const snap=snaps.get(productId);if(!snap.exists){const e=new Error("A product is no longer available.");e.status=409;throw e}const product=snap.data();if(product.active===false||!productAvailableInMarket(product,market)){const e=new Error("A product is not available in this market.");e.status=409;throw e}const variants=Array.isArray(product.variants)?product.variants.map(v=>({...v})):[];for(const line of lines){let currentPrice=Number(product.price);if(variants.length){const i=variants.findIndex(v=>(!line.sku||String(v.sku||"")===line.sku)&&(!line.size||String(v.size||"")===line.size)&&(!line.color||String(v.color||"")===line.color));if(i<0){const e=new Error("A selected product option is no longer available.");e.status=409;throw e}const stock=Number(variants[i].stock??variants[i].quantity??0);if(stock<line.quantity){const e=new Error("Stock changed while you were checking out. Please review your bag.");e.status=409;throw e}currentPrice=Number(variants[i].price!=null?variants[i].price:product.price);variants[i].stock=stock-line.quantity}if(!Number.isFinite(currentPrice)||Math.abs(currentPrice-Number(line.unitPrice))>.001){const e=new Error("Prices changed while you were checking out. Please review your bag.");e.status=409;throw e}}if(variants.length)tx.update(snap.ref,{variants,updatedAt:FieldValue.serverTimestamp()})}
+        for(const [productId,lines] of grouped.entries()){const snap=snaps.get(productId);if(!snap.exists){const e=new Error("A product is no longer available.");e.status=409;throw e}const product=snap.data();if(product.active===false||!productAvailableInMarket(product,market)){const e=new Error("A product is not available in this market.");e.status=409;throw e}const variants=Array.isArray(product.variants)?product.variants.map(v=>({...v})):[];let plainStock=Number(product.stock??product.quantity??0);for(const line of lines){let currentPrice=Number(product.price);if(variants.length){const i=variants.findIndex(v=>(!line.sku||String(v.sku||"")===line.sku)&&(!line.size||String(v.size||"")===line.size)&&(!line.color||String(v.color||"")===line.color));if(i<0){const e=new Error("A selected product option is no longer available.");e.status=409;throw e}const stock=Number(variants[i].stock??variants[i].quantity??0);if(!Number.isSafeInteger(stock)||stock<line.quantity){const e=new Error("Stock changed while you were checking out. Please review your bag.");e.status=409;throw e}currentPrice=Number(variants[i].price!=null?variants[i].price:product.price);variants[i].stock=stock-line.quantity}else{if(!Number.isSafeInteger(plainStock)||plainStock<line.quantity){const e=Error("Stock changed while you were checking out. Please review your bag.");e.status=409;throw e;}plainStock-=line.quantity;}if(!Number.isFinite(currentPrice)||Math.abs(currentPrice-Number(line.unitPrice))>.001){const e=new Error("Prices changed while you were checking out. Please review your bag.");e.status=409;throw e}}tx.update(snap.ref,{...(variants.length?{variants}:{stock:plainStock}),updatedAt:FieldValue.serverTimestamp()})}
         const displayItems=quote.items.map(x=>({...x,displayUnitPrice:convertMoney(x.unitPrice,rate),displayLineTotal:convertMoney(x.lineTotal,rate)})),displaySubtotal=convertMoney(quote.subtotal,rate),displayDiscount=convertMoney(quote.discount||0,rate),displayShipping=convertMoney(quote.shipping,rate),displayTotal=convertMoney(quote.total,rate);
-        tx.set(orderRef,{orderNumber,market:String(market||"za").toLowerCase(),customer:{uid:user.uid,email:customer.email.trim().toLowerCase(),firstName:customer.firstName.trim(),lastName:customer.lastName.trim(),phone:customer.phone.trim()},shippingAddress:{address:customer.address.trim(),city:customer.city.trim(),postalCode:customer.postalCode.trim(),province:customer.province.trim(),country:cfg.country,countryCode:cfg.countryCode||String(market||"za").toUpperCase()},items:displayItems,subtotal:quote.subtotal,discount:Number(quote.discount||0),coupon:quote.appliedCoupon||null,shipping:quote.shipping,total:quote.total,currency:"ZAR",displaySubtotal,displayDiscount,displayShipping,displayTotal,displayCurrency:cfg.currency,exchangeRate:rate,exchangeRateBase:"ZAR",paymentMethod,paymentStatus:"pending",fulfillmentStatus:"processing",status:"processing",inventoryStatus:"reserved",pricingSource:"server",createdAt:FieldValue.serverTimestamp(),updatedAt:FieldValue.serverTimestamp()});
+        tx.set(orderRef,{orderNumber,market:String(market||"za").toLowerCase(),customer:{uid:user.uid,email:customer.email.trim().toLowerCase(),firstName:customer.firstName.trim(),lastName:customer.lastName.trim(),phone:customer.phone.trim()},shippingAddress:{address:customer.address.trim(),city:customer.city.trim(),postalCode:customer.postalCode.trim(),province:customer.province.trim(),country:cfg.country,countryCode:cfg.countryCode||String(market||"za").toUpperCase()},items:displayItems,subtotal:quote.subtotal,discount:Number(quote.discount||0),coupon:quote.appliedCoupon||null,shipping:quote.shipping,total:quote.total,currency:"ZAR",displaySubtotal,displayDiscount,displayShipping,displayTotal,displayCurrency:cfg.currency,exchangeRate:rate,exchangeRateBase:"ZAR",paymentMethod,paymentStatus:"pending",fulfillmentStatus:"processing",status:"processing",inventoryStatus:"reserved",inventoryReservationVersion:2,pricingSource:"server",createdAt:FieldValue.serverTimestamp(),updatedAt:FieldValue.serverTimestamp()});
         tx.set(keyRef,{uid:user.uid,orderId:orderRef.id,orderNumber,market:String(market||"za").toLowerCase(),currency:cfg.currency,exchangeRate:rate,displayTotal,createdAt:FieldValue.serverTimestamp()});return{orderRef,orderNumber,reused:false,market:String(market||"za").toLowerCase(),currency:cfg.currency,rate,displayTotal}
     })
 }
 exports.adminInventoryAdjust = functions.https.onRequest(async(req,res)=>{
+    if(marketingCors(req,res))return;
+
     if(req.method!=="POST")return res.status(405).json({success:false,message:"Method not allowed."});
     try{const actor=await requireAdmin(req),productId=String(req.body?.productId||""),sku=String(req.body?.sku||""),delta=Number(req.body?.delta),reason=String(req.body?.reason||"").trim().slice(0,180);if(!productId||!sku||!Number.isInteger(delta)||delta===0||Math.abs(delta)>10000||!reason)return res.status(400).json({success:false,message:"Product, SKU, whole-number adjustment and reason are required."});const db=admin.firestore(),ref=db.collection("products").doc(productId),log=db.collection("inventory_adjustments").doc();let result;await db.runTransaction(async tx=>{const snap=await tx.get(ref);if(!snap.exists){const e=new Error("Product not found.");e.status=404;throw e}const p=snap.data(),variants=Array.isArray(p.variants)?p.variants.map(v=>({...v})):[],i=variants.findIndex(v=>String(v.sku||"")===sku);if(i<0){const e=new Error("Variant SKU not found.");e.status=404;throw e}const before=Number(variants[i].stock??variants[i].quantity??0),after=before+delta;if(after<0){const e=new Error("Adjustment would make stock negative.");e.status=409;throw e}variants[i].stock=after;tx.update(ref,{variants,updatedAt:FieldValue.serverTimestamp()});tx.set(log,{productId,productName:String(p.name||p.title||""),sku,variant:[variants[i].color,variants[i].size].filter(Boolean).join(" / "),before,delta,after,reason,actor:actor.email,createdAt:FieldValue.serverTimestamp()});result={before,after}});return res.status(200).json({success:true,...result})}catch(error){console.error("Inventory adjustment failed:",error);return res.status(error.status||500).json({success:false,message:error.status?error.message:"Inventory adjustment failed."})}
 });
 
 exports.adminOrderAction = functions.https.onRequest(async(req,res)=>{
+    if(marketingCors(req,res))return;
+
     if(req.method!=="POST")return res.status(405).json({success:false,message:"Method not allowed."});
     try{
         const adminUser=await requireAdmin(req),orderId=String(req.body&&req.body.orderId||""),action=String(req.body&&req.body.action||"");
@@ -413,12 +425,16 @@ const FX_MAX_AGE_MS=6*60*60*1000;
 async function storedFxRate(to){const snap=await admin.firestore().collection("fx_rates").doc("ZAR_"+to).get();if(!snap.exists)return null;const d=snap.data(),updated=d.updatedAt&&d.updatedAt.toMillis?d.updatedAt.toMillis():0,rate=Number(d.rate);return Number.isFinite(rate)&&rate>0&&Date.now()-updated<=FX_MAX_AGE_MS?{rate,updatedAt:new Date(updated).toISOString(),source:d.source||"configured"}:null}
 const MARKET_CURRENCIES = new Set(["ZAR","USD","NGN","BWP","GBP","EUR"]);
 exports.market = functions.https.onRequest((req,res)=>{
+    if(marketingCors(req,res))return;
+
     const raw = String(req.get("x-country-code") || req.get("cf-ipcountry") || req.get("x-appengine-country") || "").toUpperCase();
     const countryCode = /^[A-Z]{2}$/.test(raw) ? raw : "ZA";
     res.set("Cache-Control","private, max-age=300");
     return res.status(200).json({countryCode});
 });
 exports.exchangeRates = functions.https.onRequest(async(req,res)=>{
+    if(marketingCors(req,res))return;
+
     const base=String(req.query.base||"ZAR").toUpperCase(),to=String(req.query.to||"ZAR").toUpperCase();
     if(base!=="ZAR"||!MARKET_CURRENCIES.has(to))return res.status(400).json({success:false,message:"Unsupported currency."});
     if(to==="ZAR")return res.status(200).json({base,to,rate:1});
@@ -489,3 +505,11 @@ for (const name of ['deliverMail','orderNotifications','subscribeNewsletter','ne
     if (!exports[name]) exports[name] = notifications[name];
 }
 
+
+// Background marketing queue and signed provider delivery events.
+const campaignEngine=require('./campaign-engine').createEngine({db:admin.firestore(),FieldValue,requireAdmin,cors:marketingCors});
+exports.enqueueCampaign=functions.runWith({secrets:['RESEND_API_KEY'],timeoutSeconds:540,memory:'512MB'}).https.onRequest(campaignEngine.enqueue);
+exports.cancelCampaign=functions.https.onRequest(campaignEngine.cancel);
+exports.reconcileCampaign=functions.https.onRequest(campaignEngine.reconcile);
+exports.campaignWorker=functions.runWith({secrets:['RESEND_API_KEY'],timeoutSeconds:540,memory:'512MB'}).pubsub.schedule('every 5 minutes').timeZone('Africa/Johannesburg').onRun(async()=>{try{return await campaignEngine.tick();}catch(e){await admin.firestore().collection('operations_health').doc('campaignWorker').set({status:'failed',lastError:String(e.message).slice(0,300),lastFailedAt:Date.now()},{merge:true});throw e;}});
+exports.emailProviderWebhook=functions.runWith({secrets:['RESEND_WEBHOOK_SECRET']}).https.onRequest(campaignEngine.webhook);
