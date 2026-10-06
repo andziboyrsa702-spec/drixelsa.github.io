@@ -18,8 +18,16 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
       - run: npm install --no-audit --no-fund
+      - run: npm --prefix functions install --no-audit --no-fund
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - run: npm test
+      - run: node -e 'require("./functions/index.js")'
+      - run: npm run test:rules
       - run: npm run build
       - run: npx playwright install chromium --with-deps
       - name: Verify React storefront alignment
@@ -32,7 +40,7 @@ jobs:
           npm run test:admin
           npm run test:marketing
       - name: Verify campaign send safeguards
-        run: node --test tests/admin-campaign.cjs tests/storefront-resilience.test.js
+        run: node --test tests/admin-campaign.cjs tests/campaign-engine.cjs tests/storefront-resilience.test.js
       - name: Verify Firebase hosting output
         run: test -f dist/index.html
       - name: Verify critical React source

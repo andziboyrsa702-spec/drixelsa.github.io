@@ -4,7 +4,7 @@ export const adminSections=[
 ["CONTENT",[["content/storefront","Storefront"],["content/media","Media"]]],
 ["MARKETING",[["marketing/email","Campaign Studio"],["marketing/updates","Updates"],["marketing/subscribers","Subscribers"],["marketing/campaigns","Campaign Content"],["marketing/discounts","Discounts"]]],
 ["ANALYTICS",[["analytics/overview","Overview"]]],
-["OPERATIONS",[["operations/payments","Payments"],["operations/shipping","Shipping"]]],
+["OPERATIONS",[["operations/payments","Payments"],["operations/shipping","Shipping"],["operations/health","Service Health"]]],
 ["SYSTEM",[["settings/store","Store Settings"],["settings/markets","Markets"],["settings/audit-log","Audit Log"]]]
 ];
 export const adminPath=key=>"/za/admin/"+key;

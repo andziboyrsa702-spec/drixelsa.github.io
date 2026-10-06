@@ -58,3 +58,7 @@ test('mail delivery reports provider rejection and retries with a stable idempot
         assert.equal((await ref.get()).data().status,'sent');assert.equal(calls,1);
     } finally {global.fetch=original;}
 });
+
+
+test('campaign queue records are server-owned while administrators can edit drafts',async()=>{const db=user('admin',{admin:true});await assertSucceeds(setDoc(doc(db,'email_campaigns/draft'),{status:'draft',subject:'Test'}));await assertSucceeds(updateDoc(doc(db,'email_campaigns/draft'),{subject:'Edited'}));await assertFails(updateDoc(doc(db,'email_campaigns/draft'),{status:'queued'}));for(const name of ['campaign_jobs','email_deliveries','email_events','email_suppressions','operations_health']){await assertFails(setDoc(doc(db,name+'/test'),{status:'pending'}));await assertSucceeds(getDocs(collection(db,name)));await assertFails(getDocs(collection(env.unauthenticatedContext().firestore(),name)));}await assertFails(getDoc(doc(db,'campaign_keys/test')));});
+test('only safe storefront settings are public',async()=>{await env.withSecurityRulesDisabled(async ctx=>{await setDoc(doc(ctx.firestore(),'settings/store'),{brandName:'Drixel'});await setDoc(doc(ctx.firestore(),'settings/storefront'),{resendApiKey:'private'});});const db=env.unauthenticatedContext().firestore();await assertSucceeds(getDoc(doc(db,'settings/store')));await assertFails(getDoc(doc(db,'settings/storefront')));await assertFails(getDoc(doc(db,'settings/markets')));});

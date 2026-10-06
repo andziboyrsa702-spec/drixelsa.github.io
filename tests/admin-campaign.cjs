@@ -71,7 +71,7 @@ test('commerce and admin endpoints handle Pages preflight before authentication 
  vm.runInNewContext(source.slice(begin,end),context);
  for(const name of ['market','exchangeRates','checkoutQuote','createOrder','verifyYocoPayment','adminInventoryAdjust','adminOrderAction']){
   const begin=source.indexOf('exports.'+name+' ');const alternate=source.indexOf('exports.'+name+'=');const start=begin<0?alternate:begin;
-  const finish=source.indexOf('\nexports.',start+1);
+  let finish=source.indexOf('\nexports.',start+1);const boundary=source.indexOf('\n// Background marketing',start+1);if(boundary>=0&&(finish<0||boundary<finish))finish=boundary;
   vm.runInNewContext(source.slice(start,finish<0?undefined:finish),context);
   const response={headers:{},set(k,v){this.headers[k]=v},status(code){this.code=code;return this},send(){},json(){}};
   await context.exports[name]({method:'OPTIONS',get:()=> 'https://andziboyrsa702-spec.github.io'},response);

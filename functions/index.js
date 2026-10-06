@@ -1,8 +1,9 @@
 const functions = require("firebase-functions/v1");
-const admin = require("firebase-admin");
 const { initializeApp, getApps } = require("firebase-admin/app");
 const { getAuth } = require("firebase-admin/auth");
-const { FieldValue } = require("firebase-admin/firestore");
+const { FieldValue, getFirestore } = require("firebase-admin/firestore");
+// Keep existing handlers on the modular Admin SDK (v14 has no namespaced services).
+const admin = { auth: getAuth, firestore: getFirestore };
 const {submitBatch,unsubscribeMarkup,deliveryKey,pause} = require("./marketing-delivery");
 const { sendMail } = require("./notifications");
 
@@ -126,7 +127,7 @@ exports.sendCampaign = functions.runWith({ secrets: ["RESEND_API_KEY"],timeoutSe
         const snapshot=await ref.get();
         if(!snapshot.exists)return res.status(404).json({success:false,message:"Campaign not found."});
         const audience=await db.collection("subscribers").get(),recipients=new Map();
-        audience.forEach(snap=>{const s=snap.data(),email=String(s.email||"").trim().toLowerCase();if(isValidEmail(email)&&(!s.status||s.status==="active"))recipients.set(email,{id:snap.id,email,token:s.unsubscribeToken||""});});
+        audience.forEach(snap=>{const s=snap.data(),email=String(s.email||"").trim().toLowerCase();if(isValidEmail(email)&&!s.suppressed&&(!s.status||s.status==="active"))recipients.set(email,{id:snap.id,email,token:s.unsubscribeToken||""});});
         const people=[...recipients.values()];
         if(!people.length)return res.status(400).json({success:false,message:"No active subscribers. Pending and unsubscribed subscribers are excluded."});
         if(people.length>5000)return res.status(413).json({success:false,message:"The sender supports up to 5,000 subscribers per campaign."});
@@ -192,7 +193,7 @@ exports.subscribeNewsletter = functions.https.onRequest(async (req, res) => {
         const source=["footer","storefront","checkout"].includes(req.body?.source)?req.body.source:"website";
         await admin.firestore().runTransaction(async tx=>{
             const snap=await tx.get(ref),existing=snap.exists?snap.data():{};
-            tx.set(ref,{email,status:"active",source:existing.source||source,unsubscribeToken:existing.unsubscribeToken||require("node:crypto").randomBytes(32).toString("hex"),consent:"newsletter-v1",subscribedAt:existing.subscribedAt||FieldValue.serverTimestamp(),updatedAt:FieldValue.serverTimestamp()},{merge:true});
+            tx.set(ref,{email,status:"active",market:["za","us","ng","bw"].includes(req.body?.market)?req.body.market:existing.market||"",source:existing.source||source,unsubscribeToken:existing.unsubscribeToken||require("node:crypto").randomBytes(32).toString("hex"),consent:"newsletter-v1",subscribedAt:existing.subscribedAt||FieldValue.serverTimestamp(),updatedAt:FieldValue.serverTimestamp()},{merge:true});
         });
         return res.status(200).json({success:true,message:"You're on the list."});
     }catch(error){console.error("Newsletter signup failed:",error);return res.status(503).json({success:false,message:"We could not save your subscription. Please try again."});}
@@ -268,8 +269,9 @@ async function buildTrustedQuote(rawItems, market="za", couponCode="") {
             );
             if (!variant) { const error = new Error("A selected product option is no longer available."); error.status = 409; throw error; }
             const stock = Number(variant.stock ?? variant.quantity ?? 0);
-            if (stock < item.quantity) { const error = new Error("There is not enough stock for " + (product.name || product.title || "an item") + "."); error.status = 409; throw error; }
+            if (!Number.isSafeInteger(stock) || stock < item.quantity) { const error = new Error("There is not enough stock for " + (product.name || product.title || "an item") + "."); error.status = 409; throw error; }
         }
+        if(!variant){const stock=Number(product.stock??product.quantity??0);if(!Number.isSafeInteger(stock)||stock<item.quantity){const error=Error("There is not enough stock for this product.");error.status=409;throw error;}}
         const unitPrice = Number(variant && variant.price != null ? variant.price : product.price);
         if (!Number.isFinite(unitPrice) || unitPrice < 0) { const error = new Error("A product has an invalid store price."); error.status = 409; throw error; }
         lines.push({
@@ -326,12 +328,12 @@ async function restoreOrderInventory(orderRef) {
         const updates=[];
         for(const [productId,lines] of grouped.entries()){
             const snap=snaps.get(productId);if(!snap.exists)continue;
-            const product=snap.data();if(!Array.isArray(product.variants)||!product.variants.length)continue;
+            const product=snap.data();if(!Array.isArray(product.variants)||!product.variants.length){if(order.inventoryReservationVersion===2)updates.push({ref:snap.ref,stock:Number(product.stock??product.quantity??0)+lines.reduce((n,line)=>n+Number(line.quantity||0),0)});continue;}
             const variants=product.variants.map(v=>({...v}));
             lines.forEach(line=>{const i=variants.findIndex(v=>(!line.sku||String(v.sku||"")===line.sku)&&(!line.size||String(v.size||"")===line.size)&&(!line.color||String(v.color||"")===line.color));if(i>=0)variants[i].stock=Number(variants[i].stock??variants[i].quantity??0)+Number(line.quantity||0)});
             updates.push({ref:snap.ref,variants});
         }
-        updates.forEach(x=>tx.update(x.ref,{variants:x.variants,updatedAt:FieldValue.serverTimestamp()}));
+        updates.forEach(x=>tx.update(x.ref,{...(x.variants?{variants:x.variants}:{stock:x.stock}),updatedAt:FieldValue.serverTimestamp()}));
         tx.update(orderRef,{inventoryStatus:"restored",updatedAt:FieldValue.serverTimestamp()});
         return true;
     });
@@ -379,9 +381,9 @@ async function createOrderIdempotent({user,customer,quote,paymentMethod,idempote
         if(keySnap.exists){const x=keySnap.data();return{orderRef:db.collection("orders").doc(x.orderId),orderNumber:x.orderNumber,reused:true,market:x.market||"za",currency:x.currency||"ZAR",rate:Number(x.exchangeRate||1),displayTotal:Number(x.displayTotal||quote.total)}}
         const grouped=new Map();quote.items.forEach(line=>{const list=grouped.get(line.productId)||[];list.push(line);grouped.set(line.productId,list)});
         const snaps=new Map();for(const productId of grouped.keys())snaps.set(productId,await tx.get(db.collection("products").doc(productId)));
-        for(const [productId,lines] of grouped.entries()){const snap=snaps.get(productId);if(!snap.exists){const e=new Error("A product is no longer available.");e.status=409;throw e}const product=snap.data();if(product.active===false||!productAvailableInMarket(product,market)){const e=new Error("A product is not available in this market.");e.status=409;throw e}const variants=Array.isArray(product.variants)?product.variants.map(v=>({...v})):[];for(const line of lines){let currentPrice=Number(product.price);if(variants.length){const i=variants.findIndex(v=>(!line.sku||String(v.sku||"")===line.sku)&&(!line.size||String(v.size||"")===line.size)&&(!line.color||String(v.color||"")===line.color));if(i<0){const e=new Error("A selected product option is no longer available.");e.status=409;throw e}const stock=Number(variants[i].stock??variants[i].quantity??0);if(stock<line.quantity){const e=new Error("Stock changed while you were checking out. Please review your bag.");e.status=409;throw e}currentPrice=Number(variants[i].price!=null?variants[i].price:product.price);variants[i].stock=stock-line.quantity}if(!Number.isFinite(currentPrice)||Math.abs(currentPrice-Number(line.unitPrice))>.001){const e=new Error("Prices changed while you were checking out. Please review your bag.");e.status=409;throw e}}if(variants.length)tx.update(snap.ref,{variants,updatedAt:FieldValue.serverTimestamp()})}
+        for(const [productId,lines] of grouped.entries()){const snap=snaps.get(productId);if(!snap.exists){const e=new Error("A product is no longer available.");e.status=409;throw e}const product=snap.data();if(product.active===false||!productAvailableInMarket(product,market)){const e=new Error("A product is not available in this market.");e.status=409;throw e}const variants=Array.isArray(product.variants)?product.variants.map(v=>({...v})):[];let plainStock=Number(product.stock??product.quantity??0);for(const line of lines){let currentPrice=Number(product.price);if(variants.length){const i=variants.findIndex(v=>(!line.sku||String(v.sku||"")===line.sku)&&(!line.size||String(v.size||"")===line.size)&&(!line.color||String(v.color||"")===line.color));if(i<0){const e=new Error("A selected product option is no longer available.");e.status=409;throw e}const stock=Number(variants[i].stock??variants[i].quantity??0);if(!Number.isSafeInteger(stock)||stock<line.quantity){const e=new Error("Stock changed while you were checking out. Please review your bag.");e.status=409;throw e}currentPrice=Number(variants[i].price!=null?variants[i].price:product.price);variants[i].stock=stock-line.quantity}else{if(!Number.isSafeInteger(plainStock)||plainStock<line.quantity){const e=Error("Stock changed while you were checking out. Please review your bag.");e.status=409;throw e;}plainStock-=line.quantity;}if(!Number.isFinite(currentPrice)||Math.abs(currentPrice-Number(line.unitPrice))>.001){const e=new Error("Prices changed while you were checking out. Please review your bag.");e.status=409;throw e}}tx.update(snap.ref,{...(variants.length?{variants}:{stock:plainStock}),updatedAt:FieldValue.serverTimestamp()})}
         const displayItems=quote.items.map(x=>({...x,displayUnitPrice:convertMoney(x.unitPrice,rate),displayLineTotal:convertMoney(x.lineTotal,rate)})),displaySubtotal=convertMoney(quote.subtotal,rate),displayDiscount=convertMoney(quote.discount||0,rate),displayShipping=convertMoney(quote.shipping,rate),displayTotal=convertMoney(quote.total,rate);
-        tx.set(orderRef,{orderNumber,market:String(market||"za").toLowerCase(),customer:{uid:user.uid,email:customer.email.trim().toLowerCase(),firstName:customer.firstName.trim(),lastName:customer.lastName.trim(),phone:customer.phone.trim()},shippingAddress:{address:customer.address.trim(),city:customer.city.trim(),postalCode:customer.postalCode.trim(),province:customer.province.trim(),country:cfg.country,countryCode:cfg.countryCode||String(market||"za").toUpperCase()},items:displayItems,subtotal:quote.subtotal,discount:Number(quote.discount||0),coupon:quote.appliedCoupon||null,shipping:quote.shipping,total:quote.total,currency:"ZAR",displaySubtotal,displayDiscount,displayShipping,displayTotal,displayCurrency:cfg.currency,exchangeRate:rate,exchangeRateBase:"ZAR",paymentMethod,paymentStatus:"pending",fulfillmentStatus:"processing",status:"processing",inventoryStatus:"reserved",pricingSource:"server",createdAt:FieldValue.serverTimestamp(),updatedAt:FieldValue.serverTimestamp()});
+        tx.set(orderRef,{orderNumber,market:String(market||"za").toLowerCase(),customer:{uid:user.uid,email:customer.email.trim().toLowerCase(),firstName:customer.firstName.trim(),lastName:customer.lastName.trim(),phone:customer.phone.trim()},shippingAddress:{address:customer.address.trim(),city:customer.city.trim(),postalCode:customer.postalCode.trim(),province:customer.province.trim(),country:cfg.country,countryCode:cfg.countryCode||String(market||"za").toUpperCase()},items:displayItems,subtotal:quote.subtotal,discount:Number(quote.discount||0),coupon:quote.appliedCoupon||null,shipping:quote.shipping,total:quote.total,currency:"ZAR",displaySubtotal,displayDiscount,displayShipping,displayTotal,displayCurrency:cfg.currency,exchangeRate:rate,exchangeRateBase:"ZAR",paymentMethod,paymentStatus:"pending",fulfillmentStatus:"processing",status:"processing",inventoryStatus:"reserved",inventoryReservationVersion:2,pricingSource:"server",createdAt:FieldValue.serverTimestamp(),updatedAt:FieldValue.serverTimestamp()});
         tx.set(keyRef,{uid:user.uid,orderId:orderRef.id,orderNumber,market:String(market||"za").toLowerCase(),currency:cfg.currency,exchangeRate:rate,displayTotal,createdAt:FieldValue.serverTimestamp()});return{orderRef,orderNumber,reused:false,market:String(market||"za").toLowerCase(),currency:cfg.currency,rate,displayTotal}
     })
 }
@@ -503,3 +505,11 @@ for (const name of ['deliverMail','orderNotifications','subscribeNewsletter','ne
     if (!exports[name]) exports[name] = notifications[name];
 }
 
+
+// Background marketing queue and signed provider delivery events.
+const campaignEngine=require('./campaign-engine').createEngine({db:admin.firestore(),FieldValue,requireAdmin,cors:marketingCors});
+exports.enqueueCampaign=functions.runWith({secrets:['RESEND_API_KEY'],timeoutSeconds:540,memory:'512MB'}).https.onRequest(campaignEngine.enqueue);
+exports.cancelCampaign=functions.https.onRequest(campaignEngine.cancel);
+exports.reconcileCampaign=functions.https.onRequest(campaignEngine.reconcile);
+exports.campaignWorker=functions.runWith({secrets:['RESEND_API_KEY'],timeoutSeconds:540,memory:'512MB'}).pubsub.schedule('every 5 minutes').timeZone('Africa/Johannesburg').onRun(async()=>{try{return await campaignEngine.tick();}catch(e){await admin.firestore().collection('operations_health').doc('campaignWorker').set({status:'failed',lastError:String(e.message).slice(0,300),lastFailedAt:Date.now()},{merge:true});throw e;}});
+exports.emailProviderWebhook=functions.runWith({secrets:['RESEND_WEBHOOK_SECRET']}).https.onRequest(campaignEngine.webhook);

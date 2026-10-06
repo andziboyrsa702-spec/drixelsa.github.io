@@ -59,7 +59,7 @@ const paths=['/za','/za/checkout','/za/cart','/za/w/new-featured','/za/t/drixel-
   await page.setViewportSize({width,height:900});
   for(const path of paths){
    await page.goto('http://127.0.0.1:5173'+path);
-   await page.waitForSelector('main');
+   await page.waitForSelector('main:not(.dx-loading)');
    if(path==='/za/checkout')await page.waitForSelector('.dx-checkout-grid');
    if(path.includes('/t/'))await page.waitForSelector('.dx-pdp-info');
    const problems=await page.evaluate(()=>{

@@ -1,3 +1,4 @@
+import StoreErrorBoundary from './components/StoreErrorBoundary.jsx';
 import React from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
@@ -18,4 +19,4 @@ import "./styles/react-v3.css";
 import "./styles/admin-react.css";
 const incomingRoute = new URLSearchParams(location.search).get('__drixel_route');
 if (incomingRoute && incomingRoute.startsWith('/') && !incomingRoute.startsWith('//') && !incomingRoute.includes('\\')) history.replaceState(null, '', incomingRoute);
-createRoot(document.getElementById("root")).render(<React.StrictMode><BrowserRouter><MarketProvider><WishlistProvider><DialogProvider><App /></DialogProvider></WishlistProvider></MarketProvider></BrowserRouter></React.StrictMode>);
+createRoot(document.getElementById("root")).render(<React.StrictMode><StoreErrorBoundary><BrowserRouter><MarketProvider><WishlistProvider><DialogProvider><App /></DialogProvider></WishlistProvider></MarketProvider></BrowserRouter></StoreErrorBoundary></React.StrictMode>);
