@@ -1,3 +1,4 @@
+import {runMailQueues} from './mail-scheduler.mjs';
 import {passkeyHandlers} from "./admin-passkeys.mjs";
 import {securityHeaders,consumeRateLimit,apiError} from "./security.mjs";
 import {snapscanConfig,snapscanCheckout,verifySnapscan,snapscanWebhook} from './snapscan.mjs';
@@ -39,5 +40,5 @@ export default {
    await handler(req,res);const result=res.result();if(url.pathname==='/api/admin/order-action'&&result.ok){try{await queueOrderUpdate(body.orderId,body.action);}catch{await getFirestore().doc('operations_health/orderMail').set({status:'failed',lastError:'Order update email could not be queued.'},{merge:true}).catch(()=>{});}}return result;
   }catch(e){console.error('API request failed',e.code||e.status||'internal');if(e.retryAfter)res.set('Retry-After',String(e.retryAfter));return res.status(e.status||503).json({success:false,message:e.status?e.message:'Service temporarily unavailable. Check backend configuration.'}).result();}
  },
- async scheduled(event,env,ctx){ctx.waitUntil((async()=>{if(await tickOrderMail()){await getFirestore().doc('operations_health/campaignWorker').set({lastFinishedAt:Date.now(),status:'ok',checkedBatches:0,note:'Order mail processed first.'},{merge:true});}else await handlers.campaignWorker();})());}
+ async scheduled(event,env,ctx){ctx.waitUntil(runMailQueues({order:tickOrderMail,campaign:()=>handlers.campaignWorker(),health:(name,data)=>getFirestore().doc('operations_health/'+name).set(data,{merge:true})}));}
 };
