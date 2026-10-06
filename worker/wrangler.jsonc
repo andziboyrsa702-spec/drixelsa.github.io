@@ -13,6 +13,7 @@
     "MAIL_FROM": "Drixel SA <hello@sales.drixelsa.co.za>",
     "STORE_URL": "https://drixelsa.co.za",
     "CARD_PAYMENTS_ENABLED": "false",
+    "YOCO_MODE": "test",
     "CAMPAIGN_BATCH_SIZE": "1",
     "CAMPAIGN_TICK_LIMIT": "1",
     "CAMPAIGN_AUDIENCE_LIMIT": "1000"

@@ -6,9 +6,10 @@ source=source.replace(/const commerce = require\('\.\/commerce'\);[\s\S]*?\/\/ B
 source=source.replace('require("./campaign-engine")','require("../../functions/campaign-engine")').replace("require('./campaign-engine')","require('../../functions/campaign-engine')");
 source=source.replace('db:admin.firestore(),FieldValue,requireAdmin,cors:marketingCors','db:admin.firestore(),FieldValue,requireAdmin,cors:marketingCors,send:async(messages,key)=>{await require("../src/email.mjs").reserveEmailQuota(key,messages.length);return submitBatch(messages,key);}');
 source=source.replace('process.env.FUNCTIONS_EMULATOR==="true"','process.env.ALLOW_LOCAL_ORIGINS==="true"');
+source=source.replace(/async function createYocoCheckout\([\s\S]*?(?=exports.verifyYocoPayment)/, 'async function createYocoCheckout(input){return require("../src/payments.mjs").startCheckout(input)}\n');
 source=source.replaceAll('require("crypto")','require("node:crypto")');
 source=source.replace('const MAX_CHECKOUT_ITEMS = 40','const MAX_CHECKOUT_ITEMS = 8');
 source=source.replace('tx.set(orderRef,{orderNumber', 'const orderPayload={orderNumber').replace('updatedAt:FieldValue.serverTimestamp()});\n        tx.set(keyRef', 'updatedAt:FieldValue.serverTimestamp()};tx.set(orderRef,orderPayload);require("../src/order-mail.mjs").reserveReceipt(tx,orderPayload,orderRef.id);\n        tx.set(keyRef');
-if(source.includes('firebase-admin')||source.includes('firebase-functions')||!source.includes('reserveReceipt(tx,orderPayload,orderRef.id)')||!source.includes('CAMPAIGN')&& !source.includes('reserveEmailQuota'))throw Error('Source adapter did not match current Firebase handlers. Update build mappings before deploying.');
+if(source.includes('firebase-admin')||source.includes('firebase-functions')||!source.includes('reserveReceipt(tx,orderPayload,orderRef.id)')||!source.includes('startCheckout(input)')||!source.includes('CAMPAIGN')&& !source.includes('reserveEmailQuota'))throw Error('Source adapter did not match current Firebase handlers. Update build mappings before deploying.');
 return source;
 }
