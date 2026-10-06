@@ -23,7 +23,7 @@ export function write(ref,data,mode){
  if(mode==='update')w.currentDocument={exists:true};if(mode==='create')w.currentDocument={exists:false};return w;
 }
 export class Firestore{
- constructor({request=fetch,token=accessToken,project=process.env.FIREBASE_PROJECT_ID}={}){this.request=request;this.token=token;this.root=`projects/${project}/databases/(default)/documents`;}
+ constructor({request=fetch,token=accessToken,project=process.env.FIREBASE_PROJECT_ID}={}){this.request=(...args)=>request(...args);this.token=token;this.root=`projects/${project}/databases/(default)/documents`;}
  async rpc(suffix,body,method='POST'){const r=await this.request('https://firestore.googleapis.com/v1/'+this.root+suffix,{method,headers:{Authorization:'Bearer '+await this.token(),'Content-Type':'application/json'},...(body!==undefined?{body:JSON.stringify(body)}:{}),signal:AbortSignal.timeout(45000)});const data=await r.json();if(!r.ok){const e=Object.assign(Error(data.error?.message||'Firestore request failed'),{code:data.error?.status,status:r.status});throw e;}return data;}
  doc(path){return new Ref(this,path);}collection(path){return new Query(this,path);}
  snap(doc,path){const ref=this.doc(path||doc.name.split('/documents/')[1]);return {id:ref.id,ref,exists:Boolean(doc?.name),data:()=>doc?.name?Object.fromEntries(Object.entries(doc.fields||{}).map(([k,v])=>[k,decode(v)])):undefined};}
