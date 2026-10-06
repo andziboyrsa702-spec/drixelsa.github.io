@@ -28,6 +28,33 @@ const paths=['/za','/za/checkout','/za/cart','/za/w/new-featured','/za/t/drixel-
  const page=await context.newPage(),errors=[],issues=[];
  page.on('console',m=>{if(m.type()==='error')console.error('BROWSER',m.text())});page.on('requestfailed',r=>console.error('REQUEST FAILED',r.url(),r.failure()));
  page.on('pageerror',e=>{errors.push(e.message);console.error('PAGE ERROR',e.message)});
+ // Recover from a real HTTP failure without allowing an unquoted order.
+ let quoteFailures=1;
+ await page.route('**/api/checkout-quote',route=>quoteFailures-- > 0?route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({message:'Quote service unavailable'})}):route.fulfill({contentType:'application/json',body:JSON.stringify(quote)}));
+ await page.goto('http://127.0.0.1:5173/za/checkout');
+ await page.getByRole('button',{name:'Retry order quote'}).waitFor();
+ assert.equal(await page.getByRole('button',{name:'Place order'}).isDisabled(),true);
+ await page.getByRole('button',{name:'Retry order quote'}).click();
+ await page.waitForFunction(()=>{const b=document.querySelector('.dx-place');return b&&!b.disabled});
+ await page.unroute('**/api/checkout-quote');
+ let submittedOrder;
+ await page.route('**/api/create-order',route=>{submittedOrder=route.request().postDataJSON();return route.fulfill({contentType:'application/json',body:JSON.stringify({success:true,orderNumber:'DRX-123'})})});
+ for(const [label,value] of [['First name','Layout'],['Last name','Buyer'],['Phone','0712345678'],['Street address','10 Main Road'],['City','Cape Town'],['Postal / ZIP code','7700']])await page.getByLabel(label,{exact:true}).fill(value);
+ await page.locator('select[name="province"]').selectOption({label:'Western Cape'});
+ await page.getByRole('button',{name:'Place order'}).click();
+ await page.waitForURL('**/order-confirmation/DRX-123');
+ assert.equal(submittedOrder.customer.address,'10 Main Road');
+ assert.equal(submittedOrder.customer.firstName,'Layout');
+ assert.equal(submittedOrder.items[0].quantity,2);
+ await page.evaluate(p=>localStorage.setItem('drixel_cart',JSON.stringify([{...p,productId:'tee',quantity:2,size:'M',color:'Black'}])),product);
+ await page.unroute('**/api/create-order');
+
+ // A transient catalogue failure must show retry rather than a false empty shop.
+ await page.route('**/firebase_firestore.js*',route=>route.fulfill({contentType:'application/javascript',body:modules.firestore.replace('export const getDocs=async ref=>result(ref);', 'export const getDocs=async ref=>{const n=Number(sessionStorage.getItem("qa_catalogue_retried")||0);sessionStorage.setItem("qa_catalogue_retried",String(n+1));if(n<2)throw Error("offline");return result(ref)};')}));
+ await page.goto('http://127.0.0.1:5173/za/w/new-featured');
+ await page.getByRole('button',{name:'Try again'}).click();
+ await page.locator('.dx-product-card').first().waitFor();
+ await page.unroute('**/firebase_firestore.js*');
  for(const width of [320,390,768,1024,1362,1440]){
   await page.setViewportSize({width,height:900});
   for(const path of paths){

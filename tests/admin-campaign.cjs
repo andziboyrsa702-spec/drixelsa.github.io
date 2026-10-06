@@ -65,3 +65,16 @@ test('preview artwork uses the preview origin while outgoing email keeps public 
  const preview=emailHtml(draft,{assetBaseUrl:'http://localhost:5173'}),outgoing=emailHtml(draft);
  assert.match(preview,/src="http:\/\/localhost:5173\/assets\/campaigns\/campaign-04.jpeg"/);assert.match(preview,/src="http:\/\/localhost:5173\/assets\/campaigns\/campaign-06.jpeg"/);assert.match(preview,/href="https:\/\/drixelsa.co.za\/za\/w\/new-featured"/);assert.doesNotMatch(outgoing,/localhost/);assert.match(outgoing,/src="https:\/\/raw.githubusercontent.com\/andziboyrsa702-spec\/drixelsa.github.io\/768eb98e781d23c7223bad847b988c4093548ea8\/public\/assets\/campaigns\/campaign-04.jpeg"/);
 });
+
+test('commerce and admin endpoints handle Pages preflight before authentication or database work',async()=>{
+ const begin=source.indexOf('function marketingCors('),end=source.indexOf('\nexports.sendEmail',begin),context={URL,Set,process:{env:{}},exports:{},functions:{https:{onRequest:fn=>fn}}};
+ vm.runInNewContext(source.slice(begin,end),context);
+ for(const name of ['market','exchangeRates','checkoutQuote','createOrder','verifyYocoPayment','adminInventoryAdjust','adminOrderAction']){
+  const begin=source.indexOf('exports.'+name+' ');const alternate=source.indexOf('exports.'+name+'=');const start=begin<0?alternate:begin;
+  const finish=source.indexOf('\nexports.',start+1);
+  vm.runInNewContext(source.slice(start,finish<0?undefined:finish),context);
+  const response={headers:{},set(k,v){this.headers[k]=v},status(code){this.code=code;return this},send(){},json(){}};
+  await context.exports[name]({method:'OPTIONS',get:()=> 'https://andziboyrsa702-spec.github.io'},response);
+  assert.equal(response.code,204,name);assert.match(response.headers['Access-Control-Allow-Methods'],/GET/);
+ }
+});

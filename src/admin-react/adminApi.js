@@ -1,3 +1,4 @@
+import {apiUrl} from '../utils/api.js';
 import {auth} from '../config/firebase-react.js';
 async function call(path,body){
  const user=auth.currentUser;
@@ -5,7 +6,7 @@ async function call(path,body){
  const token=await user.getIdToken(),controller=new AbortController();
  const timeout=setTimeout(()=>controller.abort(),20000);
  try{
-  const response=await fetch(path,{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},body:JSON.stringify(body),signal:controller.signal});
+  const response=await fetch(apiUrl(path),{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},body:JSON.stringify(body),signal:controller.signal});
   const text=await response.text();let data={};
   try{data=text?JSON.parse(text):{};}catch{if(response.ok)throw new Error('The admin service returned an invalid response.');}
   if(!response.ok||data.success===false){

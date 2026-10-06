@@ -32,7 +32,7 @@ jobs:
           npm run test:admin
           npm run test:marketing
       - name: Verify campaign send safeguards
-        run: node --test tests/admin-campaign.cjs
+        run: node --test tests/admin-campaign.cjs tests/storefront-resilience.test.js
       - name: Verify Firebase hosting output
         run: test -f dist/index.html
       - name: Verify critical React source

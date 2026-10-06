@@ -29,10 +29,10 @@ function marketingCors(req,res){
     const allowed=new Set(["https://drixelsa.co.za","https://www.drixelsa.co.za","https://drixel-sa.web.app","https://drixel-sa.firebaseapp.com","https://andziboyrsa702-spec.github.io"]);
     if(process.env.PUBLIC_SITE_URL){try{allowed.add(new URL(process.env.PUBLIC_SITE_URL).origin);}catch{}}
     if(process.env.FUNCTIONS_EMULATOR==="true"&&/^http:\/\/(localhost|127\.0\.0\.1):\d+$/.test(origin||""))allowed.add(origin);
-    if(origin&&!allowed.has(origin)){res.status(403).json({success:false,message:"This website is not allowed to use the email service."});return true;}
+    if(origin&&!allowed.has(origin)){res.status(403).json({success:false,message:"This website is not allowed to use this service."});return true;}
     if(origin){res.set("Access-Control-Allow-Origin",origin);res.set("Vary","Origin");}
     res.set("Cache-Control","no-store");
-    if(req.method==="OPTIONS"){res.set("Access-Control-Allow-Methods","POST, OPTIONS");res.set("Access-Control-Allow-Headers","Authorization, Content-Type");res.status(204).send("");return true;}
+    if(req.method==="OPTIONS"){res.set("Access-Control-Allow-Methods","GET, POST, OPTIONS");res.set("Access-Control-Allow-Headers","Authorization, Content-Type");res.status(204).send("");return true;}
     return false;
 }
 
@@ -300,6 +300,8 @@ async function requireCustomer(req) {
 function validText(value, max) { return typeof value === "string" && value.trim().length > 0 && value.trim().length <= max; }
 
 exports.checkoutQuote = functions.https.onRequest(async (req, res) => {
+    if(marketingCors(req,res))return;
+
     if (req.method !== "POST") return res.status(405).json({ success: false, message: "Method not allowed." });
     try {
         const market=String(req.body&&req.body.market||"za").toLowerCase();if(!MARKET_CONFIG[market])return res.status(400).json({success:false,message:"Unsupported market."});
@@ -339,8 +341,12 @@ async function restoreOrderInventory(orderRef) {
 const YOCO_API_BASE="https://payments.yoco.com/api";
 function appOrigin(req){return String(process.env.PUBLIC_APP_URL||("https://"+req.get("host"))).replace(/\/$/,"")}
 async function createYocoCheckout({orderId,orderNumber,total,idempotencyKey,req}){const secret=process.env.YOCO_SECRET_KEY;if(!secret){const e=new Error("Yoco test payments are not configured on the server.");e.status=503;throw e}const origin=appOrigin(req),amount=Math.round(Number(total)*100);const response=await fetch(YOCO_API_BASE+"/checkouts",{method:"POST",headers:{"Authorization":"Bearer "+secret,"Content-Type":"application/json","Idempotency-Key":idempotencyKey},body:JSON.stringify({amount,currency:"ZAR",successUrl:origin+"/za/payment/yoco/success?order="+encodeURIComponent(orderId),cancelUrl:origin+"/za/payment/yoco/cancel?order="+encodeURIComponent(orderId),failureUrl:origin+"/za/payment/yoco/failure?order="+encodeURIComponent(orderId),metadata:{orderId,orderNumber}})});const data=await response.json().catch(()=>({}));if(!response.ok||!data.redirectUrl){console.error("Yoco checkout creation failed",response.status);const e=new Error("Yoco could not start the payment.");e.status=502;throw e}return data}
-exports.verifyYocoPayment=functions.https.onRequest(async(req,res)=>{if(req.method!=="POST")return res.status(405).json({success:false,message:"Method not allowed."});try{const user=await requireCustomer(req),orderId=String(req.body?.orderId||""),ref=admin.firestore().collection("orders").doc(orderId),snap=await ref.get();if(!snap.exists)return res.status(404).json({success:false,message:"Order not found."});const order=snap.data();if(order.customer?.uid!==user.uid)return res.status(403).json({success:false,message:"This order does not belong to your account."});if(!order.yocoCheckoutId)return res.status(409).json({success:false,message:"No Yoco checkout is attached to this order."});const secret=process.env.YOCO_SECRET_KEY;if(!secret)return res.status(503).json({success:false,message:"Yoco is not configured."});const response=await fetch(YOCO_API_BASE+"/checkouts/"+encodeURIComponent(order.yocoCheckoutId),{headers:{Authorization:"Bearer "+secret}}),data=await response.json().catch(()=>({}));if(!response.ok)return res.status(502).json({success:false,message:"Could not verify payment with Yoco."});const paid=data.status==="succeeded"||data.payment?.status==="succeeded";if(paid&&order.paymentStatus!=="paid")await ref.set({paymentStatus:"paid",paidAt:FieldValue.serverTimestamp(),paymentVerifiedBy:"yoco-api",updatedAt:FieldValue.serverTimestamp()},{merge:true});return res.status(200).json({success:true,paid,status:data.status||data.payment?.status||"pending",orderNumber:order.orderNumber})}catch(error){return res.status(error.status||500).json({success:false,message:error.status?error.message:"Payment verification failed."})}});
+exports.verifyYocoPayment=functions.https.onRequest(async(req,res)=>{
+    if(marketingCors(req,res))return;
+if(req.method!=="POST")return res.status(405).json({success:false,message:"Method not allowed."});try{const user=await requireCustomer(req),orderId=String(req.body?.orderId||""),ref=admin.firestore().collection("orders").doc(orderId),snap=await ref.get();if(!snap.exists)return res.status(404).json({success:false,message:"Order not found."});const order=snap.data();if(order.customer?.uid!==user.uid)return res.status(403).json({success:false,message:"This order does not belong to your account."});if(!order.yocoCheckoutId)return res.status(409).json({success:false,message:"No Yoco checkout is attached to this order."});const secret=process.env.YOCO_SECRET_KEY;if(!secret)return res.status(503).json({success:false,message:"Yoco is not configured."});const response=await fetch(YOCO_API_BASE+"/checkouts/"+encodeURIComponent(order.yocoCheckoutId),{headers:{Authorization:"Bearer "+secret}}),data=await response.json().catch(()=>({}));if(!response.ok)return res.status(502).json({success:false,message:"Could not verify payment with Yoco."});const paid=data.status==="succeeded"||data.payment?.status==="succeeded";if(paid&&order.paymentStatus!=="paid")await ref.set({paymentStatus:"paid",paidAt:FieldValue.serverTimestamp(),paymentVerifiedBy:"yoco-api",updatedAt:FieldValue.serverTimestamp()},{merge:true});return res.status(200).json({success:true,paid,status:data.status||data.payment?.status||"pending",orderNumber:order.orderNumber})}catch(error){return res.status(error.status||500).json({success:false,message:error.status?error.message:"Payment verification failed."})}});
 exports.createOrder = functions.https.onRequest(async (req, res) => {
+    if(marketingCors(req,res))return;
+
     if (req.method !== "POST") return res.status(405).json({ success:false,message:"Method not allowed." });
     try {
         const user=await requireCustomer(req),customer=req.body&&req.body.customer||{},email=String(customer.email||"").trim().toLowerCase();
@@ -380,11 +386,15 @@ async function createOrderIdempotent({user,customer,quote,paymentMethod,idempote
     })
 }
 exports.adminInventoryAdjust = functions.https.onRequest(async(req,res)=>{
+    if(marketingCors(req,res))return;
+
     if(req.method!=="POST")return res.status(405).json({success:false,message:"Method not allowed."});
     try{const actor=await requireAdmin(req),productId=String(req.body?.productId||""),sku=String(req.body?.sku||""),delta=Number(req.body?.delta),reason=String(req.body?.reason||"").trim().slice(0,180);if(!productId||!sku||!Number.isInteger(delta)||delta===0||Math.abs(delta)>10000||!reason)return res.status(400).json({success:false,message:"Product, SKU, whole-number adjustment and reason are required."});const db=admin.firestore(),ref=db.collection("products").doc(productId),log=db.collection("inventory_adjustments").doc();let result;await db.runTransaction(async tx=>{const snap=await tx.get(ref);if(!snap.exists){const e=new Error("Product not found.");e.status=404;throw e}const p=snap.data(),variants=Array.isArray(p.variants)?p.variants.map(v=>({...v})):[],i=variants.findIndex(v=>String(v.sku||"")===sku);if(i<0){const e=new Error("Variant SKU not found.");e.status=404;throw e}const before=Number(variants[i].stock??variants[i].quantity??0),after=before+delta;if(after<0){const e=new Error("Adjustment would make stock negative.");e.status=409;throw e}variants[i].stock=after;tx.update(ref,{variants,updatedAt:FieldValue.serverTimestamp()});tx.set(log,{productId,productName:String(p.name||p.title||""),sku,variant:[variants[i].color,variants[i].size].filter(Boolean).join(" / "),before,delta,after,reason,actor:actor.email,createdAt:FieldValue.serverTimestamp()});result={before,after}});return res.status(200).json({success:true,...result})}catch(error){console.error("Inventory adjustment failed:",error);return res.status(error.status||500).json({success:false,message:error.status?error.message:"Inventory adjustment failed."})}
 });
 
 exports.adminOrderAction = functions.https.onRequest(async(req,res)=>{
+    if(marketingCors(req,res))return;
+
     if(req.method!=="POST")return res.status(405).json({success:false,message:"Method not allowed."});
     try{
         const adminUser=await requireAdmin(req),orderId=String(req.body&&req.body.orderId||""),action=String(req.body&&req.body.action||"");
@@ -413,12 +423,16 @@ const FX_MAX_AGE_MS=6*60*60*1000;
 async function storedFxRate(to){const snap=await admin.firestore().collection("fx_rates").doc("ZAR_"+to).get();if(!snap.exists)return null;const d=snap.data(),updated=d.updatedAt&&d.updatedAt.toMillis?d.updatedAt.toMillis():0,rate=Number(d.rate);return Number.isFinite(rate)&&rate>0&&Date.now()-updated<=FX_MAX_AGE_MS?{rate,updatedAt:new Date(updated).toISOString(),source:d.source||"configured"}:null}
 const MARKET_CURRENCIES = new Set(["ZAR","USD","NGN","BWP","GBP","EUR"]);
 exports.market = functions.https.onRequest((req,res)=>{
+    if(marketingCors(req,res))return;
+
     const raw = String(req.get("x-country-code") || req.get("cf-ipcountry") || req.get("x-appengine-country") || "").toUpperCase();
     const countryCode = /^[A-Z]{2}$/.test(raw) ? raw : "ZA";
     res.set("Cache-Control","private, max-age=300");
     return res.status(200).json({countryCode});
 });
 exports.exchangeRates = functions.https.onRequest(async(req,res)=>{
+    if(marketingCors(req,res))return;
+
     const base=String(req.query.base||"ZAR").toUpperCase(),to=String(req.query.to||"ZAR").toUpperCase();
     if(base!=="ZAR"||!MARKET_CURRENCIES.has(to))return res.status(400).json({success:false,message:"Unsupported currency."});
     if(to==="ZAR")return res.status(200).json({base,to,rate:1});
