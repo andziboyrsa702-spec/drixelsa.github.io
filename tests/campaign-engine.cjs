@@ -58,3 +58,7 @@ test('non-variant inventory is reserved atomically and restored once',async()=>{
 });
 
 test('a late uncertain response preserves campaign cancellation',async()=>{const app=setup();await app.call('enqueue',{campaignId:'c'});app.fail(Object.assign(Error('Timeout'),{unknown:true}));await app.engine.processJob(app.job());await app.call('cancel',{campaignId:'c'});app.db.data.get(app.job().path).status='processing';app.db.data.get(app.job().path).startedAt=0;await app.engine.tick();assert.equal(app.db.data.get('email_campaigns/c').status,'cancelled');assert.equal(app.requests.length,1);});
+
+test('free backend batches one recipient and defers quota exhaustion without failed deliveries',async()=>{
+ const app=setup(2);Object.assign(app.env,{CAMPAIGN_BATCH_SIZE:'1',CAMPAIGN_TICK_LIMIT:'1',CAMPAIGN_AUDIENCE_LIMIT:'1000'});await app.call('enqueue',{campaignId:'c'});assert.equal(app.db.data.get('email_campaigns/c').totalBatches,2);app.fail(Object.assign(Error('Daily quota reached'),{deferred:true}));await app.engine.processJob(app.job());assert.equal((await app.job().get()).data().status,'pending');assert.equal(app.db.data.get('email_campaigns/c').status,'queued');assert.equal(app.db.data.get('email_campaigns/c').failedCount,0);app.fail(null);app.time(3600001);await app.engine.processJob(app.job());assert.equal(app.requests.at(-1).messages.length,1);
+});

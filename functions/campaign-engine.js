@@ -46,10 +46,10 @@ function createEngine({db, FieldValue, requireAdmin, cors, send = submitBatch, n
    const orders=campaign.audience?.kind==='order_customers' || campaign.audience?.purchase && campaign.audience.purchase!=='all' || campaign.audience?.orderStatus ? records(await db.collection('orders').get()) : [];
    const people=selectAudience(subs,orders,campaign.audience);
    if(!people.length)throw fail('No active subscribers match these filters.');
-   if(people.length>50000)throw fail('Split audiences larger than 50,000 into separate campaigns.');
+   if(people.length>Number(env.CAMPAIGN_AUDIENCE_LIMIT||50000))throw fail('Split audiences larger than 50,000 into separate campaigns.');
    await db.collection('campaign_keys').doc(hash(id)).set({campaignId:id});
-   const total=Math.ceil(people.length/100);
-   for(let i=0;i<total;i++){await jobs().doc(hash(id)+'_'+i).set({campaignId:id,index:i,status:'pending',dueAt:due,people:people.slice(i*100,i*100+100),createdAt:FieldValue.serverTimestamp()});}
+   const batchSize=Math.max(1,Math.min(100,Number(env.CAMPAIGN_BATCH_SIZE||100)));const total=Math.ceil(people.length/batchSize);
+   const queued=[];for(let i=0;i<total;i++){const ref=jobs().doc(hash(id)+'_'+i),data={campaignId:id,index:i,status:'pending',dueAt:due,people:people.slice(i*batchSize,i*batchSize+batchSize),createdAt:FieldValue.serverTimestamp()};if(db.bulkSet)queued.push({ref,data});else await ref.set(data);}if(queued.length)await db.bulkSet(queued);
    await ref.update({status:due>now()?'scheduled':'queued',scheduledAt:new Date(due).toISOString(),recipientCount:people.length,totalBatches:total,completedBatches:0,acceptedCount:0,failedCount:0,skippedCount:0});
    return {queued:true,recipientCount:people.length,scheduledAt:new Date(due).toISOString()};
   }catch(e){await ref.update({status:'failed',lastError:String(e.message).slice(0,300)});throw e;}
@@ -81,7 +81,7 @@ function createEngine({db, FieldValue, requireAdmin, cors, send = submitBatch, n
    const result=await send(messages,deliveryKey(job.campaignId,job.index));
    for(let i=0;i<result.length;i++)await linkDelivery(result[i].id,job.campaignId,people[i]);
    await complete(ref,job,{accepted:people.length,failed:0,skipped,providerIds:result.map(r=>r.id)});
-  }catch(e){if(e.unknown===false){await complete(ref,job,{accepted:0,failed:job.submittedCount||job.people.length,skipped:job.skipped||0,error:String(e.message).slice(0,300)});}else{await ref.update({status:'delivery_unknown',error:String(e.message).slice(0,300)});await markUnknown(job.campaignId,'Batch '+job.index+': '+String(e.message).slice(0,250));}}
+  }catch(e){if(e.deferred){await ref.update({status:'pending',dueAt:now()+3600000,error:e.message});await campaigns().doc(job.campaignId).update({status:'queued',lastError:e.message});return;}if(e.unknown===false){await complete(ref,job,{accepted:0,failed:job.submittedCount||job.people.length,skipped:job.skipped||0,error:String(e.message).slice(0,300)});}else{await ref.update({status:'delivery_unknown',error:String(e.message).slice(0,300)});await markUnknown(job.campaignId,'Batch '+job.index+': '+String(e.message).slice(0,250));}}
  }
  async function markUnknown(id,message){await db.runTransaction(async tx=>{const ref=campaigns().doc(id),snap=await tx.get(ref);tx.update(ref,{...(snap.data()?.status==='cancelled'?{}:{status:'delivery_unknown'}),lastError:message});});}
  async function tick() {
@@ -90,7 +90,7 @@ function createEngine({db, FieldValue, requireAdmin, cors, send = submitBatch, n
   // Interrupted provider calls are never automatically retried after their lease.
   const stale=await jobs().where('status','==','processing').get();
   for(const snap of stale.docs)if((snap.data().startedAt||0)<now()-15*60000){await snap.ref.update({status:'delivery_unknown',error:'Worker interrupted; reconcile provider logs.'});await markUnknown(snap.data().campaignId,'A worker was interrupted. Reconcile its batch before resuming.');}
-  const pending=await jobs().where('status','==','pending').where('dueAt','<=',now()).orderBy('dueAt').limit(100).get();
+  const pending=await jobs().where('status','==','pending').where('dueAt','<=',now()).orderBy('dueAt').limit(Number(env.CAMPAIGN_TICK_LIMIT||100)).get();
   for(const snap of pending.docs){await processJob(snap.ref);await pause(650);}
   await db.collection('operations_health').doc('campaignWorker').set({lastFinishedAt:now(),status:'ok',checkedBatches:pending.docs.length},{merge:true});
  }

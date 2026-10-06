@@ -19,7 +19,6 @@
     {
       "collectionGroup": "request_limits",
       "fieldPath": "expiresAt",
-      "ttl": true,
       "indexes": []
     }
   ]
