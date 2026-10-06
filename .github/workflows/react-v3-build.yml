@@ -31,6 +31,8 @@ jobs:
           java-version: 21
       - run: npm test
       - run: node -e 'require("./functions/index.js")'
+      - name: Verify campaign send safeguards
+        run: node --test tests/admin-campaign.cjs tests/campaign-engine.cjs tests/storefront-resilience.test.js
       - run: npm run test:rules
       - run: npx firebase emulators:exec --only firestore --project demo-drixel "node worker/test/firestore-emulator.mjs"
       - run: npm run test:storage
@@ -51,8 +53,6 @@ jobs:
           node tests/product-media-browser.cjs
           node tests/payments-browser.cjs
           node tests/snapscan-browser.cjs
-      - name: Verify campaign send safeguards
-        run: node --test tests/admin-campaign.cjs tests/campaign-engine.cjs tests/storefront-resilience.test.js
       - name: Verify Firebase hosting output
         run: test -f dist/index.html
       - name: Verify critical React source
