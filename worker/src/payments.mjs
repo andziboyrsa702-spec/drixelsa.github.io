@@ -24,7 +24,7 @@ export async function startCheckout({orderId,req},{db=getFirestore(),request=fet
  // Older deployments used the requesting localhost as the return origin. Recover only
  // after an explicit mismatch, never a timeout, and never issue a different retry key.
  const local=req.get('Origin');
- if(response.status===422&&!order.yocoRequestBody&&config.mode==='live'&&process.env.ALLOW_LOCAL_ORIGINS==='true'&&/^http:\/\/(localhost|127\.0\.0\.1):\d+$/.test(local||'')){
+ if(response.status===422&&config.mode==='live'&&new URL(saved.successUrl).origin!==local&&/^http:\/\/(localhost|127\.0\.0\.1):\d+$/.test(local||'')){
    const originalPath=result=>local+'/za/payment/yoco/'+result+'?order='+encodeURIComponent(orderId);
    body=JSON.stringify({amount,currency:'ZAR',successUrl:originalPath('success'),cancelUrl:originalPath('cancel'),failureUrl:originalPath('failure'),metadata:{orderId,orderNumber:order.orderNumber},externalId:orderId});
    await ref.update({yocoRequestBody:body,updatedAt:FieldValue.serverTimestamp()});
