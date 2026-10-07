@@ -1,0 +1,27 @@
+const concepts=[
+['New collection','THE NEXT CHAPTER.','Introduce your new collection and explain what makes it different.'],
+['Studio film','IN MOTION.','A campaign film from inside the Drixel studio.'],
+['Restock','BACK IN ROTATION.','Add the confirmed products and sizes returning to the store.'],
+['Hoodie edit','LAYER WITH INTENT.','An edit of hoodies for everyday movement.'],
+['Essentials','THE EVERYDAY STANDARD.','Build a wardrobe around considered essentials.'],
+['Weekend edit','OFF DUTY. ON POINT.','A focused selection for the weekend.'],
+['Lookbook','A STUDY IN MOVEMENT.','Explore the collection through the latest lookbook.'],
+['Behind the scenes','FROM THE STUDIO.','Meet the process, details and people behind Drixel.'],
+['Community','YOUR CITY. YOUR STORY.','A campaign celebrating the people wearing Drixel.'],
+['Limited release','A CONSIDERED RELEASE.','Add verified availability and launch details.'],
+['Size guide','FIND YOUR FIT.','Help customers choose their fit with accurate measurements.'],
+['Care guide','MADE TO LAST.','Share the care instructions for your garments.'],
+['Accessories','THE FINISHING TOUCH.','Discover the accessories that complete the rotation.'],
+['Sweater edit','A NEW LAYER.','Introduce your sweater collection.'],
+['Founder note','BUILT WITH INTENT.','A personal message from the Drixel team.'],
+['Season launch','A CHANGE OF SEASON.','Share the collection for the season ahead.'],
+['Store update','A NOTE FROM DRIXEL.','Add the confirmed service information customers need.'],
+['Delivery notice','DELIVERY UPDATE.','Explain affected destinations, dates and support options.'],
+['Sold-out notice','THANK YOU FOR THE RESPONSE.','Name the sold-out pieces and confirmed next steps.'],
+['Maintenance notice','WE WILL BE RIGHT BACK.','Add the maintenance window in SAST and the support contact.'],
+['Event invitation','MEET US THERE.','Add the confirmed venue, date, time and attendance details.'],
+['Subscriber preview','FIRST LOOK.','Invite your subscribers to view the latest collection.'],
+['Promotion','YOUR NEXT ROTATION.','Add verified offer dates, eligible products and exclusions.'],
+['Product detail','IT IS IN THE DETAILS.','Highlight the garment material, finish and construction.']
+];
+export const STOREFRONT_CAMPAIGNS=concepts.map(([name,title,subtitle],i)=>({id:'studio-'+i,name,title,subtitle,ctaText:'Explore Drixel',ctaLink:'/za/w/new-featured',imageUrl:'/assets/campaigns/campaign-'+String(i%9+1).padStart(2,'0')+'.jpeg',videoUrl:'',theme:i%2?'light':'dark',placement:'home',active:false,startAt:'',endAt:''}));

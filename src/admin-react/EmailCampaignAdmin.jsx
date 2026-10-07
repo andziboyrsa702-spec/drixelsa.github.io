@@ -49,7 +49,7 @@ export default function EmailCampaignAdmin({
   updates = false
 }) {
   const dialog = useDialog(),
-    connection = useAdminData(['subscribers', 'email_campaigns', 'orders']);
+    connection = useAdminData(['subscribers', 'email_campaigns', 'orders', 'operations_health']);
   const campaigns = [...(connection.data.email_campaigns || [])].filter(c => updates ? c.category === 'update' : c.category !== 'update').sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
   const [busy, setBusy] = useState(''),
     [mobile, setMobile] = useState(false),
@@ -112,6 +112,7 @@ export default function EmailCampaignAdmin({
     if (d.subject.length > 300) throw Error('Use an email subject of 300 characters or fewer.');
     if (full && (!d.headline.trim() || !d.body.trim())) throw Error('Complete the headline and message.');
     if (d.ctaLabel && !emailAssetUrl(d.ctaUrl)) throw Error('Add a valid http or https destination URL, or remove the button label.');
+    if(d.videoUrl&&!emailAssetUrl(d.videoUrl))throw Error('Use a public HTTPS video URL.');
     for (const key of ['imageUrl', 'secondaryImageUrl']) if (d[key] && !emailAssetUrl(d[key])) throw Error('Use a valid public image URL.');
   }
   async function persist() {
@@ -271,7 +272,7 @@ export default function EmailCampaignAdmin({
     }
   }
   if (connection.error || connection.loading) return <AdminDataState {...connection} />;
-  return <div className="mk-studio mk-workspace"><header className="mk-workspace-head"><div><p className="mk-overline">DRIXEL / {updates ? 'SERVICE COMMUNICATIONS' : 'MARKETING STUDIO'} <span className="mk-release">MKT.02</span></p><h2>{updates ? 'Keep your community informed.' : 'Make every message count.'}</h2><p>{updates ? 'Clear, considered announcements for the moments that need an update.' : 'Launches, editorial stories and offers. One creative workspace, from first draft to send.'}</p></div><div className="mk-summary"><div><strong>{subs.length}</strong><span>Selected recipients</span></div><div><strong>{templates.length}</strong><span>{updates ? 'Update' : 'Advertisement'} templates</span></div><div><strong>{campaigns.filter(c => ['sent', 'partial'].includes(c.status)).length}</strong><span>Campaigns submitted</span></div></div></header>
+  return <div className="mk-studio mk-workspace">{connection.data.operations_health?.find(x=>x.id==='campaignWorker')?.status==='failed'&&<p role="alert" className="mk-send-error">Subscriber queue is paused: {connection.data.operations_health.find(x=>x.id==='campaignWorker').lastError} Open Service Health to check the queue index before sending another campaign.</p>}<header className="mk-workspace-head"><div><p className="mk-overline">DRIXEL / {updates ? 'SERVICE COMMUNICATIONS' : 'MARKETING STUDIO'} <span className="mk-release">MKT.02</span></p><h2>{updates ? 'Keep your community informed.' : 'Make every message count.'}</h2><p>{updates ? 'Clear, considered announcements for the moments that need an update.' : 'Launches, editorial stories and offers. One creative workspace, from first draft to send.'}</p></div><div className="mk-summary"><div><strong>{subs.length}</strong><span>Selected recipients</span></div><div><strong>{templates.length}</strong><span>{updates ? 'Update' : 'Advertisement'} templates</span></div><div><strong>{campaigns.filter(c => ['sent', 'partial'].includes(c.status)).length}</strong><span>Campaigns submitted</span></div></div></header>
  <nav className="mk-tabs" aria-label="Campaign workspace">{[['templates', 'Templates'], ['compose', 'Composer'], ['history', 'Campaigns']].map(([key, label]) => <button key={key} aria-pressed={tab === key} className={tab === key ? 'active' : ''} onClick={() => setTab(key)}>{label}</button>)}</nav>
  {tab === 'templates' && <section><div className="mk-section-title"><div><p className="mk-overline">THE TEMPLATE LIBRARY</p><h3>{updates ? 'A clear message for every situation.' : 'Choose your next campaign.'}</h3></div><span>Choose a design. Make it yours. Preview before you send.</span></div><div className="mk-library-tools"><input type="search" aria-label="Search templates" placeholder="Search templates…" value={query} onChange={e => setQuery(e.target.value)} /><div className="mk-filters" aria-label="Template categories">{['All', ...new Set(templates.map(t => t.group))].map(g => <button key={g} aria-pressed={group === g} onClick={() => setGroup(g)}>{g}</button>)}</div></div><div className="mk-template-grid">{visible.map(t => <button className={'mk-template mk-designed-card mk-template-' + t.layout} onClick={() => apply(t)} key={t.id}><div className="mk-design-window" aria-hidden="true"><iframe tabIndex={-1} sandbox="" title={t.name + ' design thumbnail'} srcDoc={emailHtml({
               ...base,
@@ -292,7 +293,7 @@ export default function EmailCampaignAdmin({
               rows: 3
             })}{updates && <p className="mk-field-note">Templates are starting points. Confirm the facts, affected services and next update time before sending.</p>}</fieldset><fieldset disabled={Boolean(busy)}><legend><span>03</span> Destination & artwork</legend><div className="ra-form-two">{field('ctaLabel', 'Button label')}{field('ctaUrl', 'Destination URL', {
                 type: 'url'
-              })}</div>{field('imageUrl', 'Campaign image URL')}{field('imageAlt', 'Image description')}{d.layout === 'gallery' && field('secondaryImageUrl', 'Second image URL')}<MediaUpload label="Upload email artwork" accept="image/jpeg,image/png,image/webp" disabled={Boolean(busy)} onUploaded={asset=>setD(x=>({...x,imageUrl:asset.url}))}/><div className="mk-image-strip">{Array.from({
+              })}</div>{field('imageUrl', 'Campaign image URL')}{field('imageAlt', 'Image description')}{d.layout === 'gallery' && <>{field('secondaryImageUrl', 'Second image URL')}<MediaUpload label="Upload second email image" accept="image/jpeg,image/png,image/webp" disabled={Boolean(busy)} onUploaded={asset=>setD(x=>({...x,secondaryImageUrl:asset.url}))}/></>}{field('videoUrl','Campaign video link')}<MediaUpload label="Upload campaign video" accept="video/mp4,video/webm" disabled={Boolean(busy)} onUploaded={asset=>setD(x=>({...x,videoUrl:asset.url}))}/><p className="mk-field-note">Emails include a link to watch the video. Upload a poster using the email artwork control.</p><MediaUpload label="Upload email artwork" accept="image/jpeg,image/png,image/webp" disabled={Boolean(busy)} onUploaded={asset=>setD(x=>({...x,imageUrl:asset.url}))}/><div className="mk-image-strip">{Array.from({
                 length: 9
               }, (_, i) => '/assets/campaigns/campaign-' + String(i + 1).padStart(2, '0') + '.jpeg').map(x => <button type="button" className={d.imageUrl === x ? 'active' : ''} onClick={() => setD(v => ({
                 ...v,
