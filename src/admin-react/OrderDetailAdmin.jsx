@@ -32,9 +32,9 @@ export default function OrderDetailAdmin(){
    {paid&&!cancelled&&order.status!=="payment_review"&&next&&<button disabled={!!busy} onClick={()=>act(next)}>{busy?'Updating…':`Mark ${next}`}</button>}
   </div>
   <div className="ra-metrics" style={{marginTop:24}}>
-   <Metric label="Payment" value={order.paymentStatus||'pending'} note={provider||'Method unavailable'}/>
-   <Metric label="Fulfilment" value={fulfilment}/><Metric label="Order total" value={money(order.total,currency)}/>
-   <Metric label="Inventory" value={order.inventoryStatus||'Not recorded'}/>
+   <Metric label="Payment" value={titleCase(order.paymentStatus||'pending')} note={provider||'Method unavailable'}/>
+   <Metric label="Fulfilment" value={titleCase(fulfilment)}/><Metric label="Order total" value={money(order.total,currency)}/>
+   <Metric label="Inventory" value={titleCase(order.inventoryStatus||'Not recorded')}/>
   </div>
   <div className="ra-order-details"><section><h3>Customer</h3><p>{[customer.firstName,customer.lastName].filter(Boolean).join(' ')||'Name unavailable'}{'\n'}{customer.email||'Email unavailable'}{'\n'}{customer.phone||'Phone unavailable'}</p></section>
    <section><h3>Delivery address</h3><p>{[address.address||address.street,address.city,address.province,address.postalCode,address.country].filter(Boolean).join('\n')||'No delivery address recorded.'}</p></section></div>
@@ -46,3 +46,5 @@ export default function OrderDetailAdmin(){
  </section>;
 }
 function Metric({label,value,note}){return <div className="ra-metric"><span>{label}</span><strong>{value}</strong>{note&&<small>{note}</small>}</div>;}
+
+function titleCase(value){return String(value).replace(/_/g," ").replace(/\b\w/g,c=>c.toUpperCase())}

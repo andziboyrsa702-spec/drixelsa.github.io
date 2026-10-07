@@ -41,6 +41,7 @@ export function MarketProvider({
     }));
   }, [pathMarket, loc.pathname]);
   useEffect(() => {
+    let active = true;
     const currency = marketInfo(market).currency;
     if (currency === "ZAR") {
       setRate(1);
@@ -55,15 +56,18 @@ export function MarketProvider({
       if (!r.ok) throw new Error(d.message || "Pricing unavailable.");
       return d;
     }).then(d => {
+      if(!active)return;
       const next = Number(d.rate);
       if (!Number.isFinite(next) || next <= 0) throw new Error("Pricing unavailable.");
       setRate(next);
       setPricingReady(true);
     }).catch(e => {
+      if(!active)return;
       setRate(null);
       setPricingReady(false);
       setPricingError(e.message || "Pricing for this market is temporarily unavailable.");
     });
+    return ()=>{active=false};
   }, [market]);
   const value = useMemo(() => {
     const info = marketInfo(market);
