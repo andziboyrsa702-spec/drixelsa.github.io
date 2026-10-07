@@ -17,10 +17,11 @@ export default function AdminGuard({children}) {
       if (live) setState({uid:user.uid,loading:false,allowed:false,error:'Administrator access verification timed out. Check your connection and try again.'});
       live = false;
     }, 15000);
-    user.getIdTokenResult(true).then(async result => {
+    const currentUser=auth.currentUser?.uid===user.uid?auth.currentUser:user;
+    currentUser.getIdTokenResult().then(async result => {
       if (!live) return;
       const allowed = hasAdminAccess(result.claims);
-      let security=null;if(allowed){try{security=await adminSecurityRequest('status',{},user)}catch(error){if(error.status!==404)throw error;}if(!live)return;}
+      let security=null;if(allowed){try{security=await adminSecurityRequest('status',{},currentUser)}catch(error){if(error.status!==404)throw error;}if(!live)return;}
       setState({uid:user.uid,loading:false,allowed,security,error:allowed?'':'This account has not been granted Drixel administrator access.'});
       clearTimeout(timeout);
     }).catch(error => {

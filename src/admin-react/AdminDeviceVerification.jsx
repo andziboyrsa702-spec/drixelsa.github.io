@@ -10,7 +10,16 @@ export async function adminSecurityRequest(path,body,user=auth.currentUser){
 }
 export default function AdminDeviceVerification({enrolled,onVerified}){
  const [busy,setBusy]=useState(false),[error,setError]=useState(''),[codes,setCodes]=useState([]),[token,setToken]=useState(''),[recovery,setRecovery]=useState(false),[code,setCode]=useState('');
- async function finish(customToken){await signInWithCustomToken(auth,customToken);onVerified();}
+ async function finish(customToken){
+  if(!customToken)throw Error('The security service did not return a verified session. Try again.');
+  const result=await signInWithCustomToken(auth,customToken);
+  // Firebase may replace the User object while React still holds the previous one.
+  const currentUser=result.user;
+  await currentUser.getIdToken();
+  const status=await adminSecurityRequest('status',{},currentUser);
+  if(!status.verified)throw Error('Your device was verified, but the administrator session was not confirmed. Sign out, sign in again and retry.');
+  onVerified();
+ }
  async function verify(){if(busy)return;setBusy(true);setError('');try{
   if(recovery){const result=await adminSecurityRequest('recover',{code});await finish(result.customToken);return;}
   if(!browserSupportsWebAuthn())throw Error('This browser does not support passkeys. Use a current browser on your phone or computer.');
