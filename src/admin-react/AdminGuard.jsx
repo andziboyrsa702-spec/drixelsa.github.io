@@ -8,6 +8,7 @@ import useAuth from '../hooks/useAuth.js';
 export default function AdminGuard({children}) {
   const user = useAuth(), {market = 'za'} = useParams(), location = useLocation();
   const [attempt, setAttempt] = useState(0);
+  const [verificationError,setVerificationError]=useState('');
   const [state, setState] = useState({uid: null, loading: true, allowed: false, error: ''});
   useEffect(() => {
     let live = true;
@@ -46,6 +47,6 @@ export default function AdminGuard({children}) {
   if (user === undefined || state.loading || state.uid !== user.uid) return <div className="admin-gate" role="status"><strong>DRIXEL</strong><span>Verifying administrator access…</span></div>;
   if (!state.allowed) return <div className="admin-gate admin-access-denied" role="alert"><strong>DRIXEL</strong><span>{state.error}</span><small>{user.email}</small>
     <button onClick={() => setAttempt(value => value+1)}>Check access again</button><Link to={`/${market}/member/profile`}>Return to account</Link></div>;
-  if(state.security?.available&&!state.security.verified)return <AdminDeviceVerification enrolled={state.security.enrolled} onVerified={()=>setAttempt(value=>value+1)}/>;
+  if(state.security?.available&&!state.security.verified)return <AdminDeviceVerification enrolled={state.security.enrolled} sessionError={verificationError} onFailure={setVerificationError} onVerified={()=>{setVerificationError('');setAttempt(value=>value+1)}}/>;
   return children;
 }
