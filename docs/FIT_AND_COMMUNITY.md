@@ -8,7 +8,7 @@ After pulling this change, deploy the new client access rules:
 npx firebase deploy --only firestore:rules --project drixel-sa
 ```
 
-Use Admin > Products > Product size guide to enter actual flat garment dimensions in centimetres and supplier-confirmed regional labels. Published product measurements take precedence over the separately attributed brand reference charts. Never present those reference charts as Drixel garment specifications or a universal national standard.
+Use Admin > Products > Product size guide to enter actual flat garment dimensions in centimetres and supplier-confirmed regional labels. Only Drixel product measurements are published. No external brand charts or competitor sizing links are displayed. Do not invent garment measurements or country conversions.
 
 Admin > Reviews & Feedback contains submitted reviews and private customer concerns. Reviews start pending, require moderation and do not claim verified purchase. Moderate negative and positive reviews consistently; retain genuine criticism. Changing a feedback status does not email the customer. Follow up using the customer account contact details.
 
