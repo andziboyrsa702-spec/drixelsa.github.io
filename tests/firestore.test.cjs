@@ -77,3 +77,22 @@ test('public clients cannot enumerate discount codes or write arbitrary contact 
  const db=env.unauthenticatedContext().firestore();await assertFails(getDocs(collection(db,'coupons')));await assertFails(setDoc(doc(db,'contacts/spam'),{html:'arbitrary content'}));
  await assertSucceeds(setDoc(doc(user('admin',{admin:true}),'coupons/test'),{code:'PRIVATE',active:true}));
 });
+
+test('reviews stay private until moderation and cannot self-publish or spoof authors',async()=>{
+ const {serverTimestamp,query,where}=require('firebase/firestore');
+ await env.withSecurityRulesDisabled(async ctx=>setDoc(doc(ctx.firestore(),'products/tee'),{name:'Tee'}));
+ const db=user('alice'),ref=doc(db,'product_reviews/tee_alice'),review={productId:'tee',userId:'alice',author:'Alice',body:'Fits comfortably and feels good.',rating:4,status:'pending',updatedAt:serverTimestamp()};
+ await assertSucceeds(setDoc(ref,review));
+ await assertFails(getDoc(doc(user('bob'),'product_reviews/tee_alice')));
+ await assertFails(setDoc(ref,{...review,status:'published'}));
+ await assertFails(setDoc(ref,{...review,rating:6}));
+ await assertFails(setDoc(ref,{...review,userId:'bob'}));
+ await assertSucceeds(updateDoc(doc(user('admin',{admin:true}),'product_reviews/tee_alice'),{status:'published'}));
+ await assertSucceeds(getDocs(query(collection(env.unauthenticatedContext().firestore(),'product_reviews'),where('productId','==','tee'),where('status','==','published'))));
+});
+test('feedback is private and only administrators can resolve a concern',async()=>{
+ const {serverTimestamp}=require('firebase/firestore');const ref=doc(user('alice'),'customer_feedback/concern');
+ await assertSucceeds(setDoc(ref,{userId:'alice',category:'Fit & sizing',orderReference:'',message:'Please help me choose the right size.',status:'new',createdAt:serverTimestamp()}));
+ await assertSucceeds(getDoc(ref));await assertFails(getDoc(doc(user('bob'),'customer_feedback/concern')));await assertFails(getDoc(doc(env.unauthenticatedContext().firestore(),'customer_feedback/concern')));
+ await assertFails(updateDoc(ref,{status:'resolved'}));await assertSucceeds(updateDoc(doc(user('admin',{admin:true}),'customer_feedback/concern'),{status:'resolved'}));
+});

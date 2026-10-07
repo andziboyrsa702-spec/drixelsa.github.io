@@ -50,6 +50,7 @@ jobs:
           npm run test:layout
           npm run test:admin
           npm run test:marketing
+          node tests/community-fit-browser.cjs
           node tests/product-media-browser.cjs
           node tests/payments-browser.cjs
           node tests/snapscan-browser.cjs

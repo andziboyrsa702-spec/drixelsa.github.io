@@ -1,6 +1,6 @@
 export const adminSections=[
 ["HOME",[["dashboard","Dashboard"]]],
-["COMMERCE",[["orders","Orders"],["products","Products"],["inventory","Inventory"],["collections","Collections"],["customers","Customers"],["returns","Returns"]]],
+["COMMERCE",[["orders","Orders"],["products","Products"],["inventory","Inventory"],["collections","Collections"],["customers","Customers"],["customers/feedback","Reviews & Feedback"],["returns","Returns"]]],
 ["CONTENT",[["content/storefront","Storefront"],["content/media","Media"]]],
 ["MARKETING",[["marketing/email","Campaign Studio"],["marketing/updates","Updates"],["marketing/subscribers","Subscribers"],["marketing/campaigns","Campaign Content"],["marketing/discounts","Discounts"]]],
 ["ANALYTICS",[["analytics/overview","Overview"]]],
@@ -12,6 +12,7 @@ export const adminTitle=key=>{
  if(key==='products/new')return 'Create product';
  if(/^products\/[^/]+$/.test(key))return 'Product details';
  if(/^orders\/[^/]+$/.test(key))return 'Order details';
+ if(key==='customers/feedback')return 'Reviews & Feedback';
  if(/^customers\/[^/]+$/.test(key))return 'Customer details';
  return adminSections.flatMap(x=>x[1]).find(x=>x[0]===key)?.[1]||'Page not found';
 };
