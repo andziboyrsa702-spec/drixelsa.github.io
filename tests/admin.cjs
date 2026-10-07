@@ -65,7 +65,9 @@ if(require.main===module)(async()=>{
  // Mobile navigation must expose the complete menu, trap keyboard focus and close.
  await page.setViewportSize({width:390,height:850});await goto('dashboard');
  await page.getByRole('button',{name:'Menu',exact:true}).click();await page.waitForSelector('.ra-sidebar.open');
- assert.equal(await page.locator('.ra-sidebar .ra-nav').count(),21);
+ const {adminSections,adminPath}=await import('../src/admin-react/adminRoutes.js');
+ const expectedLinks=adminSections.flatMap(section=>section[1]).map(([key])=>adminPath(key));
+ assert.deepEqual(await page.locator('.ra-sidebar .ra-nav').evaluateAll(links=>links.map(link=>link.getAttribute('href'))),expectedLinks);
  assert.equal(await page.evaluate(()=>document.body.style.overflow),'hidden');
  await page.keyboard.press('Escape');assert.equal(await page.locator('.ra-sidebar.open').count(),0);
  assert.equal(await page.evaluate(()=>document.body.style.overflow),'');
