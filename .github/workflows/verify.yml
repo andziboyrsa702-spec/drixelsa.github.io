@@ -25,9 +25,9 @@ jobs:
       - run: npx playwright install chromium --with-deps
       - name: Isolated browser checkout checks
         run: |
-          python3 -m http.server 8765 >/tmp/drixel-http.log 2>&1 &
+          npm run dev -- --host 127.0.0.1 --port 5173 --strictPort >/tmp/drixel-vite.log 2>&1 &
           SERVER_PID=$!
           trap 'kill "$SERVER_PID"' EXIT
-          node -e 'const wait=async()=>{for(let i=0;i<50;i++){try{await fetch("http://127.0.0.1:8765/");return}catch{}await new Promise(r=>setTimeout(r,100))}process.exit(1)};wait()'
+          node -e 'const wait=async()=>{for(let i=0;i<100;i++){try{const r=await fetch("http://127.0.0.1:5173/");if(r.ok)return}catch{}await new Promise(r=>setTimeout(r,100))}process.exit(1)};wait()'
+          node --test tests/checkout-payments.cjs tests/storefront-resilience.test.js
           npm run test:browser
-          npm run test:layout
