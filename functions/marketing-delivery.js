@@ -3,7 +3,7 @@ const crypto=require('node:crypto');
 const wait=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 // Personalised messages are submitted in batches, never exposing the list in To/CC.
 // Repeating a transient request uses the exact same body and idempotency key.
-async function submitBatch(messages,key,{request=fetch,pause=wait}={}){
+async function submitBatch(messages,key,{request=(...args)=>globalThis.fetch(...args),pause=wait}={}){
  let last;
  for(let attempt=0;attempt<3;attempt++){
   try{
