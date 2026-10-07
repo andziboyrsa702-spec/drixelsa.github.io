@@ -7,6 +7,8 @@ source=source.replace('require("./campaign-engine")','require("../../functions/c
 source=source.replace('db:admin.firestore(),FieldValue,requireAdmin,cors:marketingCors','db:admin.firestore(),FieldValue,requireAdmin,cors:marketingCors,send:async(messages,key)=>{await require("../src/email.mjs").reserveEmailQuota(key,messages.length);return submitBatch(messages,key);}');
 source=source.replace('process.env.FUNCTIONS_EMULATOR==="true"','process.env.ALLOW_LOCAL_ORIGINS==="true"');
 source=source.replace(/async function createYocoCheckout\([\s\S]*?(?=exports.verifyYocoPayment)/, 'async function createYocoCheckout(input){return require("../src/payments.mjs").startCheckout(input)}\n');
+source=source.replace(/const MARKET_CONFIG=\{[^\n]*\};/, 'const MARKET_CONFIG=require("../../src/i18n/markets.js").MARKETS;');
+source=source.replace(/async function marketRate\(market\)\{[^\n]*\}/, 'async function marketRate(market){const cfg=marketConfig(market);return cfg.currency==="ZAR"?1:(await require("../src/market-pricing.mjs").marketPricing.rateFor(cfg.currency)).rate}');
 source=source.replaceAll('require("crypto")','require("node:crypto")');
 source=source.replace(/async function requireAdmin\(req\) \{[\s\S]*?(?=exports\.sendCampaign)/,'async function requireAdmin(req){return require("../src/auth.mjs").adminUser(req)}\n\n');
 source=source.replace('const MAX_CHECKOUT_ITEMS = 40','const MAX_CHECKOUT_ITEMS = 8');
