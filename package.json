@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "vite build && node scripts/build-public-routes.mjs",
     "preview": "vite preview",
     "test": "node --test functions/test/*.test.js",
     "check": "node scripts/check-site.cjs",
@@ -22,7 +22,7 @@
     "firebase": "12.19.0",
     "react": "19.1.1",
     "react-dom": "19.1.1",
-    "react-router-dom": "7.9.1"
+    "react-router-dom": "7.18.4"
   },
   "devDependencies": {
     "@firebase/rules-unit-testing": "5.0.2",
@@ -30,5 +30,8 @@
     "firebase-tools": "15.32.1",
     "playwright": "1.56.1",
     "vite": "7.1.7"
+  },
+  "overrides": {
+    "@grpc/grpc-js": "1.14.5"
   }
 }

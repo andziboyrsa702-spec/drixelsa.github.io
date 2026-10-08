@@ -98,7 +98,7 @@ async function requireAdmin(req) {
     }
     const database=admin.firestore(),policy=(await database.doc('admin_security/'+decoded.uid).get()).data(),config=(await database.doc('security_config/admin').get()).data();
     const stamp=Number(decoded.drixel_admin_verified_at),now=Date.now()/1000;
-    if ((config?.passkeysRequired&&!policy?.enabled)||(policy?.enabled&&!(decoded.drixel_admin_key_version===policy.version&&Number.isFinite(stamp)&&stamp<=now&&stamp>now-900))) {
+    if ((config?.passkeysRequired!==false&&!policy?.enabled)||(policy?.enabled&&!(decoded.drixel_admin_key_version===policy.version&&Number.isFinite(stamp)&&stamp<=now&&stamp>now-900))) {
         const error=new Error('Verify your administrator passkey to continue.');error.status=403;throw error;
     }
     return decoded;
@@ -183,7 +183,7 @@ exports.subscribeNewsletter = functions.https.onRequest(async (req, res) => {
         const source=["footer","storefront","checkout"].includes(req.body?.source)?req.body.source:"website";
         await admin.firestore().runTransaction(async tx=>{
             const snap=await tx.get(ref),existing=snap.exists?snap.data():{};
-            tx.set(ref,{email,status:"active",market:["za","us","ng","bw"].includes(req.body?.market)?req.body.market:existing.market||"",source:existing.source||source,unsubscribeToken:existing.unsubscribeToken||require("node:crypto").randomBytes(32).toString("hex"),consent:"newsletter-v1",subscribedAt:existing.subscribedAt||FieldValue.serverTimestamp(),updatedAt:FieldValue.serverTimestamp()},{merge:true});
+            tx.set(ref,{email,status:"active",market:["za", "us", "ng", "bw", "gb", "eu", "na", "ls", "sz", "ke", "gh", "zm", "ug", "tz", "mw", "mu", "rw", "eg", "ma", "ca", "au", "nz", "ae", "sa", "in", "cn", "jp", "sg", "ch", "se", "no", "dk", "pl", "br", "mx", "kr"].includes(req.body?.market)?req.body.market:existing.market||"",source:existing.source||source,unsubscribeToken:existing.unsubscribeToken||require("node:crypto").randomBytes(32).toString("hex"),consent:"newsletter-v1",subscribedAt:existing.subscribedAt||FieldValue.serverTimestamp(),updatedAt:FieldValue.serverTimestamp()},{merge:true});
         });
         return res.status(200).json({success:true,message:"You're on the list."});
     }catch(error){console.error("Newsletter signup failed:",error);return res.status(503).json({success:false,message:"We could not save your subscription. Please try again."});}

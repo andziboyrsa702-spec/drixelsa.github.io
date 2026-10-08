@@ -8,7 +8,7 @@ const {modules,fixture}=require('./admin.cjs');
  await context.route('**/*',async route=>{
   const url=new URL(route.request().url()),match=url.pathname.match(/firebase_(app|auth|firestore)\.js$/);
   if(match){let code=modules[match[1]];if(match[1]==='firestore')code=code.replace(JSON.stringify(fixture),JSON.stringify(data));return route.fulfill({contentType:'application/javascript',body:code});}
-  if(url.pathname.startsWith('/api/')){
+  if(url.pathname==='/api/admin/security/status')return route.fulfill({json:{available:true,verified:true,enrolled:true,expiresAt:Date.now()+900000}});if(url.pathname.startsWith('/api/')){
    const body=route.request().postDataJSON();calls.push({path:url.pathname,body});
    if(url.pathname==='/api/subscribe'){if(signupFails)return route.fulfill({contentType:'application/json',body:'<!doctype html>fallback'});const address=body.email.trim().toLowerCase();if(!data.subscribers.some(s=>s.email===address))data.subscribers.push({id:'signup',email:address,status:'active',source:body.source});return route.fulfill({contentType:'application/json',body:JSON.stringify({success:true,message:"You're on the list."})});}
    if(url.pathname==='/api/send-email')return route.fulfill({status:testFails?503:200,contentType:'application/json',body:JSON.stringify(testFails?{success:false,message:'Sending domain is not verified.'}:{success:true,data:'provider-test-id'})});
@@ -25,7 +25,7 @@ const {modules,fixture}=require('./admin.cjs');
  await page.getByLabel('Preview recipient').fill('preview@example.com');await page.getByRole('button',{name:'Send test email',exact:true}).click();await page.locator('.dx-dialog-message').filter({hasText:'Preview accepted'}).waitFor();assert.equal(calls.at(-1).path,'/api/send-email');assert.deepEqual(calls.at(-1).body.to,['preview@example.com']);assert.equal(calls.filter(c=>c.path==='/api/send-campaign').length,0);await page.getByRole('button',{name:'Close',exact:true}).click();
  testFails=true;await page.getByRole('button',{name:'Send test email',exact:true}).click();await page.locator('.dx-dialog-message').filter({hasText:'domain is not verified'}).waitFor();await page.getByRole('button',{name:'Close',exact:true}).click();
  await page.getByRole('button',{name:'Save draft',exact:true}).click();await page.locator('.dx-dialog-message').filter({hasText:'draft saved'}).waitFor();await page.getByRole('button',{name:'Close',exact:true}).click();assert.equal(await page.evaluate(()=>window.__adminWrites.at(-1).payload.category),'update');assert.match(await page.getByRole('button',{name:'Send to 2',exact:true}).innerText(),/2/);
- await page.getByRole('combobox',{name:/Signup source/}).selectOption('footer');
+ await page.getByRole('combobox',{name:/Signup source/}).selectOption('checkout');
  assert.equal(await page.getByRole('button',{name:'Send to 0',exact:true}).isDisabled(),true);
  await page.getByRole('combobox',{name:/Signup source/}).selectOption('');
  const scheduledLocal=new Date(Date.now()+86400000+7200000).toISOString().slice(0,16);await page.getByLabel('Send time (SAST, optional)').fill(scheduledLocal);

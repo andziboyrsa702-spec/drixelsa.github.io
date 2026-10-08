@@ -22,7 +22,7 @@ export default function AdminGuard({children}) {
     currentUser.getIdTokenResult().then(async result => {
       if (!live) return;
       const allowed = hasAdminAccess(result.claims);
-      let security=null;if(allowed){try{security=await adminSecurityRequest('status',{},currentUser)}catch(error){if(error.status!==404)throw error;}if(!live)return;}
+      let security=null;if(allowed){security=await adminSecurityRequest('status',{},currentUser);if(!live)return;if(security.available!==true)throw Error('Administrator device verification is unavailable. Check the deployed security configuration and retry.');}
       setState({uid:user.uid,loading:false,allowed,security,error:allowed?'':'This account has not been granted Drixel administrator access.'});
       clearTimeout(timeout);
     }).catch(error => {

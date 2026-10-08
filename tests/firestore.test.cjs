@@ -5,7 +5,7 @@ const fs=require('node:fs');
 let env;
 before(async()=>{env=await initializeTestEnvironment({projectId:'demo-drixel',firestore:{rules:fs.readFileSync('firestore.rules','utf8')}});});
 after(async()=>{await env?.cleanup();});
-beforeEach(async()=>{await env.clearFirestore();await env.withSecurityRulesDisabled(async ctx=>{const db=ctx.firestore();await setDoc(doc(db,'orders/one'),{userId:'alice',customer:{email:'alice@example.com'},total:100,paymentStatus:'pending'});await setDoc(doc(db,'settings/store_config'),{deliveryFee:70,resendApiKey:'legacy-must-not-be-public'});});});
+beforeEach(async()=>{await env.clearFirestore();await env.withSecurityRulesDisabled(async ctx=>{const db=ctx.firestore();await setDoc(doc(db,'security_config/admin'),{passkeysRequired:false});await setDoc(doc(db,'orders/one'),{userId:'alice',customer:{email:'alice@example.com'},total:100,paymentStatus:'pending'});await setDoc(doc(db,'settings/store_config'),{deliveryFee:70,resendApiKey:'legacy-must-not-be-public'});});});
 const user=(uid,claims={})=>env.authenticatedContext(uid,{email:uid+'@example.com',...claims}).firestore();
 test('customers cannot create paid or unpaid orders directly',async()=>{for(const paymentStatus of ['paid','pending']) await assertFails(setDoc(doc(user('alice'),'orders/new'),{userId:'alice',customer:{email:'alice@example.com'},total:1,paymentStatus}));});
 test('order owner can read, another account cannot; clients cannot modify payment',async()=>{await assertSucceeds(getDoc(doc(user('alice'),'orders/one')));await assertFails(getDoc(doc(user('bob'),'orders/one')));await assertFails(updateDoc(doc(user('alice'),'orders/one'),{paymentStatus:'paid'}));});
@@ -95,4 +95,10 @@ test('feedback is private and only administrators can resolve a concern',async()
  await assertSucceeds(setDoc(ref,{userId:'alice',category:'Fit & sizing',orderReference:'',message:'Please help me choose the right size.',status:'new',createdAt:serverTimestamp()}));
  await assertSucceeds(getDoc(ref));await assertFails(getDoc(doc(user('bob'),'customer_feedback/concern')));await assertFails(getDoc(doc(env.unauthenticatedContext().firestore(),'customer_feedback/concern')));
  await assertFails(updateDoc(ref,{status:'resolved'}));await assertSucceeds(updateDoc(doc(user('admin',{admin:true}),'customer_feedback/concern'),{status:'resolved'}));
+});
+
+test('missing security configuration denies administrator writes by default',async()=>{
+ const {deleteDoc}=require('firebase/firestore');
+ await env.withSecurityRulesDisabled(async ctx=>{await deleteDoc(doc(ctx.firestore(),'security_config/admin'));});
+ await assertFails(setDoc(doc(user('admin',{admin:true}),'products/unprotected'),{price:1}));
 });

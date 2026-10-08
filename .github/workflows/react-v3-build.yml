@@ -20,9 +20,12 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: npm install --no-audit --no-fund
-      - run: npm --prefix functions install --no-audit --no-fund
+      - run: npm ci --no-audit --no-fund
+      - run: npm --prefix functions ci --no-audit --no-fund
+      - run: npm --prefix functions audit --omit=dev
       - run: npm --prefix worker ci --no-audit --no-fund
+      - run: npm audit --omit=dev
+      - run: node --test tests/launch-readiness.test.js tests/product-options.test.js tests/colour-media.test.js
       - run: npm --prefix worker test
       - run: npm --prefix worker run check
       - uses: actions/setup-java@v4
@@ -38,6 +41,8 @@ jobs:
       - run: npm run test:storage
       - run: npm run build
         env:
+          BUILD_LIVE_CATALOGUE: 'true'
+          VITE_FIREBASE_AUTH_DOMAIN: ${{ vars.VITE_FIREBASE_AUTH_DOMAIN || 'drixel-sa.firebaseapp.com' }}
           VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL || 'https://drixel-api.drixelsa.workers.dev' }}
       - run: npx playwright install chromium --with-deps
       - name: Verify React storefront alignment
@@ -47,6 +52,7 @@ jobs:
           trap 'kill "$VITE_PID"' EXIT
           node -e 'const wait=async()=>{for(let i=0;i<100;i++){try{await fetch("http://127.0.0.1:5173/");return}catch{}await new Promise(r=>setTimeout(r,100))}process.exit(1)};wait()'
           node tests/security-browser.cjs
+          node tests/account-feedback-browser.cjs
           npm run test:layout
           npm run test:admin
           npm run test:marketing
