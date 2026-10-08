@@ -9,6 +9,7 @@ export const adminSections=[
 ];
 export const adminPath=key=>"/za/admin/"+key;
 export const adminTitle=key=>{
+ key=key.replace(/^\/+|\/+$/g,'');
  if(key==='products/new')return 'Create product';
  if(/^products\/[^/]+$/.test(key))return 'Product details';
  if(/^orders\/[^/]+$/.test(key))return 'Order details';

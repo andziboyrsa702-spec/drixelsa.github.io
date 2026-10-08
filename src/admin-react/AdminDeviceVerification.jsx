@@ -4,7 +4,7 @@ import {signInWithCustomToken,signOut} from 'firebase/auth';
 import {auth} from '../config/firebase-react.js';
 import {apiUrl} from '../utils/api.js';
 export async function adminSecurityRequest(path,body,user=auth.currentUser){
- const response=await fetch(apiUrl('/api/admin/security/'+path),{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+await user.getIdToken()},body:JSON.stringify(body||{})});
+ const response=await fetch(apiUrl('/api/admin/security/'+path),{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+await user.getIdToken()},body:JSON.stringify(body||{}),signal:AbortSignal.timeout(20000)});
  let data;try{data=await response.json()}catch{throw Error('Administrator security service is unavailable.')}
  if(!response.ok)throw Object.assign(Error(data.message||'Administrator verification failed.'),{status:response.status});return data;
 }

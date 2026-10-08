@@ -1,3 +1,6 @@
+import UserAvatar from '../components/UserAvatar.jsx';
+import useAuth from '../hooks/useAuth.js';
+import useUserProfile from '../hooks/useUserProfile.js';
 import AdminErrorBoundary from './AdminErrorBoundary.jsx';
 import React, {useEffect, useRef, useState} from 'react';
 import {NavLink, useLocation, useNavigate} from 'react-router-dom';
@@ -8,6 +11,7 @@ import {useMarket} from '../context/MarketContext.jsx';
 import {useDialog} from '../components/DialogProvider.jsx';
 
 export default function AdminShell({children}) {
+  const user=useAuth(),profile=useUserProfile(user);
   const {market} = useMarket(), location = useLocation(), navigate = useNavigate(), dialog = useDialog();
   const [menu, setMenu] = useState(false), [signingOut, setSigningOut] = useState(false);
   const sidebar = useRef(null), menuButton = useRef(null);
@@ -55,7 +59,7 @@ export default function AdminShell({children}) {
       <header className="ra-topbar"><button ref={menuButton} type="button" className="ra-menu-button" onClick={() => setMenu(true)}
         aria-controls="admin-navigation" aria-expanded={menu}>Menu</button>
         <div className="ra-page-title"><span>DRIXEL / STORE MANAGEMENT</span><h1>{title}</h1></div>
-        <div className="ra-admin-identity"><span className="ra-market-tag">{market.toUpperCase()}</span>
+        <div className="ra-admin-identity"><UserAvatar user={profile}/><span className="ra-market-tag">{market.toUpperCase()}</span>
           <small title={auth.currentUser?.email}>{auth.currentUser?.email}</small></div>
       </header><section className="ra-view" key={location.pathname}><AdminErrorBoundary>{children}</AdminErrorBoundary></section>
     </main>

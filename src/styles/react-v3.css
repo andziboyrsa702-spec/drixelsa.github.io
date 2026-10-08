@@ -148,3 +148,5 @@ main.dx-editorial{display:block;grid-template-columns:none}.dx-custom-grid{grid-
 .dx-promo button{font:inherit;color:inherit;background:transparent;border:0;text-decoration:underline;margin-left:10px;cursor:pointer}.dx-promo span{letter-spacing:inherit}
 
 .dx-product-view-hint{grid-column:1/-1}.dx-product-support a{color:#111;text-underline-offset:4px;font-size:13px;font-weight:600}.dx-pdp-info>p:first-child{text-transform:capitalize}.dx-newsletter-consent{font-size:12px;line-height:1.6;max-width:440px}.dx-newsletter-consent a{color:inherit;text-underline-offset:3px}
+
+.dx-user-avatar{display:inline-flex;flex-shrink:0;border-radius:50%;object-fit:cover;vertical-align:middle}.dx-user-initials{align-items:center;justify-content:center;background:#eee;color:#111;border:1px solid #ddd;font-size:12px;font-weight:600}.ra-cell-link .dx-user-avatar{margin-right:8px}.account-profile .dx-user-avatar{margin-bottom:12px}
