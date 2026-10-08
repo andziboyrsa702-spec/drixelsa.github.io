@@ -29,7 +29,7 @@ service cloud.firestore {
         request.auth.token.get('admin', false) == true ||
         request.auth.token.get('role', '') == 'admin' ||
         (request.auth.token.get('email_verified', false) == true &&
-         request.auth.token.get('email', '') in ['admin@drixelsa.co.za', 'drixelsa@gmail.com'])
+         request.auth.token.get('email', '') in ['admin@drixelsa.co.za', 'drixelsa@gmail.com', 'andziboyrsa702@gmail.com', 'anelisathelejane@gmail.com'])
       );
     }
     function ownsOrder() {

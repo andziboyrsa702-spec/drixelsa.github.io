@@ -1,6 +1,6 @@
 import {createHash} from 'node:crypto';
 import {apiError} from './security.mjs';
-export const ownerEmails=new Set(['admin@drixelsa.co.za','drixelsa@gmail.com']);
+export const ownerEmails=new Set(['admin@drixelsa.co.za','drixelsa@gmail.com','andziboyrsa702@gmail.com','anelisathelejane@gmail.com']);
 export const normalizedEmail=value=>String(value||'').trim().toLowerCase();
 export const accessId=email=>createHash('sha256').update(normalizedEmail(email)).digest('hex');
 export const isOwner=user=>user.email_verified===true&&ownerEmails.has(normalizedEmail(user.email));

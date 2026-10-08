@@ -5,7 +5,7 @@ const crypto = require('node:crypto');
 const core = require('./commerce-core');
 const db = () => getFirestore();
 const stamp = () => new Date().toISOString();
-const admins = new Set(['admin@drixelsa.co.za','drixelsa@gmail.com']);
+const admins = new Set(['admin@drixelsa.co.za','drixelsa@gmail.com','andziboyrsa702@gmail.com','anelisathelejane@gmail.com']);
 function isAdmin(auth) { return !!auth && (auth.token.admin === true || (auth.token.email_verified === true && admins.has(auth.token.email?.toLowerCase()))); }
 function requireUser(context) { if (!context.auth?.token.email) core.fail('Please sign in to continue.', 'unauthenticated'); return context.auth; }
 const callable = fn => async (data, context) => {

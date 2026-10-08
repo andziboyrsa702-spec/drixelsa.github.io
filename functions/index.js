@@ -13,7 +13,9 @@ if (!getApps().length) {
 
 const ALLOWED_ADMIN_EMAILS = new Set([
     "admin@drixelsa.co.za",
-    "drixelsa@gmail.com"
+    "drixelsa@gmail.com",
+    "andziboyrsa702@gmail.com",
+    "anelisathelejane@gmail.com"
 ]);
 
 function isValidEmail(value) {
