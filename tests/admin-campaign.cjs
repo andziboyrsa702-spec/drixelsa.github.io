@@ -39,9 +39,12 @@ function adminAccessFixture(){
  return {set:(c,p,g)=>{claims=c;policy=p;config=g},check:()=>context.check({get:()=> 'Bearer token'})};
 }
 test('server access permits the same verified owners and rejects unverified owners',async()=>{
- const app=adminAccessFixture();app.set({uid:'owner',email:'drixelsa@gmail.com',email_verified:true});await app.check();
- app.set({uid:'owner',email:'drixelsa@gmail.com',email_verified:false});await assert.rejects(app.check(),/Administrator/);
- for(const claims of [{admin:true},{role:'admin'}]){app.set({uid:'admin',...claims});await app.check()}
+ const app=adminAccessFixture();app.set({uid:'owner',email:'drixelsa@gmail.com',email_verified:true},undefined,{passkeysRequired:false});await app.check();
+ app.set({uid:'owner',email:'drixelsa@gmail.com',email_verified:false},undefined,{passkeysRequired:false});await assert.rejects(app.check(),/Administrator/);
+ for(const claims of [{admin:true},{role:'admin'}]){app.set({uid:'admin',...claims},undefined,{passkeysRequired:false});await app.check()}
+});
+test('missing security configuration cannot grant unverified administrator access',async()=>{
+ const app=adminAccessFixture();for(const claims of [{admin:true},{role:'admin'},{email:'drixelsa@gmail.com',email_verified:true}]){app.set({uid:'admin',...claims});await assert.rejects(app.check(),/passkey/)}
 });
 test('server admin access requires fresh version-bound proof after enrollment',async()=>{
  const app=adminAccessFixture(),base={uid:'owner',email:'drixelsa@gmail.com',email_verified:true},now=Math.floor(Date.now()/1000),policy={enabled:true,version:'current'},config={passkeysRequired:true};
