@@ -98,8 +98,8 @@ async function requireAdmin(req) {
     }
     const database=admin.firestore(),policy=(await database.doc('admin_security/'+decoded.uid).get()).data(),config=(await database.doc('security_config/admin').get()).data();
     const stamp=Number(decoded.drixel_admin_verified_at),now=Date.now()/1000;
-    if ((config?.passkeysRequired!==false&&!policy?.enabled)||(policy?.enabled&&!(decoded.drixel_admin_key_version===policy.version&&Number.isFinite(stamp)&&stamp<=now&&stamp>now-900))) {
-        const error=new Error('Verify your administrator passkey to continue.');error.status=403;throw error;
+    if ((config?.authenticatorRequired===true&&(!policy?.totpEnabled||decoded.drixel_admin_method!=='totp'))||(policy?.totpEnabled&&decoded.drixel_admin_method!=='totp')||(config?.passkeysRequired!==false&&!policy?.enabled)||(policy?.enabled&&!(decoded.drixel_admin_key_version===policy.version&&Number.isFinite(stamp)&&stamp<=now&&stamp>now-900))) {
+        const error=new Error('Verify your administrator security to continue.');error.status=403;throw error;
     }
     return decoded;
 }

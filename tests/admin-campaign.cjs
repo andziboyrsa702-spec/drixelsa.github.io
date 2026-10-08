@@ -44,12 +44,12 @@ test('server access permits the same verified owners and rejects unverified owne
  for(const claims of [{admin:true},{role:'admin'}]){app.set({uid:'admin',...claims},undefined,{passkeysRequired:false});await app.check()}
 });
 test('missing security configuration cannot grant unverified administrator access',async()=>{
- const app=adminAccessFixture();for(const claims of [{admin:true},{role:'admin'},{email:'drixelsa@gmail.com',email_verified:true}]){app.set({uid:'admin',...claims});await assert.rejects(app.check(),/passkey/)}
+ const app=adminAccessFixture();for(const claims of [{admin:true},{role:'admin'},{email:'drixelsa@gmail.com',email_verified:true}]){app.set({uid:'admin',...claims});await assert.rejects(app.check(),/security/)}
 });
 test('server admin access requires fresh version-bound proof after enrollment',async()=>{
  const app=adminAccessFixture(),base={uid:'owner',email:'drixelsa@gmail.com',email_verified:true},now=Math.floor(Date.now()/1000),policy={enabled:true,version:'current'},config={passkeysRequired:true};
- app.set(base,undefined,config);await assert.rejects(app.check(),/passkey/);
- for(const proof of [{},{drixel_admin_verified_at:now-901,drixel_admin_key_version:'current'},{drixel_admin_verified_at:now+60,drixel_admin_key_version:'current'},{drixel_admin_verified_at:now,drixel_admin_key_version:'old'}]){app.set({...base,...proof},policy,config);await assert.rejects(app.check(),/passkey/)}
+ app.set(base,undefined,config);await assert.rejects(app.check(),/security/);
+ for(const proof of [{},{drixel_admin_verified_at:now-901,drixel_admin_key_version:'current'},{drixel_admin_verified_at:now+60,drixel_admin_key_version:'current'},{drixel_admin_verified_at:now,drixel_admin_key_version:'old'}]){app.set({...base,...proof},policy,config);await assert.rejects(app.check(),/security/)}
  app.set({...base,drixel_admin_verified_at:now,drixel_admin_key_version:'current'},policy,config);await app.check();
 });
 test('admin login returns to safe root and deep links',async()=>{const {loginDestination}=await import('../src/utils/loginDestination.js');assert.equal(loginDestination('za','/za/admin'),'/za/admin');assert.equal(loginDestination('us','/us/admin/orders?filter=paid'),'/us/admin/orders?filter=paid');assert.equal(loginDestination('za','https://outside.example/za/admin'),'/za/member/profile');});
@@ -96,4 +96,11 @@ test('commerce and admin endpoints handle Pages preflight before authentication 
   await context.exports[name]({method:'OPTIONS',get:()=> 'https://andziboyrsa702-spec.github.io'},response);
   assert.equal(response.code,204,name);assert.match(response.headers['Access-Control-Allow-Methods'],/GET/);
  }
+});
+
+test('authenticator requirement rejects legacy proofs and unenrolled accounts on the server',async()=>{
+ const app=adminAccessFixture(),now=Math.floor(Date.now()/1000),base={uid:'admin',admin:true,drixel_admin_verified_at:now,drixel_admin_key_version:'v1'},policy={enabled:true,totpEnabled:true,version:'v1'},config={authenticatorRequired:true,passkeysRequired:true};
+ for(const method of [undefined,'passkey']){app.set({...base,drixel_admin_method:method},policy,config);await assert.rejects(app.check(),/security/);}
+ app.set({...base,drixel_admin_method:'totp'},policy,config);await app.check();
+ app.set({...base,drixel_admin_method:'totp'},{enabled:true,version:'v1'},config);await assert.rejects(app.check(),/security/);
 });

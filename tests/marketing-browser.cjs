@@ -8,7 +8,7 @@ const {modules,fixture}=require('./admin.cjs');
  await context.route('**/*',async route=>{
   const url=new URL(route.request().url()),match=url.pathname.match(/firebase_(app|auth|firestore)\.js$/);
   if(match){let code=modules[match[1]];if(match[1]==='firestore')code=code.replace(JSON.stringify(fixture),JSON.stringify(data));return route.fulfill({contentType:'application/javascript',body:code});}
-  if(url.pathname==='/api/admin/security/status')return route.fulfill({json:{available:true,verified:true,enrolled:true,expiresAt:Date.now()+900000}});if(url.pathname.startsWith('/api/')){
+  if(url.pathname==='/api/admin/security/authenticator/status')return route.fulfill({json:{available:true,verified:true,enrolled:true,expiresAt:Date.now()+900000}});if(url.pathname.startsWith('/api/')){
    const body=route.request().postDataJSON();calls.push({path:url.pathname,body});
    if(url.pathname==='/api/subscribe'){if(signupFails)return route.fulfill({contentType:'application/json',body:'<!doctype html>fallback'});const address=body.email.trim().toLowerCase();if(!data.subscribers.some(s=>s.email===address))data.subscribers.push({id:'signup',email:address,status:'active',source:body.source});return route.fulfill({contentType:'application/json',body:JSON.stringify({success:true,message:"You're on the list."})});}
    if(url.pathname==='/api/send-email')return route.fulfill({status:testFails?503:200,contentType:'application/json',body:JSON.stringify(testFails?{success:false,message:'Sending domain is not verified.'}:{success:true,data:'provider-test-id'})});

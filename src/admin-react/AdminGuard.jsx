@@ -1,4 +1,5 @@
-import AdminDeviceVerification,{adminSecurityRequest} from "./AdminDeviceVerification.jsx";
+import AdminAuthenticatorVerification from './AdminAuthenticatorVerification.jsx';
+import {adminSecurityRequest} from "./AdminDeviceVerification.jsx";
 import {signOut} from "firebase/auth";
 import {auth} from "../config/firebase-react.js";
 import React, {useEffect, useState} from 'react';
@@ -8,7 +9,6 @@ import useAuth from '../hooks/useAuth.js';
 export default function AdminGuard({children}) {
   const user = useAuth(), {market = 'za'} = useParams(), location = useLocation();
   const [attempt, setAttempt] = useState(0);
-  const [verificationError,setVerificationError]=useState('');
   const [state, setState] = useState({uid: null, loading: true, allowed: false, error: ''});
   useEffect(() => {
     let live = true;
@@ -22,7 +22,7 @@ export default function AdminGuard({children}) {
     currentUser.getIdTokenResult().then(async result => {
       if (!live) return;
       const allowed = hasAdminAccess(result.claims);
-      let security=null;if(allowed){security=await adminSecurityRequest('status',{},currentUser);if(!live)return;if(security.available!==true)throw Error('Administrator device verification is unavailable. Check the deployed security configuration and retry.');}
+      let security=null;if(allowed){security=await adminSecurityRequest('authenticator/status',{},currentUser);if(!live)return;if(security.available!==true)throw Error('Administrator device verification is unavailable. Check the deployed security configuration and retry.');}
       setState({uid:user.uid,loading:false,allowed,security,error:allowed?'':'This account has not been granted Drixel administrator access.'});
       clearTimeout(timeout);
     }).catch(error => {
@@ -47,6 +47,6 @@ export default function AdminGuard({children}) {
   if (user === undefined || state.loading || state.uid !== user.uid) return <div className="admin-gate" role="status"><strong>DRIXEL</strong><span>Verifying administrator access…</span></div>;
   if (!state.allowed) return <div className="admin-gate admin-access-denied" role="alert"><strong>DRIXEL</strong><span>{state.error}</span><small>{user.email}</small>
     <button onClick={() => setAttempt(value => value+1)}>Check access again</button><Link to={`/${market}/member/profile`}>Return to account</Link></div>;
-  if(state.security?.available&&!state.security.verified)return <AdminDeviceVerification enrolled={state.security.enrolled} sessionError={verificationError} onFailure={setVerificationError} onVerified={()=>{setVerificationError('');setAttempt(value=>value+1)}}/>;
+  if(state.security?.available&&!state.security.verified)return <AdminAuthenticatorVerification key={user.uid} enrolled={state.security.enrolled} legacyEnrolled={state.security.legacyEnrolled} legacyVerified={state.security.legacyVerified} onVerified={()=>setAttempt(value=>value+1)}/>;
   return children;
 }

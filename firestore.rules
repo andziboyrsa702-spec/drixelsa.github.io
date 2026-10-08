@@ -5,10 +5,14 @@ service cloud.firestore {
     function adminDeviceVerified() {
       return (exists(/databases/$(database)/documents/security_config/admin)
         && get(/databases/$(database)/documents/security_config/admin).data.get('passkeysRequired', true) == false
+        && !get(/databases/$(database)/documents/security_config/admin).data.get('authenticatorRequired', false)
         && (!exists(/databases/$(database)/documents/admin_security/$(request.auth.uid))
           || !get(/databases/$(database)/documents/admin_security/$(request.auth.uid)).data.get('enabled', false)))
         || (exists(/databases/$(database)/documents/admin_security/$(request.auth.uid))
           && get(/databases/$(database)/documents/admin_security/$(request.auth.uid)).data.get('enabled', false)
+          && ((!get(/databases/$(database)/documents/admin_security/$(request.auth.uid)).data.get('totpEnabled', false)
+            && (!exists(/databases/$(database)/documents/security_config/admin) || !get(/databases/$(database)/documents/security_config/admin).data.get('authenticatorRequired', false)))
+            || (get(/databases/$(database)/documents/admin_security/$(request.auth.uid)).data.get('totpEnabled', false) && request.auth.token.get('drixel_admin_method', '') == 'totp'))
           && request.auth.token.get('drixel_admin_key_version', '') == get(/databases/$(database)/documents/admin_security/$(request.auth.uid)).data.version
           && request.auth.token.get('drixel_admin_verified_at', 0) * 1000 <= request.time.toMillis()
           && request.auth.token.get('drixel_admin_verified_at', 0) * 1000 > request.time.toMillis() - 900000);

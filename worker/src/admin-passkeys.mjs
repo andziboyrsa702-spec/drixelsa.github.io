@@ -10,11 +10,11 @@ export function relyingParty(req,storeUrl=process.env.STORE_URL){
  if(req.get('Origin')!==url.origin)throw apiError('Open the production store to verify your device.',403);
  return {rpID:url.hostname,origin:url.origin};
 }
-export function mintAdminToken(user,version,now=Date.now()){
+export function mintAdminToken(user,version,now=Date.now(),method='passkey'){
  const account=JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT||'{}');
  if(account.project_id!==process.env.FIREBASE_PROJECT_ID||!account.client_email||!account.private_key)throw apiError('Administrator verification is not configured.',503);
  const seconds=Math.floor(now/1000),b64=v=>Buffer.from(JSON.stringify(v)).toString('base64url');
- const input=b64({alg:'RS256',typ:'JWT'})+'.'+b64({iss:account.client_email,sub:account.client_email,aud:'https://identitytoolkit.googleapis.com/google.identity.identitytoolkit.v1.IdentityToolkit',iat:seconds,exp:seconds+300,uid:user.uid,claims:{drixel_admin_verified_at:seconds,drixel_admin_key_version:version}});
+ const input=b64({alg:'RS256',typ:'JWT'})+'.'+b64({iss:account.client_email,sub:account.client_email,aud:'https://identitytoolkit.googleapis.com/google.identity.identitytoolkit.v1.IdentityToolkit',iat:seconds,exp:seconds+300,uid:user.uid,claims:{drixel_admin_method:method,drixel_admin_verified_at:seconds,drixel_admin_key_version:version}});
  return input+'.'+createSign('RSA-SHA256').update(input).sign(account.private_key).toString('base64url');
 }
 export function createPasskeyHandlers({db=getFirestore,identity=adminIdentity,mint=mintAdminToken,webauthn={generateRegistrationOptions,verifyRegistrationResponse,generateAuthenticationOptions,verifyAuthenticationResponse},now=Date.now}={}){
@@ -30,6 +30,7 @@ export function createPasskeyHandlers({db=getFirestore,identity=adminIdentity,mi
    if(policy?.enabled&&!recentAdminProof(user,policy,now()))throw apiError('Verify an existing passkey before adding a device.',403);
    if((policy?.credentials||[]).length>=5)throw apiError('Five security devices are already registered.',409);
   }else if(!policy?.enabled)throw apiError('Register a security device first.',409);
+  if(policy?.totpEnabled)throw apiError('Use your authenticator code for this account.',403);
   const credentials=policy?.credentials||[],optionsJSON=kind==='register'?await webauthn.generateRegistrationOptions({rpName:'Drixel SA Admin',rpID:party.rpID,userName:user.email||user.uid,userDisplayName:user.email||user.uid,userID:new TextEncoder().encode(user.uid),attestationType:'none',supportedAlgorithmIDs:[-7,-257],excludeCredentials:credentials.map(c=>({id:c.id,transports:c.transports})),authenticatorSelection:{residentKey:'preferred',userVerification:'required'}}):await webauthn.generateAuthenticationOptions({rpID:party.rpID,userVerification:'required',allowCredentials:credentials.map(c=>({id:c.id,transports:c.transports}))});
   return res.json({optionsJSON,challengeId:await challenge(database,user,party,kind,optionsJSON.challenge)});
  }
@@ -39,7 +40,7 @@ export function createPasskeyHandlers({db=getFirestore,identity=adminIdentity,mi
   if(!result.verified)throw apiError('Device verification failed. Start again.',403);
   let version=policy?.version,recoveryCodes=[];
   await database.runTransaction(async tx=>{
-   const current=(await tx.get(ref)).data();
+   const current=(await tx.get(ref)).data();if(current?.totpEnabled)throw apiError('Use your authenticator code for this account.',403);
    if(kind==='register'){
     if(now()/1000-user.auth_time>300||current?.enabled&&!recentAdminProof(user,current,now()))throw apiError('Sign in and verify your existing device again.',403);
     const c=result.registrationInfo?.credential;if(!c||!result.registrationInfo.userVerified)throw apiError('Device verification is required.',403);
@@ -58,7 +59,7 @@ export function createPasskeyHandlers({db=getFirestore,identity=adminIdentity,mi
   return res.json({verified:true,customToken:await mint(user,version,now()),recoveryCodes});
  }
  async function recover(req,res){const {user,database,ref}=await context(req);if(now()/1000-user.auth_time>300)throw apiError('Sign in again before using a recovery code.',401);const code=String(req.body.code||'').trim();if(!/^[a-f0-9]{32}$/.test(code))throw apiError('Recovery code is invalid.',403);const supplied=Buffer.from(hash(code),'hex');let version;
-  await database.runTransaction(async tx=>{const policy=(await tx.get(ref)).data(),values=policy?.recoveryHashes||[],index=values.findIndex(x=>typeof x==='string'&&x.length===64&&timingSafeEqual(Buffer.from(x,'hex'),supplied));if(!policy?.enabled||index<0)throw apiError('Recovery code is invalid.',403);version=randomUUID();tx.set(database.doc('security_events/'+randomUUID()),{actor:user.uid,action:'recovery_code_used',at:now()});tx.update(ref,{version,recoveryHashes:values.filter((_,i)=>i!==index),lastRecoveryAt:now()});});
+  await database.runTransaction(async tx=>{const policy=(await tx.get(ref)).data(),values=policy?.recoveryHashes||[],index=values.findIndex(x=>typeof x==='string'&&x.length===64&&timingSafeEqual(Buffer.from(x,'hex'),supplied));if(policy?.totpEnabled||!policy?.enabled||index<0)throw apiError('Recovery code is invalid.',403);version=randomUUID();tx.set(database.doc('security_events/'+randomUUID()),{actor:user.uid,action:'recovery_code_used',at:now()});tx.update(ref,{version,recoveryHashes:values.filter((_,i)=>i!==index),lastRecoveryAt:now()});});
   return res.json({verified:true,customToken:await mint(user,version,now()),recoveryCodes:[]});
  }
  return {status,options,verify,recover};

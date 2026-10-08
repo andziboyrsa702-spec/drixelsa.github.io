@@ -102,3 +102,15 @@ test('missing security configuration denies administrator writes by default',asy
  await env.withSecurityRulesDisabled(async ctx=>{await deleteDoc(doc(ctx.firestore(),'security_config/admin'));});
  await assertFails(setDoc(doc(user('admin',{admin:true}),'products/unprotected'),{price:1}));
 });
+
+test('authenticator-required admin access rejects passkey proofs and accepts only fresh account-bound authenticator proof',async()=>{
+ await env.withSecurityRulesDisabled(async ctx=>{await setDoc(doc(ctx.firestore(),'security_config/admin'),{passkeysRequired:true,authenticatorRequired:true});await setDoc(doc(ctx.firestore(),'admin_security/admin'),{enabled:true,totpEnabled:true,version:'totp-v1'});});
+ const proof={admin:true,drixel_admin_verified_at:Math.floor(Date.now()/1000),drixel_admin_key_version:'totp-v1'};
+ await assertFails(getDoc(doc(user('admin',proof),'orders/one')));
+ await assertFails(getDoc(doc(user('admin',{...proof,drixel_admin_method:'passkey'}),'orders/one')));
+ await assertSucceeds(getDoc(doc(user('admin',{...proof,drixel_admin_method:'totp'}),'orders/one')));
+ await assertFails(getDoc(doc(user('other-admin',{...proof,drixel_admin_method:'totp'}),'orders/one')));
+ await assertFails(getDoc(doc(user('admin',{...proof,drixel_admin_method:'totp',drixel_admin_key_version:'old'}),'orders/one')));
+ await assertFails(getDoc(doc(user('admin',{...proof,drixel_admin_method:'totp',drixel_admin_verified_at:Math.floor(Date.now()/1000)-901}),'orders/one')));
+ await assertFails(getDoc(doc(user('admin',proof),'admin_security/admin')));
+});

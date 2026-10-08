@@ -20,6 +20,7 @@ export async function consumeRateLimit(db,{identity,bucket,limit,windowMs,now=Da
 }
 export function recentAdminProof(user,policy,now=Date.now()){
  if(!policy?.enabled)return true;
+ if(policy.totpEnabled&&user.drixel_admin_method!=='totp')return false;
  const verified=Number(user.drixel_admin_verified_at);
  return user.drixel_admin_key_version===policy.version&&Number.isFinite(verified)&&verified<=now/1000&&verified>now/1000-900;
 }

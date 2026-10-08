@@ -136,7 +136,7 @@ async function releaseStock(tx,order) {
 }
 async function requireAdminDevice(user) {
  const policy=(await db().doc('admin_security/'+user.uid).get()).data(),config=(await db().doc('security_config/admin').get()).data(),token=user.token,now=Date.now()/1000,stamp=Number(token.drixel_admin_verified_at);
- if((config?.passkeysRequired&&!policy?.enabled)||(policy?.enabled&&!(token.drixel_admin_key_version===policy.version&&Number.isFinite(stamp)&&stamp<=now&&stamp>now-900)))core.fail('Verify your administrator passkey to continue.','permission-denied');
+ if((config?.authenticatorRequired===true&&(!policy?.totpEnabled||token.drixel_admin_method!=='totp'))||(policy?.totpEnabled&&token.drixel_admin_method!=='totp')||(config?.passkeysRequired&&!policy?.enabled)||(policy?.enabled&&!(token.drixel_admin_key_version===policy.version&&Number.isFinite(stamp)&&stamp<=now&&stamp>now-900)))core.fail('Verify your administrator security to continue.','permission-denied');
 }
 exports.adminOrderAction=functions.https.onCall(callable(async(data,context)=>{
     if(!isAdmin(context.auth)) core.fail('Verified administrator access required.','permission-denied');
