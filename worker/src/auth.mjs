@@ -1,3 +1,4 @@
+import {resolveAdminMembership} from './admin-membership.mjs';
 import {getFirestore} from "./firestore.mjs";
 import {recentAdminProof,apiError} from "./security.mjs";
 import {createPublicKey,verify} from 'node:crypto';
@@ -12,6 +13,6 @@ export async function verifyIdToken(token,{request=fetch,project=process.env.FIR
  return {...claims,uid:claims.sub};
 }
 export const getAuth=()=>({verifyIdToken});
-export async function adminIdentity(req){const token=req.get('Authorization')?.match(/^Bearer (.+)$/)?.[1];if(!token)throw Object.assign(Error('Authentication required.'),{status:401});let user;try{user=await verifyIdToken(token);}catch{throw Object.assign(Error('Invalid authentication token.'),{status:401});}if(!(user.admin===true||user.role==='admin'||user.email_verified===true&&['admin@drixelsa.co.za','drixelsa@gmail.com'].includes(user.email?.toLowerCase())))throw Object.assign(Error('Administrator access required.'),{status:403});return user;}
+export async function adminIdentity(req){const token=req.get('Authorization')?.match(/^Bearer (.+)$/)?.[1];if(!token)throw Object.assign(Error('Authentication required.'),{status:401});let user;try{user=await verifyIdToken(token);}catch{throw Object.assign(Error('Invalid authentication token.'),{status:401});}return resolveAdminMembership(getFirestore(),user);}
 
 export async function adminUser(req){const user=await adminIdentity(req),db=getFirestore(),policy=(await db.doc("admin_security/"+user.uid).get()).data(),config=(await db.doc("security_config/admin").get()).data();if(config?.authenticatorRequired===true&&(!policy?.totpEnabled||user.drixel_admin_method!=='totp')||config?.passkeysRequired!==false&&!policy?.enabled||!recentAdminProof(user,policy))throw apiError("Verify your administrator security to continue.",403);return user;}

@@ -14,7 +14,7 @@ export function mintAdminToken(user,version,now=Date.now(),method='passkey'){
  const account=JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT||'{}');
  if(account.project_id!==process.env.FIREBASE_PROJECT_ID||!account.client_email||!account.private_key)throw apiError('Administrator verification is not configured.',503);
  const seconds=Math.floor(now/1000),b64=v=>Buffer.from(JSON.stringify(v)).toString('base64url');
- const input=b64({alg:'RS256',typ:'JWT'})+'.'+b64({iss:account.client_email,sub:account.client_email,aud:'https://identitytoolkit.googleapis.com/google.identity.identitytoolkit.v1.IdentityToolkit',iat:seconds,exp:seconds+300,uid:user.uid,claims:{drixel_admin_method:method,drixel_admin_verified_at:seconds,drixel_admin_key_version:version}});
+ const input=b64({alg:'RS256',typ:'JWT'})+'.'+b64({iss:account.client_email,sub:account.client_email,aud:'https://identitytoolkit.googleapis.com/google.identity.identitytoolkit.v1.IdentityToolkit',iat:seconds,exp:seconds+300,uid:user.uid,claims:{...(user.drixel_admin_access_id?{admin:true,drixel_admin_access_id:user.drixel_admin_access_id,drixel_admin_access_version:user.drixel_admin_access_version}:{}),drixel_admin_method:method,drixel_admin_verified_at:seconds,drixel_admin_key_version:version}});
  return input+'.'+createSign('RSA-SHA256').update(input).sign(account.private_key).toString('base64url');
 }
 export function createPasskeyHandlers({db=getFirestore,identity=adminIdentity,mint=mintAdminToken,webauthn={generateRegistrationOptions,verifyRegistrationResponse,generateAuthenticationOptions,verifyAuthenticationResponse},now=Date.now}={}){

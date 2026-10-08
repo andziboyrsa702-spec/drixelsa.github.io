@@ -114,3 +114,11 @@ test('authenticator-required admin access rejects passkey proofs and accepts onl
  await assertFails(getDoc(doc(user('admin',{...proof,drixel_admin_method:'totp',drixel_admin_verified_at:Math.floor(Date.now()/1000)-901}),'orders/one')));
  await assertFails(getDoc(doc(user('admin',proof),'admin_security/admin')));
 });
+
+test('admin grant revocation is immediate and grant records cannot be self-created',async()=>{
+ const id='a'.repeat(64),stamp=Math.floor(Date.now()/1000);await env.withSecurityRulesDisabled(async ctx=>{await setDoc(doc(ctx.firestore(),'security_config/admin'),{passkeysRequired:true,authenticatorRequired:true});await setDoc(doc(ctx.firestore(),'admin_security/member'),{enabled:true,totpEnabled:true,version:'mfa1'});await setDoc(doc(ctx.firestore(),'admin_access/'+id),{active:true,uid:'member',version:'grant1'});});
+ const db=user('member',{admin:true,drixel_admin_method:'totp',drixel_admin_verified_at:stamp,drixel_admin_key_version:'mfa1',drixel_admin_access_id:id,drixel_admin_access_version:'grant1'});
+ await assertSucceeds(getDoc(doc(db,'orders/one')));await assertFails(setDoc(doc(db,'admin_access/'+id),{active:true}));
+ await env.withSecurityRulesDisabled(async ctx=>{await updateDoc(doc(ctx.firestore(),'admin_access/'+id),{active:false,version:'grant2'});});await assertFails(getDoc(doc(db,'orders/one')));await assertFails(setDoc(doc(db,'products/unauthorised'),{price:100}));
+});
+test('payment evidence and provider purchase records are server owned even for verified admins',async()=>{const db=user('admin',{admin:true});for(const name of ['pending_payments','yoco_purchases','snapscan_purchases'])await assertFails(setDoc(doc(db,name+'/forged'),{paid:true}));});

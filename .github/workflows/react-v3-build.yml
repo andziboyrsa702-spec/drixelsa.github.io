@@ -28,6 +28,7 @@ jobs:
       - run: node --test tests/launch-readiness.test.js tests/product-options.test.js tests/colour-media.test.js
       - run: npm --prefix worker test
       - run: npm --prefix worker run check
+      - run: npm --prefix worker audit --omit=dev
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -52,6 +53,7 @@ jobs:
           trap 'kill "$VITE_PID"' EXIT
           node -e 'const wait=async()=>{for(let i=0;i<100;i++){try{await fetch("http://127.0.0.1:5173/");return}catch{}await new Promise(r=>setTimeout(r,100))}process.exit(1)};wait()'
           node tests/security-browser.cjs
+          node tests/admin-team-browser.cjs
           node tests/account-feedback-browser.cjs
           npm run test:layout
           npm run test:admin

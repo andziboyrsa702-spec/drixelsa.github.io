@@ -33,10 +33,10 @@ test('signup storage failures never return success',async()=>{const begin=source
 test('all templates render safe public assets and distinct designs',async()=>{const {EMAIL_TEMPLATES,emailHtml}=await import('../src/admin-react/marketingTemplates.js');assert.equal(EMAIL_TEMPLATES.length,34);assert.equal(new Set(EMAIL_TEMPLATES.map(t=>t.id)).size,34);assert.equal(EMAIL_TEMPLATES.filter(t=>t.category==='update').length,16);for(const t of EMAIL_TEMPLATES){const html=emailHtml(t);assert.match(html,/@media\(max-width:480px\)/);assert.match(html,/<h1/);assert.doesNotMatch(html,/src="\/assets/);}const html=emailHtml({imageUrl:'/assets/campaigns/campaign-01.jpeg',headline:'A <new> drop',body:'Hello',ctaLabel:'Open',ctaUrl:'javascript:alert(1)'});assert.match(html,/https:\/\/raw.githubusercontent.com\/andziboyrsa702-spec\/drixelsa.github.io\/768eb98e781d23c7223bad847b988c4093548ea8\/public\/assets\/campaigns/);assert.match(html,/&lt;new&gt;/);assert.doesNotMatch(html,/javascript:/);assert.notEqual(emailHtml(EMAIL_TEMPLATES[0]),emailHtml(EMAIL_TEMPLATES[1]));});
 test('frontend access matches verified owner and claim-based administrator rules',async()=>{const {hasAdminAccess}=await import('../src/admin-react/adminAccess.js');assert.equal(hasAdminAccess({admin:true}),true);assert.equal(hasAdminAccess({role:'admin'}),true);assert.equal(hasAdminAccess({email:'drixelsa@gmail.com',email_verified:true}),true);assert.equal(hasAdminAccess({email:'drixelsa@gmail.com',email_verified:false}),false);assert.equal(hasAdminAccess({admin:'true'}),false);});
 function adminAccessFixture(){
- const begin=source.indexOf('async function requireAdmin'),finish=source.indexOf('\nexports.sendCampaign',begin);let claims,policy,config;
- const context={admin:{auth:()=>({verifyIdToken:async()=>claims}),firestore:()=>({doc:path=>({get:async()=>({data:()=>path==='security_config/admin'?config:policy})})})},ALLOWED_ADMIN_EMAILS:new Set(['drixelsa@gmail.com'])};
+ const begin=source.indexOf('async function requireAdmin'),finish=source.indexOf('\nexports.sendCampaign',begin);let claims,policy,config,grant;
+ const context={admin:{auth:()=>({verifyIdToken:async()=>claims}),firestore:()=>({doc:path=>({get:async()=>({data:()=>path==='security_config/admin'?config:path.startsWith('admin_access/')?grant:policy})})})},ALLOWED_ADMIN_EMAILS:new Set(['drixelsa@gmail.com'])};
  vm.runInNewContext(source.slice(begin,finish)+'\nthis.check=requireAdmin;',context);
- return {set:(c,p,g)=>{claims=c;policy=p;config=g},check:()=>context.check({get:()=> 'Bearer token'})};
+ return {set:(c,p,g,a)=>{claims=c;policy=p;config=g;grant=a},check:()=>context.check({get:()=> 'Bearer token'})};
 }
 test('server access permits the same verified owners and rejects unverified owners',async()=>{
  const app=adminAccessFixture();app.set({uid:'owner',email:'drixelsa@gmail.com',email_verified:true},undefined,{passkeysRequired:false});await app.check();
@@ -103,4 +103,10 @@ test('authenticator requirement rejects legacy proofs and unenrolled accounts on
  for(const method of [undefined,'passkey']){app.set({...base,drixel_admin_method:method},policy,config);await assert.rejects(app.check(),/security/);}
  app.set({...base,drixel_admin_method:'totp'},policy,config);await app.check();
  app.set({...base,drixel_admin_method:'totp'},{enabled:true,version:'v1'},config);await assert.rejects(app.check(),/security/);
+});
+
+test('removed, mismatched and rotated administrator grants are rejected even with valid MFA',async()=>{
+ const app=adminAccessFixture(),base={uid:'member',admin:true,drixel_admin_method:'totp',drixel_admin_verified_at:Math.floor(Date.now()/1000),drixel_admin_key_version:'mfa1',drixel_admin_access_id:'a'.repeat(64),drixel_admin_access_version:'grant1'},policy={enabled:true,totpEnabled:true,version:'mfa1'},config={authenticatorRequired:true};
+ app.set(base,policy,config,{active:true,uid:'member',version:'grant1'});await app.check();
+ for(const grant of [undefined,{active:false,uid:'member',version:'grant1'},{active:true,uid:'other',version:'grant1'},{active:true,uid:'member',version:'grant2'}]){app.set(base,policy,config,grant);await assert.rejects(app.check(),/removed/);}
 });

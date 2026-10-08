@@ -97,6 +97,10 @@ async function requireAdmin(req) {
         throw error;
     }
     const database=admin.firestore(),policy=(await database.doc('admin_security/'+decoded.uid).get()).data(),config=(await database.doc('security_config/admin').get()).data();
+    if(decoded.drixel_admin_access_id){
+        const id=decoded.drixel_admin_access_id,grant=/^[a-f0-9]{64}$/.test(id)?(await database.doc('admin_access/'+id).get()).data():null;
+        if(!grant?.active||grant.uid!==decoded.uid||grant.version!==decoded.drixel_admin_access_version){const e=new Error('Administrator access has been removed.');e.status=403;throw e;}
+    }
     const stamp=Number(decoded.drixel_admin_verified_at),now=Date.now()/1000;
     if ((config?.authenticatorRequired===true&&(!policy?.totpEnabled||decoded.drixel_admin_method!=='totp'))||(policy?.totpEnabled&&decoded.drixel_admin_method!=='totp')||(config?.passkeysRequired!==false&&!policy?.enabled)||(policy?.enabled&&!(decoded.drixel_admin_key_version===policy.version&&Number.isFinite(stamp)&&stamp<=now&&stamp>now-900))) {
         const error=new Error('Verify your administrator security to continue.');error.status=403;throw error;
