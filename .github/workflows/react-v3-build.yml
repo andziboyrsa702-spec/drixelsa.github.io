@@ -25,7 +25,7 @@ jobs:
       - run: npm --prefix functions audit --omit=dev
       - run: npm --prefix worker ci --no-audit --no-fund
       - run: npm audit --omit=dev
-      - run: node --test tests/launch-readiness.test.js tests/product-options.test.js tests/colour-media.test.js
+      - run: node --test tests/launch-readiness.test.js tests/product-options.test.js tests/colour-media.test.js tests/seo-build.test.mjs
       - run: npm --prefix worker test
       - run: npm --prefix worker run check
       - run: npm --prefix worker audit --omit=dev
