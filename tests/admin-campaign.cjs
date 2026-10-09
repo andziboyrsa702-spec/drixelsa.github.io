@@ -1,0 +1,114 @@
+const {test}=require('node:test');
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const vm=require('node:vm');
+const crypto=require('node:crypto');
+const {submitBatch}=require('../functions/marketing-delivery.js');
+const source=fs.readFileSync('functions/index.js','utf8');
+const start=source.indexOf('exports.sendCampaign ='),end=source.indexOf('\n\nfunction newsletterDocId',start);
+function service({providerFails=false,unknown=false}={}){
+ const campaign={subject:'Drixel launch',html:'<body>Campaign</body>',status:'draft'},audience=[{id:'sub1',email:'one@example.com',status:'active'},{id:'sub2',email:'one@example.com',status:'active'},{id:'sub3',email:'two@example.com',status:'active'},{id:'sub4',email:'skip@example.com',status:'unsubscribed'},{id:'pending',email:'pending@example.com',status:'pending'}];
+ let sends=0,tail=Promise.resolve(),messages;
+ const ref={get:async()=>({exists:true,data:()=>({...campaign})}),update:async patch=>Object.assign(campaign,patch)};
+ const db={collection:name=>name==='email_campaigns'?{doc:()=>ref}:{doc:id=>({get:async()=>({exists:true,data:()=>audience.find(s=>s.id===id)}),set:async patch=>Object.assign(audience.find(s=>s.id===id),patch)}),get:async()=>({forEach:cb=>audience.forEach(row=>cb({id:row.id,data:()=>row}))})},runTransaction:fn=>{const next=tail.then(()=>fn({get:r=>r.get(),update:(r,p)=>r.update(p),set:(r,p)=>r.set(p)}));tail=next.catch(()=>{});return next}};
+ const context={require,exports:{},functions:{runWith:()=>({https:{onRequest:fn=>fn}})},admin:{firestore:()=>db},FieldValue:{serverTimestamp:()=>({seconds:1})},requireAdmin:async req=>{if(!req.authorized){const error=new Error('Administrator access required.');error.status=403;throw error;}},marketingCors:()=>false,isValidEmail:value=>typeof value==='string'&&value.includes('@'),publicBaseUrl:()=> 'https://drixel-sa.web.app',process:{env:{RESEND_API_KEY:'test-placeholder'}},console:{error:()=>{}},deliveryKey:(id,index)=>id+'/'+index,pause:async()=>{},unsubscribeMarkup:url=>'<a href="'+url+'">Unsubscribe</a>',submitBatch:async rows=>{messages=rows;sends+=rows.length;await new Promise(resolve=>setTimeout(resolve,5));if(providerFails||unknown){const error=Error('Provider rejected batch');error.unknown=unknown;throw error;}return rows.map((_,i)=>({id:'mail-'+i}));}};
+ vm.runInNewContext(source.slice(start,end),context);
+ const request=async authorized=>{const response={statusCode:200,set(){return this},status(code){this.statusCode=code;return this},json(body){this.body=body;return this}};await context.exports.sendCampaign({method:'POST',authorized,body:{campaignId:'campaign1'}},response);return response};
+ return {request,campaign,audience,messages:()=>messages,sends:()=>sends};
+}
+test('campaign claim prevents duplicate concurrent delivery and excludes pending subscribers',async()=>{const app=service(),responses=await Promise.all([app.request(true),app.request(true)]);assert.deepEqual(responses.map(r=>r.statusCode).sort(),[200,409]);assert.equal(app.sends(),2);assert.equal(app.campaign.acceptedCount,2);assert.equal(app.campaign.status,'sent');assert.equal(app.campaign.deliveredCount,undefined);for(const m of app.messages()){assert.equal(m.to.length,1);assert.match(m.html,/Unsubscribe/);assert.match(m.headers['List-Unsubscribe'],/https:\/\/drixel-sa.web.app/);}});
+test('explicit provider rejection produces failed status and diagnostics',async()=>{const app=service({providerFails:true}),r=await app.request(true);assert.equal(r.body.sent,0);assert.equal(r.body.failed,2);assert.equal(app.campaign.status,'failed');assert.match(app.campaign.lastError,/rejected/);});
+test('unknown delivery status blocks a second campaign send',async()=>{const app=service({unknown:true});await app.request(true);assert.equal(app.campaign.status,'delivery_unknown');assert.equal((await app.request(true)).statusCode,409);assert.equal(app.sends(),2);});
+test('unauthorized users cannot send campaigns',async()=>{const app=service(),r=await app.request(false);assert.equal(r.statusCode,403);assert.equal(app.sends(),0);});
+test('batch retries use the same idempotency key and payload after throttling',async()=>{let calls=0;const requests=[];await submitBatch([{to:['one@example.com']}],'campaign/one',{pause:async()=>{},request:async(url,options)=>{requests.push(options);calls++;return{ok:calls>1,status:calls>1?200:429,headers:{get:()=>null},json:async()=>calls>1?{data:[{id:'provider-id'}]}:{message:'Rate limited'}};}});assert.equal(calls,2);assert.equal(requests[0].headers['Idempotency-Key'],requests[1].headers['Idempotency-Key']);assert.equal(requests[0].body,requests[1].body);});
+test('batch rejects fulfilled HTTP errors and malformed successful responses',async()=>{for(const response of [{ok:false,status:422,json:async()=>({message:'Domain not verified'})},{ok:true,status:200,json:async()=>({data:[]})}])await assert.rejects(submitBatch([{to:['one@example.com']}],'campaign/test',{pause:async()=>{},request:async()=>response}));});
+test('signup normalizes, deduplicates, preserves token and stores the source',async()=>{
+ const data=new Map();const db={collection:()=>({doc:id=>({id})}),runTransaction:async fn=>fn({get:async ref=>({exists:data.has(ref.id),data:()=>data.get(ref.id)}),set:(ref,value)=>data.set(ref.id,{...data.get(ref.id),...value})})};
+ const begin=source.indexOf('exports.subscribeNewsletter ='),finish=source.indexOf('\nexports.unsubscribeNewsletter',begin),context={exports:{},require,functions:{https:{onRequest:fn=>fn}},admin:{firestore:()=>db},marketingCors:()=>false,newsletterDocId:e=>crypto.createHash('sha256').update(e).digest('hex'),isValidEmail:e=>/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e),FieldValue:{serverTimestamp:()=>({seconds:123})},console:{error:()=>{}}};vm.runInNewContext(source.slice(begin,finish),context);
+ const signup=async body=>{const res={status(code){this.code=code;return this},json(value){this.body=value;return this},set(){}};await context.exports.subscribeNewsletter({method:'POST',body},res);return res};
+ assert.equal((await signup({email:' PERSON@example.com ',source:'footer'})).body.success,true);const token=[...data.values()][0].unsubscribeToken;await signup({email:'person@example.com',source:'storefront'});assert.equal(data.size,1);assert.equal([...data.values()][0].status,'active');assert.equal([...data.values()][0].source,'footer');assert.equal([...data.values()][0].unsubscribeToken,token);assert.equal((await signup({email:'invalid'})).code,400);
+ data.values().next().value.status='unsubscribed';await signup({email:'person@example.com'});assert.equal([...data.values()][0].status,'active');
+});
+test('signup storage failures never return success',async()=>{const begin=source.indexOf('exports.subscribeNewsletter ='),finish=source.indexOf('\nexports.unsubscribeNewsletter',begin),context={exports:{},functions:{https:{onRequest:fn=>fn}},admin:{firestore:()=>({collection:()=>({doc:()=>({})}),runTransaction:async()=>{throw Error('Unavailable')}})},marketingCors:()=>false,newsletterDocId:()=> 'id',isValidEmail:()=>true,console:{error:()=>{}}};vm.runInNewContext(source.slice(begin,finish),context);const r={status(code){this.code=code;return this},json(body){this.body=body;return this}};await context.exports.subscribeNewsletter({method:'POST',body:{email:'one@example.com'}},r);assert.equal(r.code,503);assert.equal(r.body.success,false);});
+test('all templates render safe public assets and distinct designs',async()=>{const {EMAIL_TEMPLATES,emailHtml}=await import('../src/admin-react/marketingTemplates.js');assert.equal(EMAIL_TEMPLATES.length,34);assert.equal(new Set(EMAIL_TEMPLATES.map(t=>t.id)).size,34);assert.equal(EMAIL_TEMPLATES.filter(t=>t.category==='update').length,16);for(const t of EMAIL_TEMPLATES){const html=emailHtml(t);assert.match(html,/@media\(max-width:480px\)/);assert.match(html,/<h1/);assert.doesNotMatch(html,/src="\/assets/);}const html=emailHtml({imageUrl:'/assets/campaigns/campaign-01.jpeg',headline:'A <new> drop',body:'Hello',ctaLabel:'Open',ctaUrl:'javascript:alert(1)'});assert.match(html,/https:\/\/raw.githubusercontent.com\/andziboyrsa702-spec\/drixelsa.github.io\/768eb98e781d23c7223bad847b988c4093548ea8\/public\/assets\/campaigns/);assert.match(html,/&lt;new&gt;/);assert.doesNotMatch(html,/javascript:/);assert.notEqual(emailHtml(EMAIL_TEMPLATES[0]),emailHtml(EMAIL_TEMPLATES[1]));});
+test('frontend access matches verified owner and claim-based administrator rules',async()=>{const {hasAdminAccess}=await import('../src/admin-react/adminAccess.js');assert.equal(hasAdminAccess({admin:true}),true);assert.equal(hasAdminAccess({role:'admin'}),true);assert.equal(hasAdminAccess({email:'drixelsa@gmail.com',email_verified:true}),true);assert.equal(hasAdminAccess({email:'drixelsa@gmail.com',email_verified:false}),false);assert.equal(hasAdminAccess({admin:'true'}),false);});
+function adminAccessFixture(){
+ const begin=source.indexOf('async function requireAdmin'),finish=source.indexOf('\nexports.sendCampaign',begin);let claims,policy,config,grant;
+ const context={admin:{auth:()=>({verifyIdToken:async()=>claims}),firestore:()=>({doc:path=>({get:async()=>({data:()=>path==='security_config/admin'?config:path.startsWith('admin_access/')?grant:policy})})})},ALLOWED_ADMIN_EMAILS:new Set(['drixelsa@gmail.com'])};
+ vm.runInNewContext(source.slice(begin,finish)+'\nthis.check=requireAdmin;',context);
+ return {set:(c,p,g,a)=>{claims=c;policy=p;config=g;grant=a},check:()=>context.check({get:()=> 'Bearer token'})};
+}
+test('server access permits the same verified owners and rejects unverified owners',async()=>{
+ const app=adminAccessFixture();app.set({uid:'owner',email:'drixelsa@gmail.com',email_verified:true},undefined,{passkeysRequired:false});await app.check();
+ app.set({uid:'owner',email:'drixelsa@gmail.com',email_verified:false},undefined,{passkeysRequired:false});await assert.rejects(app.check(),/Administrator/);
+ for(const claims of [{admin:true},{role:'admin'}]){app.set({uid:'admin',...claims},undefined,{passkeysRequired:false});await app.check()}
+});
+test('missing security configuration cannot grant unverified administrator access',async()=>{
+ const app=adminAccessFixture();for(const claims of [{admin:true},{role:'admin'},{email:'drixelsa@gmail.com',email_verified:true}]){app.set({uid:'admin',...claims});await assert.rejects(app.check(),/security/)}
+});
+test('server admin access requires fresh version-bound proof after enrollment',async()=>{
+ const app=adminAccessFixture(),base={uid:'owner',email:'drixelsa@gmail.com',email_verified:true},now=Math.floor(Date.now()/1000),policy={enabled:true,version:'current'},config={passkeysRequired:true};
+ app.set(base,undefined,config);await assert.rejects(app.check(),/security/);
+ for(const proof of [{},{drixel_admin_verified_at:now-901,drixel_admin_key_version:'current'},{drixel_admin_verified_at:now+60,drixel_admin_key_version:'current'},{drixel_admin_verified_at:now,drixel_admin_key_version:'old'}]){app.set({...base,...proof},policy,config);await assert.rejects(app.check(),/security/)}
+ app.set({...base,drixel_admin_verified_at:now,drixel_admin_key_version:'current'},policy,config);await app.check();
+});
+test('admin login returns to safe root and deep links',async()=>{const {loginDestination}=await import('../src/utils/loginDestination.js');assert.equal(loginDestination('za','/za/admin'),'/za/admin');assert.equal(loginDestination('us','/us/admin/orders?filter=paid'),'/us/admin/orders?filter=paid');assert.equal(loginDestination('za','https://outside.example/za/admin'),'/za/member/profile');});
+
+test('unsubscribe GET is safe for link scanners and POST removes a legacy subscriber',async()=>{
+ const begin=source.indexOf('exports.unsubscribeNewsletter ='),finish=source.indexOf('\n\nconst DELIVERY_FEE_ZAR',begin),subscriber={unsubscribeToken:'a'.repeat(64),status:'active'};
+ const context={exports:{},functions:{https:{onRequest:fn=>fn}},admin:{firestore:()=>({collection:()=>({doc:()=>({get:async()=>({exists:true,data:()=>subscriber}),update:async patch=>Object.assign(subscriber,patch)})})})},FieldValue:{serverTimestamp:()=>({seconds:1})}};vm.runInNewContext(source.slice(begin,finish),context);
+ const call=async method=>{const r={set(){},status(code){this.code=code;return this},send(body){this.body=body;return this}};await context.exports.unsubscribeNewsletter({method,query:{id:'legacySubscriberId',token:'a'.repeat(64)}},r);return r;};
+ assert.match((await call('GET')).body,/Your inbox/);assert.equal(subscriber.status,'active');assert.equal((await call('POST')).code,200);assert.equal(subscriber.status,'unsubscribed');
+});
+
+test('marketing CORS permits Pages preflight and rejects unrelated origins',()=>{
+ const begin=source.indexOf('function marketingCors'),finish=source.indexOf('\nexports.sendEmail',begin),context={URL,process:{env:{}}};vm.runInNewContext(source.slice(begin,finish)+'\nthis.check=marketingCors;',context);
+ const request=(origin,method='OPTIONS')=>({method,get:()=>origin}),response=()=>({headers:{},set(k,v){this.headers[k]=v},status(code){this.code=code;return this},send(){},json(){}});
+ let r=response();assert.equal(context.check(request('https://andziboyrsa702-spec.github.io'),r),true);assert.equal(r.code,204);assert.equal(r.headers['Access-Control-Allow-Origin'],'https://andziboyrsa702-spec.github.io');
+ r=response();context.check(request('https://unrelated.example'),r);assert.equal(r.code,403);
+ context.process.env.FUNCTIONS_EMULATOR='true';r=response();context.check(request('http://localhost:5173'),r);assert.equal(r.code,204);
+});
+
+test('checkout subscription confirmation requires a valid token and an explicit POST',async()=>{
+ const notificationSource=fs.readFileSync('functions/notifications.js','utf8'),begin=notificationSource.indexOf('exports.newsletterPreferences='),finish=notificationSource.indexOf('\nexports.sendContact=',begin),token='b'.repeat(64),hash=s=>crypto.createHash('sha256').update(s).digest('hex'),record={status:'pending',tokenHash:hash(token)};
+ const ref={get:async()=>({data:()=>record})},context={exports:{},functions:{https:{onRequest:fn=>fn}},db:()=>({collection:()=>({doc:()=>ref}),runTransaction:async fn=>fn({get:r=>r.get(),update:(r,p)=>Object.assign(record,p)})}),hash,console:{error(){}}};
+ vm.runInNewContext(notificationSource.slice(begin,finish),context);
+ const call=async(method,usedToken=token)=>{const r={set(){},status(code){this.code=code;return this},send(body){this.body=body;return this}};await context.exports.newsletterPreferences({method,query:{id:'a'.repeat(64),token:usedToken},body:{action:'confirm'}},r);return r;};
+ assert.equal((await call('GET')).code,200);assert.equal(record.status,'pending');assert.equal((await call('POST','c'.repeat(64))).code,400);assert.equal(record.status,'pending');assert.equal((await call('POST')).code,200);assert.equal(record.status,'active');
+});
+
+
+test('preview artwork uses the preview origin while outgoing email keeps public assets and links',async()=>{
+ const {emailHtml}=await import('../src/admin-react/marketingTemplates.js');
+ const draft={layout:'gallery',headline:'New season',imageUrl:'/assets/campaigns/campaign-04.jpeg',secondaryImageUrl:'/assets/campaigns/campaign-06.jpeg',ctaLabel:'Shop',ctaUrl:'/za/w/new-featured'};
+ const preview=emailHtml(draft,{assetBaseUrl:'http://localhost:5173'}),outgoing=emailHtml(draft);
+ assert.match(preview,/src="http:\/\/localhost:5173\/assets\/campaigns\/campaign-04.jpeg"/);assert.match(preview,/src="http:\/\/localhost:5173\/assets\/campaigns\/campaign-06.jpeg"/);assert.match(preview,/href="https:\/\/drixelsa.co.za\/za\/w\/new-featured"/);assert.doesNotMatch(outgoing,/localhost/);assert.match(outgoing,/src="https:\/\/raw.githubusercontent.com\/andziboyrsa702-spec\/drixelsa.github.io\/768eb98e781d23c7223bad847b988c4093548ea8\/public\/assets\/campaigns\/campaign-04.jpeg"/);
+});
+
+test('commerce and admin endpoints handle Pages preflight before authentication or database work',async()=>{
+ const begin=source.indexOf('function marketingCors('),end=source.indexOf('\nexports.sendEmail',begin),context={URL,Set,process:{env:{}},exports:{},functions:{https:{onRequest:fn=>fn}}};
+ vm.runInNewContext(source.slice(begin,end),context);
+ for(const name of ['market','exchangeRates','checkoutQuote','createOrder','verifyYocoPayment','adminInventoryAdjust','adminOrderAction']){
+  const begin=source.indexOf('exports.'+name+' ');const alternate=source.indexOf('exports.'+name+'=');const start=begin<0?alternate:begin;
+  let finish=source.indexOf('\nexports.',start+1);const boundary=source.indexOf('\n// Background marketing',start+1);if(boundary>=0&&(finish<0||boundary<finish))finish=boundary;
+  vm.runInNewContext(source.slice(start,finish<0?undefined:finish),context);
+  const response={headers:{},set(k,v){this.headers[k]=v},status(code){this.code=code;return this},send(){},json(){}};
+  await context.exports[name]({method:'OPTIONS',get:()=> 'https://andziboyrsa702-spec.github.io'},response);
+  assert.equal(response.code,204,name);assert.match(response.headers['Access-Control-Allow-Methods'],/GET/);
+ }
+});
+
+test('authenticator requirement rejects legacy proofs and unenrolled accounts on the server',async()=>{
+ const app=adminAccessFixture(),now=Math.floor(Date.now()/1000),base={uid:'admin',admin:true,drixel_admin_verified_at:now,drixel_admin_key_version:'v1'},policy={enabled:true,totpEnabled:true,version:'v1'},config={authenticatorRequired:true,passkeysRequired:true};
+ for(const method of [undefined,'passkey']){app.set({...base,drixel_admin_method:method},policy,config);await assert.rejects(app.check(),/security/);}
+ app.set({...base,drixel_admin_method:'totp'},policy,config);await app.check();
+ app.set({...base,drixel_admin_method:'totp'},{enabled:true,version:'v1'},config);await assert.rejects(app.check(),/security/);
+});
+
+test('removed, mismatched and rotated administrator grants are rejected even with valid MFA',async()=>{
+ const app=adminAccessFixture(),base={uid:'member',admin:true,drixel_admin_method:'totp',drixel_admin_verified_at:Math.floor(Date.now()/1000),drixel_admin_key_version:'mfa1',drixel_admin_access_id:'a'.repeat(64),drixel_admin_access_version:'grant1'},policy={enabled:true,totpEnabled:true,version:'mfa1'},config={authenticatorRequired:true};
+ app.set(base,policy,config,{active:true,uid:'member',version:'grant1'});await app.check();
+ for(const grant of [undefined,{active:false,uid:'member',version:'grant1'},{active:true,uid:'other',version:'grant1'},{active:true,uid:'member',version:'grant2'}]){app.set(base,policy,config,grant);await assert.rejects(app.check(),/removed/);}
+});
+
+test('Microsoft admin proof needs enabled server policy, recent time and matching version',async()=>{const app=adminAccessFixture(),stamp=Math.floor(Date.now()/1000),token={uid:'admin',admin:true,drixel_admin_verified_at:stamp,drixel_admin_key_version:'ms-v1',drixel_admin_method:'microsoft'},policy={enabled:true,totpEnabled:true,microsoftEnabled:true,version:'ms-v1'},config={authenticatorRequired:true,passkeysRequired:true};app.set(token,policy,config);await app.check();for(const [proof,p] of [[token,{...policy,microsoftEnabled:false}],[{...token,drixel_admin_verified_at:stamp-901},policy],[{...token,drixel_admin_key_version:'old'},policy]]){app.set(proof,p,config);await assert.rejects(app.check(),/security/);}});

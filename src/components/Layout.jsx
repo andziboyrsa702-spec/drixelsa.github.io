@@ -1,0 +1,1 @@
+import React from"react";import AppHeader from"./AppHeader.jsx";import Footer from"./Footer.jsx";export default function Layout({children}){return <><AppHeader/>{children}<Footer/></>}

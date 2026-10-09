@@ -1,0 +1,12 @@
+rules_version = '2';
+service firebase.storage {
+ match /b/{bucket}/o {
+  // The current admin uploader obtains permission from the authenticated backend.
+  // Keep existing public media readable; deny legacy direct client mutations.
+  match /admin-media/{uid}/{file} {
+   allow read: if true;
+   allow write: if false;
+  }
+  match /{path=**} { allow read, write: if false; }
+ }
+}
