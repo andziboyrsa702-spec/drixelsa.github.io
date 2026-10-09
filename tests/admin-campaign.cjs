@@ -110,3 +110,5 @@ test('removed, mismatched and rotated administrator grants are rejected even wit
  app.set(base,policy,config,{active:true,uid:'member',version:'grant1'});await app.check();
  for(const grant of [undefined,{active:false,uid:'member',version:'grant1'},{active:true,uid:'other',version:'grant1'},{active:true,uid:'member',version:'grant2'}]){app.set(base,policy,config,grant);await assert.rejects(app.check(),/removed/);}
 });
+
+test('Microsoft admin proof needs enabled server policy, recent time and matching version',async()=>{const app=adminAccessFixture(),stamp=Math.floor(Date.now()/1000),token={uid:'admin',admin:true,drixel_admin_verified_at:stamp,drixel_admin_key_version:'ms-v1',drixel_admin_method:'microsoft'},policy={enabled:true,totpEnabled:true,microsoftEnabled:true,version:'ms-v1'},config={authenticatorRequired:true,passkeysRequired:true};app.set(token,policy,config);await app.check();for(const [proof,p] of [[token,{...policy,microsoftEnabled:false}],[{...token,drixel_admin_verified_at:stamp-901},policy],[{...token,drixel_admin_key_version:'old'},policy]]){app.set(proof,p,config);await assert.rejects(app.check(),/security/);}});

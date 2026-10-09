@@ -104,7 +104,7 @@ async function requireAdmin(req) {
         if(!grant?.active||grant.uid!==decoded.uid||grant.version!==decoded.drixel_admin_access_version){const e=new Error('Administrator access has been removed.');e.status=403;throw e;}
     }
     const stamp=Number(decoded.drixel_admin_verified_at),now=Date.now()/1000;
-    if ((config?.authenticatorRequired===true&&(!policy?.totpEnabled||decoded.drixel_admin_method!=='totp'))||(policy?.totpEnabled&&decoded.drixel_admin_method!=='totp')||(config?.passkeysRequired!==false&&!policy?.enabled)||(policy?.enabled&&!(decoded.drixel_admin_key_version===policy.version&&Number.isFinite(stamp)&&stamp<=now&&stamp>now-900))) {
+    if ((config?.authenticatorRequired===true&&!(policy?.totpEnabled&&decoded.drixel_admin_method==='totp'||policy?.microsoftEnabled&&decoded.drixel_admin_method==='microsoft'))||(policy?.totpEnabled&&!(policy?.totpEnabled&&decoded.drixel_admin_method==='totp'||policy?.microsoftEnabled&&decoded.drixel_admin_method==='microsoft'))||(config?.passkeysRequired!==false&&!policy?.enabled)||(policy?.enabled&&!(decoded.drixel_admin_key_version===policy.version&&Number.isFinite(stamp)&&stamp<=now&&stamp>now-900))) {
         const error=new Error('Verify your administrator security to continue.');error.status=403;throw error;
     }
     return decoded;
