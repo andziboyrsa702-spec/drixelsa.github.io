@@ -21,5 +21,5 @@ async function call(path,body){
   throw error;
  }finally{clearTimeout(timeout);}
 }
-export const orderAction=(orderId,action)=>call('/api/admin/order-action',{orderId,action});
+export const orderAction=(orderId,action,details={})=>call('/api/admin/order-action',{...details,orderId,action});
 export const adjustInventory=(productId,sku,delta,reason)=>call('/api/admin/inventory-adjust',{productId,sku,delta,reason});

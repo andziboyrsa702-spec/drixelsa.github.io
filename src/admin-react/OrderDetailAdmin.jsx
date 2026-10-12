@@ -1,3 +1,4 @@
+import {safeTrackingUrl} from '../utils/shoppingDetails.js';
 import React, {useState} from 'react';
 import {Link, useParams} from 'react-router-dom';
 import {orderAction} from './adminApi.js';
@@ -15,9 +16,10 @@ export default function OrderDetailAdmin(){
   const confirmed=await dialog.confirm({title:cancel?'Cancel order':paid?'Confirm payment':'Update fulfilment',message:cancel?'Cancel this unpaid order and restore its reserved stock?':paid?'Confirm you have verified receipt of this manual payment. This action is recorded in the audit log.':`Move this order to ${action}? This action is recorded in the audit log.`,confirmLabel:cancel?'Cancel order':paid?'Mark paid':'Update order',danger:cancel});
   if(!confirmed)return;
   setBusy(action);
-  try{await orderAction(orderId,action);dialog.toast(cancel?'Order cancelled and reserved inventory restored.':paid?'Manual payment verified.':`Fulfilment updated to ${action}.`,'success');}
+  try{const result=await orderAction(orderId,action);if(result.notificationQueued===false){dialog.toast('Order updated, but the email could not be queued. Check Operations health.','error');return;}dialog.toast(cancel?'Order cancelled and reserved inventory restored.':paid?'Manual payment verified.':`Fulfilment updated to ${action}.`,'success');}
   catch(error){dialog.toast(error.message||'Order could not be updated.','error');}finally{setBusy('');}
  }
+ async function saveTracking(event){event.preventDefault();if(busy)return;const form=new FormData(event.currentTarget),details=Object.fromEntries(['courierService','trackingNumber','trackingUrl'].map(k=>[k,String(form.get(k)||'').trim()]));if(details.trackingUrl&&!safeTrackingUrl(details.trackingUrl))return dialog.toast('Use a valid HTTPS tracking link without embedded credentials.','error');setBusy('tracking');try{const result=await orderAction(orderId,'tracking',details);dialog.toast(result.notificationQueued===false?'Tracking saved, but the email could not be queued. Check Operations health.':'Tracking saved. Customer notification queued.',result.notificationQueued===false?'error':'success')}catch(e){dialog.toast(e.message,'error')}finally{setBusy('')}}
  if(connection.loading||connection.error)return <AdminDataState {...connection}/>;
  if(!order)return <section className="ra-panel"><h2>Order not found</h2><Link to={`/${market}/admin/orders`}>Back to orders</Link></section>;
  const cancelled=order.status==='cancelled'||order.fulfillmentStatus==='cancelled',paid=order.paymentStatus==='paid',refunded=order.paymentStatus==='refunded',provider=order.paymentProvider||order.paymentMethod,manual=['bank','bank_transfer','eft','manual'].includes(provider);
@@ -38,6 +40,7 @@ export default function OrderDetailAdmin(){
   </div>
   <div className="ra-order-details"><section><h3>Customer</h3><p>{[customer.firstName,customer.lastName].filter(Boolean).join(' ')||'Name unavailable'}{'\n'}{customer.email||'Email unavailable'}{'\n'}{customer.phone||'Phone unavailable'}</p></section>
    <section><h3>Delivery address</h3><p>{[address.address||address.street,address.city,address.province,address.postalCode,address.country].filter(Boolean).join('\n')||'No delivery address recorded.'}</p></section></div>
+  {paid&&!cancelled&&!refunded&&order.status!=='payment_review'&&<form className="ra-panel" onSubmit={saveTracking}><h3>Courier tracking</h3><p>Save tracking before marking the order shipped. The customer will receive an order update.</p><label>Courier<input name="courierService" defaultValue={order.courierService||''} maxLength="120" required/></label><label>Tracking number<input name="trackingNumber" defaultValue={order.trackingNumber||''} maxLength="120" required/></label><label>Tracking link (HTTPS, optional)<input name="trackingUrl" type="url" defaultValue={order.trackingUrl||''} maxLength="2000"/></label><button disabled={!!busy}>{busy==='tracking'?'Saving…':'Save tracking'}</button></form>}
   <h3>Order items</h3><div className="ra-table-wrap"><table><thead><tr><th>Product</th><th>Variant / SKU</th><th>Quantity</th><th>Line total</th></tr></thead><tbody>{(order.items||[]).map((item,index)=><tr key={item.sku||index}><td>{item.name||item.title||item.productId}</td><td>{[item.color,item.size,item.sku].filter(Boolean).join(' / ')||'—'}</td><td>{item.quantity}</td><td>{money(item.lineTotal??Number(item.price||0)*Number(item.quantity||0),currency)}</td></tr>)}</tbody></table></div>
   {!order.items?.length&&<p className="ra-empty">No line items recorded.</p>}
   <div className="ra-order-totals"><div><span>Subtotal</span><span>{order.subtotal!=null?money(order.subtotal,currency):'Not recorded'}</span></div>
