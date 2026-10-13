@@ -1,5 +1,6 @@
 export function loginDestination(market='za',requested){
  const root=`/${market}`;
+ if(['bag','wishlist','bag-reminder','wishlist-reminder'].includes(requested))return `${root}/${requested.startsWith('bag')?'cart':'wishlist'}${requested.endsWith('-reminder')?'?restore=reminder':''}`;
  if(requested==='checkout')return `${root}/checkout`;
  if(requested==='admin')return `${root}/admin/dashboard`;
  if(typeof requested==='string'&&!requested.includes('\\')){

@@ -64,6 +64,7 @@ jobs:
           node tests/community-fit-browser.cjs
           node tests/product-media-browser.cjs
           node tests/shopping-details-browser.cjs
+          node tests/shopping-reminders-browser.cjs
           node tests/payments-browser.cjs
           node tests/snapscan-browser.cjs
       - name: Verify Firebase hosting output

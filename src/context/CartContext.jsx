@@ -47,6 +47,7 @@ export function CartProvider({
     remove(i) {
       setItems(old => old.filter((_, n) => n !== i));
     },
+    restore(saved) {setItems(validCart(saved));},
     clear() {
       setItems([]);
     }
