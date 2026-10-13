@@ -1,3 +1,4 @@
+import {productSchema} from '../utils/productSchema.js';
 import {pageMetadata,cleanPath,alternates} from '../utils/seoMetadata.js';
 import {productImages} from '../utils/productMedia.js';
 import {useEffect} from 'react';
@@ -20,8 +21,7 @@ export default function Seo({title='Drixel',description='Drixel streetwear.',noi
   document.getElementById('drixel-page-schema')?.remove();
   if(!noindex){const script=document.createElement('script');script.id='drixel-page-schema';script.type='application/ld+json';script.text=JSON.stringify({'@context':'https://schema.org','@graph':[{'@type':'Organization','@id':origin+'/#organization',name:'Drixel SA',url:origin+'/za'},{'@type':'WebSite','@id':origin+'/#website',name:'Drixel SA',alternateName:'Drixel',url:origin+'/',publisher:{'@id':origin+'/#organization'}},...(loc.pathname.split('/').filter(Boolean).length>1?[{'@type':'BreadcrumbList',itemListElement:[{'@type':'ListItem',position:1,name:'Drixel',item:origin+'/'+loc.pathname.split('/')[1]},{'@type':'ListItem',position:2,name:product?.name||title.split(' | ')[0],item:canonical.href}]}]:[])]});document.head.appendChild(script);}
   document.getElementById('drixel-product-schema')?.remove();
-  if(product){const images=productImages(product).filter(Boolean).flatMap(x=>{try{return [new URL(x,origin).href]}catch{return []}});if(images[0])meta('og:image',images[0],true);const variants=Array.isArray(product.variants)?product.variants:[],inStock=product.active!==false&&(variants.length?variants.some(v=>Number(v.stock??v.quantity??0)>0):Number(product.stock??product.quantity??0)>0),schema={'@context':'https://schema.org','@type':'Product',name:product.name||product.title,description:product.description||'',image:[...new Set(images)],sku:product.urlCode||product.sku||product.id};
-   if(pricingReady&&Number.isFinite(rate))schema.offers={'@type':'Offer',priceCurrency:info.currency,price:Number((Number(product.price||0)*rate).toFixed(2)),availability:inStock?'https://schema.org/InStock':'https://schema.org/OutOfStock',url:canonical.href};
+  if(product){const images=productImages(product).filter(Boolean).flatMap(x=>{try{return [new URL(x,origin).href]}catch{return []}});if(images[0])meta('og:image',images[0],true);const schema=productSchema(product,{origin,market:loc.pathname.split('/')[1],currency:info.currency,rate,offers:pricingReady});
    const script=document.createElement('script');script.id='drixel-product-schema';script.type='application/ld+json';script.text=JSON.stringify(schema);document.head.appendChild(script);
   }else document.querySelector('meta[property="og:image"]')?.remove();
   return ()=>{document.getElementById('drixel-product-schema')?.remove();document.getElementById('drixel-page-schema')?.remove();};

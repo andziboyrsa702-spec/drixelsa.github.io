@@ -1,3 +1,4 @@
+import {helpArticles} from '../content/helpCentre.js';
 import {MARKETS} from '../i18n/markets.js';
 export const categories={
  'new-featured':['New & Featured Streetwear','Explore the latest Drixel collection: T-shirts, hoodies, sweaters and accessories.'],
@@ -7,6 +8,8 @@ export const categories={
  accessories:['Streetwear Accessories','Explore Drixel accessories and the details that complete your everyday look.']
 };
 export const information={
+ help:['Help Centre','Step-by-step guides to Drixel accounts, membership, ordering, delivery, returns and privacy.'],
+ ...Object.fromEntries(helpArticles.map(a=>['help/guides/'+a.slug,[a.title,a.summary]])),
  about:['About Drixel SA','Discover the story and vision of Drixel SA, a South African streetwear brand founded in 2025.'],
  contact:['Contact Drixel','Get in touch with Drixel customer care for product questions and order support.'],
  'size-guide':['Clothing Size Guide','Use the Drixel size guide to compare measurements and choose your clothing fit.'],

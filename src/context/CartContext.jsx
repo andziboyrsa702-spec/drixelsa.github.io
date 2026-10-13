@@ -1,3 +1,4 @@
+import {trackShopping} from '../utils/shoppingAnalytics.js';
 import { readCart, writeCart, validCart, cartQuantity } from "../utils/cartStorage.js";
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
 const C = createContext();
@@ -36,6 +37,7 @@ export function CartProvider({
           quantity: cartQuantity(x.quantity + 1)
         } : x);
       });
+      trackShopping("bag_add");
       return true;
     },
     quantity(i, q) {

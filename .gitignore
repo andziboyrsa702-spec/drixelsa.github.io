@@ -6,3 +6,6 @@ functions/node_modules/
 .secret.local
 .firebase/
 *-debug.log
+
+# Generated customer help assets
+help-site/dist/

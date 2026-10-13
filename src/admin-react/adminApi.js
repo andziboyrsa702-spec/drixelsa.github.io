@@ -1,6 +1,6 @@
 import {apiUrl} from '../utils/api.js';
 import {auth} from '../config/firebase-react.js';
-async function call(path,body){
+export async function call(path,body){
  const user=auth.currentUser;
  if(!user)throw new Error('Administrator session expired. Sign in again.');
  const token=await user.getIdToken(),controller=new AbortController();

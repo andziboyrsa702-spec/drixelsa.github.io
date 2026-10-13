@@ -1,3 +1,4 @@
+import {trackShopping} from '../utils/shoppingAnalytics.js';
 import { apiUrl } from "../utils/api.js";
 import React, { useEffect, useState, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
@@ -116,6 +117,7 @@ export default function Checkout() {
         }),
         d = await readApi(r);
       if (!r.ok) throw new Error(d.message || "Checkout failed.");
+      trackShopping('order_created');
       if(paymentMethod==='yoco'){
         const url=new URL(d.redirectUrl);if(url.protocol!=='https:'||url.hostname!=='c.yoco.com'||url.username||url.password)throw Error('The payment link could not be verified. Your bag is saved.');
         window.location.assign(url.href);return;
@@ -125,6 +127,7 @@ export default function Checkout() {
       if(paymentMethod!=="snapscan")sessionStorage.removeItem("drixel_checkout_attempt");
       nav(path("/za/order-confirmation/" + encodeURIComponent(d.orderNumber)));
     } catch (x) {
+      trackShopping("checkout_problem");
       setError(x.message);
     } finally {
       setBusy(false);

@@ -1,3 +1,5 @@
+import {findHelp,helpArticles} from '../src/content/helpCentre.js';
+import {productSchema,merchantFeed} from '../src/utils/productSchema.js';
 import {readFile,writeFile,mkdir} from 'node:fs/promises';
 import {MARKETS} from '../src/i18n/markets.js';
 import {productPath} from '../src/utils/urls.js';
@@ -35,11 +37,12 @@ function render(path,page){
   head+=alternates(path,origin).map(x=>`<link data-drixel-hreflang="1" rel="alternate" hreflang="${x.lang}" href="${escape(x.url)}">`).join('');
   const schemas=[{'@context':'https://schema.org','@type':'Organization','@id':origin+'/#organization',name:'Drixel SA',url:origin+'/za'},{'@context':'https://schema.org','@type':'WebSite','@id':origin+'/#website',name:'Drixel SA',alternateName:'Drixel',url:origin+'/',publisher:{'@id':origin+'/#organization'}}];
   if(path!==`/${market}`)schemas.push({'@context':'https://schema.org','@type':'BreadcrumbList',itemListElement:[{'@type':'ListItem',position:1,name:'Drixel',item:origin+'/'+market},{'@type':'ListItem',position:2,name:page.product?.name||page.title.split(' | ')[0],item:url}]});
-  if(page.product){const p=page.product;schemas.push({'@context':'https://schema.org','@type':'Product',name:p.name||p.title,description:p.description||page.description,image:images,sku:p.urlCode||p.sku||p.id,brand:{'@type':'Brand',name:'Drixel'}});}
+  if(page.product){const p=page.product;schemas.push(productSchema(p,{origin,market,offers:market==='za'}));}
   head+=schemas.map(s=>`<script data-drixel-static-schema="1" type="application/ld+json">${json(s)}</script>`).join('');
  }
+ const guide=findHelp(path.split('/help/guides/')[1]);
  let content='';
- if(!page.noindex){const category=path.split('/w/')[1],products=page.product?[]:category?catalogue.filter(p=>category==='new-featured'||String(p.category||'').toLowerCase().replace(/[^a-z0-9]+/g,'-')===category):[];content=`<main>${navigation(market)}<h1>${escape(page.product?.name||page.title.split(' | ')[0])}</h1><p>${escape(page.description)}</p>${images.map((src,i)=>`<img src="${escape(src)}" alt="${escape(page.product.name||page.product.title)}${i?' — additional view':''}">`).join('')}<ul>${products.map(p=>'<li>'+link(productPath(p,market),p.name||p.title)+'</li>').join('')}</ul>${path===`/${market}`?'<ul>'+Object.entries(categories).map(([key,[name]])=>'<li>'+link(`/${market}/w/${key}`,name)+'</li>').join('')+'</ul>':''}<noscript><p>Enable JavaScript to select product options, see current prices and place an order.</p></noscript></main>`;}
+ if(!page.noindex){const category=path.split('/w/')[1],products=page.product?[]:category?catalogue.filter(p=>category==='new-featured'||String(p.category||'').toLowerCase().replace(/[^a-z0-9]+/g,'-')===category):[];content=`<main>${navigation(market)}<h1>${escape(page.product?.name||page.title.split(' | ')[0])}</h1><p>${escape(page.description)}</p>${guide?guide.sections.map(([title,text])=>'<section><h2>'+escape(title)+'</h2><p>'+escape(text)+'</p></section>').join('')+link('/'+market+'/'+guide.action,guide.label):path.endsWith('/help')?'<ul>'+helpArticles.map(a=>'<li>'+link('/'+market+'/help/guides/'+a.slug,a.title)+'</li>').join('')+'</ul>':''}${images.map((src,i)=>`<img src="${escape(src)}" alt="${escape(page.product.name||page.product.title)}${i?' — additional view':''}">`).join('')}<ul>${products.map(p=>'<li>'+link(productPath(p,market),p.name||p.title)+'</li>').join('')}</ul>${path===`/${market}`?'<ul>'+Object.entries(categories).map(([key,[name]])=>'<li>'+link(`/${market}/w/${key}`,name)+'</li>').join('')+'</ul>':''}<noscript><p>Enable JavaScript to select product options, see current prices and place an order.</p></noscript></main>`;}
  return html.replace(/<title>.*?<\/title>/,'<title>'+escape(page.title)+'</title>').replace(/<meta name="description"[^>]*>/,'<meta name="description" content="'+escape(page.description)+'">').replace('</head>',head+'</head>').replace('<div id="root"></div>','<div id="root">'+content+'</div>');
 }
 for(const [path,page] of pages){if(!/^\/[a-z0-9%/_-]+$/i.test(path))throw Error('Unsafe public route');await mkdir('dist'+path,{recursive:true});await writeFile('dist'+path+'/index.html',render(path,page));}
@@ -57,3 +60,5 @@ await writeFile('dist/robots.txt','User-agent: *\nAllow: /\nDisallow: /api/\nSit
 await writeFile('dist/404.html',html.replace('</head>','<meta name="robots" content="noindex,nofollow"></head>'));
 await writeFile('dist/index.html',render('/za',pages.get('/za')));
 console.log(`Built ${pages.size} route entries, ${mapFiles.length} sitemaps and a readable directory covering ${catalogue.length} active products.`);
+
+const feed=merchantFeed(catalogue,origin);await writeFile('dist/products-feed.xml',feed.xml);await writeFile('dist/product-feed-readiness.json',JSON.stringify({generatedAt:new Date().toISOString(),products:feed.count,issues:feed.issues},null,2));

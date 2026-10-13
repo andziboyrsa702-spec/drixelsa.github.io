@@ -15,7 +15,10 @@
     "test:admin": "node tests/admin.cjs",
     "test:marketing": "node tests/marketing-browser.cjs",
     "test:campaigns": "node --test tests/admin-campaign.cjs tests/campaign-engine.cjs",
-    "test:storage": "firebase emulators:exec --only storage --project demo-drixel \"node --test tests/storage-rules.cjs\""
+    "test:storage": "firebase emulators:exec --only storage --project demo-drixel \"node --test tests/storage-rules.cjs\"",
+    "build:help": "node scripts/build-help-site.mjs",
+    "deploy:help": "npm run build:help && node worker/node_modules/wrangler/bin/wrangler.js deploy --config help-site/wrangler.jsonc",
+    "deploy:security": "node worker/node_modules/wrangler/bin/wrangler.js deploy --config edge-security/wrangler.jsonc"
   },
   "dependencies": {
     "@azure/msal-browser": "5.25.0",

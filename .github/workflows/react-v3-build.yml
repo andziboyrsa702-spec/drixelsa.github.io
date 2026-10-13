@@ -25,7 +25,7 @@ jobs:
       - run: npm --prefix functions audit --omit=dev
       - run: npm --prefix worker ci --no-audit --no-fund
       - run: npm audit --omit=dev
-      - run: node --test tests/shopping-details.test.mjs tests/checkout-payments.cjs tests/launch-readiness.test.js tests/product-options.test.js tests/colour-media.test.js tests/seo-build.test.mjs tests/microsoft-completion.test.mjs
+      - run: node --test tests/edge-security.test.mjs tests/customer-growth.test.mjs tests/shopping-details.test.mjs tests/checkout-payments.cjs tests/launch-readiness.test.js tests/product-options.test.js tests/colour-media.test.js tests/seo-build.test.mjs tests/microsoft-completion.test.mjs
       - run: npm --prefix worker test
       - run: npm --prefix worker run check
       - run: npm --prefix worker audit --omit=dev
@@ -40,6 +40,7 @@ jobs:
       - run: npm run test:rules
       - run: npx firebase emulators:exec --only firestore --project demo-drixel "node worker/test/firestore-emulator.mjs"
       - run: npm run test:storage
+      - run: npm run build:help
       - run: npm run build
         env:
           BUILD_LIVE_CATALOGUE: 'true'
@@ -65,6 +66,8 @@ jobs:
           node tests/product-media-browser.cjs
           node tests/shopping-details-browser.cjs
           node tests/shopping-reminders-browser.cjs
+          node tests/customer-services-browser.cjs
+          node tests/edge-security-browser.mjs
           node tests/payments-browser.cjs
           node tests/snapscan-browser.cjs
       - name: Verify Firebase hosting output

@@ -1,7 +1,7 @@
 // Every queue gets a turn; reminders cannot skip order receipts or campaigns.
-export async function runMailQueues({order,campaign,reminders,health,now=Date.now}){
+export async function runMailQueues({order,campaign,reminders,stock,health,now=Date.now}){
  const failures=[];
- for(const [name,tick] of [['orderMail',order],['campaignWorker',campaign],...(reminders?[['shoppingReminders',reminders]]:[])]){
+ for(const [name,tick] of [['orderMail',order],['campaignWorker',campaign],...(reminders?[['shoppingReminders',reminders]]:[]),...(stock?[['stockAlerts',stock]]:[])]){
   try{await tick();await health(name,{status:'ok',lastFinishedAt:now(),lastError:'',errorCode:''});}
   catch(error){const status=Number(error.status)||0;await health(name,{status:'failed',lastFinishedAt:now(),errorCode:error.code||'',lastError:error.code==='FAILED_PRECONDITION'?'Firestore query prerequisite failed. Deploy firestore:indexes for drixel-sa and wait until the index is enabled.':'Queue processing failed'+(status?' (HTTP '+status+')':'')}).catch(()=>{});failures.push(error);}
  }

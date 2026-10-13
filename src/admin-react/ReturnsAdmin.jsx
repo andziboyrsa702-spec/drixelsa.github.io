@@ -1,123 +1,13 @@
-import{useAdminData}from"./useAdminData.js";import AdminDataState from"./AdminDataState.jsx";
-import React,{useEffect,useState}from"react";
-import{addDoc,collection,doc,onSnapshot,serverTimestamp,updateDoc}from"firebase/firestore";
-import{db}from"../config/firebase-react.js";
-import{useDialog}from"../components/DialogProvider.jsx";
-
+import React,{useEffect,useState} from 'react';
+import {useAdminData} from './useAdminData.js';
+import {call} from './adminApi.js';
+const transitions={requested:['approved','rejected'],approved:['received','rejected'],received:['refunded','exchanged']};
 export default function ReturnsAdmin(){
-  const dialog=useDialog();
-  const connection=useAdminData(["returns","orders"]);
-  const rows=connection.data.returns||[],orders=(connection.data.orders||[]).filter(order=>order.paymentStatus==="paid");
-  const[form,setForm]=useState({orderId:"",reason:"",notes:""}),[busy,setBusy]=useState(false);
-
-  async function create(e){
-    e.preventDefault();
-    if(busy)return;
-    const order=orders.find(item=>item.id===form.orderId);
-    if(!order||!form.reason.trim()){
-      dialog.toast("Choose an order and enter a return reason.","error");
-      return;
-    }
-    setBusy(true);
-    try{
-      await addDoc(collection(db,"returns"),{
-        orderId:order.id,
-        orderNumber:order.orderNumber||order.id,
-        customer:order.customer||{},
-        reason:form.reason.trim(),
-        notes:form.notes.trim(),
-        status:"requested",
-        createdAt:serverTimestamp(),
-        updatedAt:serverTimestamp()
-      });
-      setForm({orderId:"",reason:"",notes:""});
-      dialog.toast("Return case created.","success");
-    }catch(error){
-      dialog.toast(error.message||"Unable to create return.","error");
-    }finally{setBusy(false)}
-  }
-
-  async function changeStatus(item,next){
-    if(busy)return;
-    if(next===(item.status||"requested"))return;
-    const ok=await dialog.confirm({
-      title:"Update return",
-      message:`Change ${item.caseNumber||item.orderNumber||"this return"} to ${next}?`,
-      confirmLabel:"Update"
-    });
-    if(!ok)return;
-    setBusy(true);
-    try{
-      await updateDoc(doc(db,"returns",item.id),{
-        status:next,
-        updatedAt:serverTimestamp()
-      });
-      dialog.toast("Return updated.","success");
-    }catch(error){
-      dialog.toast(error.message||"Unable to update return.","error");
-    }finally{setBusy(false)}
-  }
-
-  if(connection.error||connection.loading)return <AdminDataState {...connection}/>;
-  return(
-    <div className="ra-studio-grid">
-      <form className="ra-panel ra-composer" onSubmit={create}>
-        <p className="ra-eyebrow">RETURNS DESK</p>
-        <h2>Open return case</h2>
-        <label>
-          Paid order
-          <select value={form.orderId} onChange={e=>setForm(current=>({...current,orderId:e.target.value}))}>
-            <option value="">Select order</option>
-            {orders.map(order=>(
-              <option key={order.id} value={order.id}>
-                {order.orderNumber||order.id} · {order.customer?.email||""}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          Reason
-          <input value={form.reason} onChange={e=>setForm(current=>({...current,reason:e.target.value}))}/>
-        </label>
-        <label>
-          Internal notes
-          <textarea rows="5" value={form.notes} onChange={e=>setForm(current=>({...current,notes:e.target.value}))}/>
-        </label>
-        <button type="submit" disabled={busy}>{busy?"Saving…":"Create return"}</button>
-      </form>
-
-      <section className="ra-panel">
-        <div className="ra-panel-head">
-          <h2>Return queue</h2>
-          <span>{rows.length} cases</span>
-        </div>
-        {rows.length?(
-          <div className="ra-return-list">
-            {rows.map(item=>(
-              <article key={item.id}>
-                <div>
-                  <strong>{item.orderNumber||item.orderId}</strong>
-                  <span>{item.reason}</span>
-                  <small>{item.customer?.email||""}</small>
-                </div>
-                <div>
-                  <b>{item.status||"requested"}</b>
-                  <select aria-label={"Return status for "+(item.orderNumber||item.orderId)} disabled={busy} value={item.status||"requested"} onChange={e=>changeStatus(item,e.target.value)}>
-                    <option value="requested">Requested</option>
-                    <option value="approved">Approved</option>
-                    <option value="received">Received</option>
-                    <option value="refunded">Refunded</option>
-                    <option value="rejected">Rejected</option>
-                  </select>
-                </div>
-              </article>
-            ))}
-          </div>
-        ):(
-          <div className="ra-empty">No return cases.</div>
-        )}
-      </section>
-    </div>
-  );
+ const connection=useAdminData(['orders']),orders=(connection.data.orders||[]).filter(o=>o.paymentStatus==='paid');
+ const [rows,setRows]=useState([]),[error,setError]=useState(''),[busy,setBusy]=useState(false),[limited,setLimited]=useState(false),[form,setForm]=useState({orderId:'',reason:'',type:'refund'});
+ const load=()=>call('/api/admin/returns',{action:'list'}).then(d=>{if(!Array.isArray(d.cases))throw Error('Return cases could not be loaded. Check that the updated service is deployed.');setRows(d.cases);setLimited(d.limited)});
+ useEffect(()=>{load().catch(e=>setError(e.message))},[]);
+ async function run(body){setBusy(true);setError('');try{await call('/api/admin/returns',body);await load();return true}catch(e){setError(e.message);return false}finally{setBusy(false)}}
+ return <div className="ra-studio-grid"><section className="ra-panel"><h2>Open return case</h2><p>For customer-care requests. Online customers can request a return from their order page.</p><form className="ra-composer" onSubmit={async e=>{e.preventDefault();const o=orders.find(o=>o.id===form.orderId);if(o&&await run({...form,action:'create',items:o.items.map((x,index)=>({index,quantity:Number(x.quantity)}))}))setForm({orderId:'',reason:'',type:'refund'})}}><label>Paid order<select required value={form.orderId} onChange={e=>setForm({...form,orderId:e.target.value})}><option value="">Choose order</option>{orders.map(o=><option key={o.id} value={o.id}>{o.orderNumber||o.id}</option>)}</select></label><label>Request<select value={form.type} onChange={e=>setForm({...form,type:e.target.value})}><option value="refund">Refund</option><option value="exchange">Exchange</option></select></label><label>Customer details<textarea value={form.reason} onChange={e=>setForm({...form,reason:e.target.value})}/></label><p>This opens a case for all items in the selected order.</p><button disabled={busy}>Create return</button></form></section><section className="ra-panel"><h2>Return queue</h2>{error&&<p role="alert">{error}</p>}{limited&&<p>Showing the 200 most recent cases.</p>}{rows.map(r=><Case key={r.id} item={r} busy={busy} run={run}/>)}{!rows.length&&<p>No cases loaded.</p>}</section></div>;
 }
-
+function Case({item,busy,run}){const [next,setNext]=useState(''),[message,setMessage]=useState(''),[reference,setReference]=useState(''),[amount,setAmount]=useState(''),[confirmed,setConfirmed]=useState(false),options=transitions[item.status||'requested']||[];return <article className="dx-service-panel"><h3>{item.orderNumber||item.orderId} · {item.status}</h3><p>{item.customer?.email} · {item.type||'Return'}</p><p>{item.reason} {item.requestedExchange}</p>{item.items?.map((x,i)=><p key={i}>{x.name} · {x.color} {x.size} × {x.quantity}</p>)}{item.history?.map((x,i)=><p key={i}><strong>{x.status}</strong> — {x.message}</p>)}{options.length>0&&<form className="ra-composer" onSubmit={async e=>{e.preventDefault();if(await run({action:'update',id:item.id,status:next,message,reference,amount:Number(amount),confirmed})){setNext('');setMessage('');setConfirmed(false)}}}><label>Next step<select required value={next} onChange={e=>setNext(e.target.value)}><option value="">Select</option>{options.map(x=><option key={x} value={x}>{x==='refunded'?'Record completed refund':x==='exchanged'?'Record dispatched replacement':x}</option>)}</select></label><label>Update sent to customer<textarea required maxLength="2000" value={message} onChange={e=>setMessage(e.target.value)}/></label>{['refunded','exchanged'].includes(next)&&<><p>Complete the refund with the payment provider, or dispatch the replacement, before recording it here. This form does not transfer money or adjust stock.</p><label>Provider refund / replacement tracking reference<input required value={reference} onChange={e=>setReference(e.target.value)}/></label>{next==='refunded'&&<label>Completed refund amount (ZAR)<input required type="number" min="0.01" step="0.01" value={amount} onChange={e=>setAmount(e.target.value)}/></label>}<label><input required type="checkbox" checked={confirmed} onChange={e=>setConfirmed(e.target.checked)}/> I confirm this action has already been completed.</label></>}<button disabled={busy}>Save and notify customer</button></form>}</article>}
