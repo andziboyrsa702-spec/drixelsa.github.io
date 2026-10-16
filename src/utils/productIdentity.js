@@ -7,7 +7,7 @@ export function fillVariantCodes(variants,productCode){
 }
 export function replaceProductPhoto(product,key,url){
  const old=key==='frontImage'?[product.frontImage,product.image]:[product.backImage];
- return {...product,[key]:url,...(key==='frontImage'?{image:url}:{}),images:(product.images||[]).filter(x=>!old.includes(x)),...(product.mainColor?{colorImages:(product.colorImages||[]).map(row=>row.color===product.mainColor?{...row,[key]:url}:row)}:{})};
+ return {...product,[key]:url,...(key==='frontImage'?{image:url}:{}),images:(product.images||[]).filter(x=>!old.includes(x)),...(Array.isArray(product.galleryImages)?{galleryImages:product.galleryImages.filter(x=>!old.includes(x))}:{}),...(product.mainColor?{colorImages:(product.colorImages||[]).map(row=>row.color===product.mainColor?{...row,[key]:url}:row)}:{})};
 }
 
 export function addStandardVariants(product){
