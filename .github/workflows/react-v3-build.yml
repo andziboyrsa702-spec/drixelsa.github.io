@@ -25,7 +25,7 @@ jobs:
       - run: npm --prefix functions audit --omit=dev
       - run: npm --prefix worker ci --no-audit --no-fund
       - run: npm audit --omit=dev
-      - run: node --test tests/product-identity.test.mjs tests/edge-security.test.mjs tests/customer-growth.test.mjs tests/shopping-details.test.mjs tests/checkout-payments.cjs tests/launch-readiness.test.js tests/product-options.test.js tests/colour-media.test.js tests/seo-build.test.mjs tests/microsoft-completion.test.mjs
+      - run: node --test tests/product-presets.test.mjs tests/product-identity.test.mjs tests/edge-security.test.mjs tests/customer-growth.test.mjs tests/shopping-details.test.mjs tests/checkout-payments.cjs tests/launch-readiness.test.js tests/product-options.test.js tests/colour-media.test.js tests/seo-build.test.mjs tests/microsoft-completion.test.mjs
       - run: npm --prefix worker test
       - run: npm --prefix worker run check
       - run: npm --prefix worker audit --omit=dev
@@ -59,6 +59,7 @@ jobs:
           node tests/profile-picture-browser.cjs
           node tests/account-feedback-browser.cjs
           npm run test:layout
+          node tests/product-presets-browser.cjs
           npm run test:admin
           npm run test:marketing
           node tests/market-pricing-browser.cjs

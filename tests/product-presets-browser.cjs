@@ -35,6 +35,12 @@ if(require.main===module)(async()=>{
  page.on('pageerror',error=>{errors.push(error.message);console.error('PAGE ERROR',error.message)});page.on('console',message=>{if(message.type()==='error')console.error('CONSOLE',message.text())});
  const goto=async route=>{await page.goto('http://127.0.0.1:5173/za/admin/'+route);await page.waitForSelector('.ra-view').catch(async error=>{console.error('BODY',await page.locator('body').innerText());throw error});await page.waitForFunction(()=>!document.querySelector('.ra-loading-mark'));};
  await goto('products/new');
+ for(const width of [320,390,768,1024,1362,1440]){
+  await page.setViewportSize({width,height:900});
+  assert.deepEqual(await page.locator('.ra-view input:not([type=checkbox]):not([type=file]),.ra-view select').evaluateAll(els=>els.filter(e=>e.getBoundingClientRect().width<70).map(e=>e.getAttribute('aria-label')||e.outerHTML)),[]);
+  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+2),true);
+ }
+
  assert.equal(await page.getByLabel('Size',{exact:true}).count(),6);
  await page.getByLabel('Product category',{exact:true}).selectOption('Hoodies');
  await page.getByLabel('Name suggestions (60 per category)').selectOption({index:1});
