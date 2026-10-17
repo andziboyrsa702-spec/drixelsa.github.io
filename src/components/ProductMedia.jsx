@@ -1,13 +1,13 @@
 import {imageAtWidth,responsiveImage} from '../utils/responsiveImage.js';
 import React,{useState} from 'react';
-import {productImages} from '../utils/productMedia.js';
+import {productImages,hasBackView} from '../utils/productMedia.js';
 export default function ProductMedia({product,color='',priority=false,catalogue=false}){
  const images=productImages(product,color);
- return <Views key={JSON.stringify([product.id,color,...images])} images={images} name={product.name||product.title||'Product'} priority={priority} catalogue={catalogue}/>;
+ return <Views key={JSON.stringify([product.id,color,...images,product.showBackView])} images={images} allowBack={hasBackView(product,color)} name={product.name||product.title||'Product'} priority={priority} catalogue={catalogue}/>;
 }
-function Views({images,name,priority,catalogue}){
+function Views({images,name,priority,catalogue,allowBack}){
  const [back,setBack]=useState(false),[ready,setReady]=useState(false),[failed,setFailed]=useState(false);
- const canFlip=Boolean(images[1])&&!failed;
+ const canFlip=allowBack&&Boolean(images[1])&&!failed;
  return <><div className={'dx-product-media'+(canFlip?' dx-double-view':'')+(catalogue?' dx-catalogue-media':'')+(back&&ready?' dx-show-back':'')}
  onPointerEnter={e=>{if(!priority&&e.pointerType==='mouse'&&matchMedia('(hover: hover) and (pointer: fine)').matches)setBack(true)}} onPointerLeave={()=>{if(!priority)setBack(false)}}
  >

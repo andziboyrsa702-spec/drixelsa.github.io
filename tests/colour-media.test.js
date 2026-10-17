@@ -7,3 +7,11 @@ test('explicit views exclude old designs but retain deliberately selected detail
  assert.deepEqual(productImages({frontImage:'new-front',backImage:'new-back',images:['old-design'],galleryImages:['detail']}),['new-front','new-back','detail']);
  assert.deepEqual(productImages({image:'legacy-front',images:['legacy-back']}),['legacy-front','legacy-back']);
 });
+
+test('back view is optional and saved photos remain when it is hidden',()=>{
+ const hidden={...p,showBackView:false};
+ assert.deepEqual(productImages(hidden),['/black-front']);
+ assert.deepEqual(productImages(hidden,'Blue'),['/blue-front']);
+ assert.deepEqual(productImages({...hidden,showBackView:true}),['/black-front','/black-back']);
+ assert.deepEqual(productImages({frontImage:'/only-front',showBackView:true}),['/only-front']);
+});
