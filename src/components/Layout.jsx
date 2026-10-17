@@ -1,1 +1,1 @@
-import React from"react";import AppHeader from"./AppHeader.jsx";import Footer from"./Footer.jsx";export default function Layout({children}){return <><AppHeader/><div id="store-content" tabIndex={-1}>{children}</div><Footer/></>}
+import React from"react";import AppHeader from"./AppHeader.jsx";import Footer from"./Footer.jsx";export default function Layout({children}){return <><AppHeader/>{children}<Footer/></>}

@@ -53,7 +53,6 @@ jobs:
           VITE_PID=$!
           trap 'kill "$VITE_PID"' EXIT
           node -e 'const wait=async()=>{for(let i=0;i<100;i++){try{await fetch("http://127.0.0.1:5173/");return}catch{}await new Promise(r=>setTimeout(r,100))}process.exit(1)};wait()'
-          node tests/header-browser.cjs
           node tests/security-browser.cjs
           node tests/microsoft-browser.cjs
           node tests/admin-team-browser.cjs

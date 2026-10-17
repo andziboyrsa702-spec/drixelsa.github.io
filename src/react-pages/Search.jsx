@@ -1,25 +1,23 @@
 import ProductCard from '../components/ProductCard.jsx';
 import useCatalogue from "../hooks/useCatalogue.js";
-import React, { useMemo, useState, useEffect } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import React, { useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import Layout from "../components/Layout.jsx";
 import Seo from "../components/Seo.jsx";
 import { productPath } from "../utils/urls.js";
 import { useMarket } from "../context/MarketContext.jsx";
 export default function Search() {
-  const [params]=useSearchParams();
   const {
       market,
       money
     } = useMarket(),
-    [q, setQ] = useState(()=>params.get("q")||""),
+    [q, setQ] = useState(""),
     {
       list,
       loading,
       error,
       retry
     } = useCatalogue(market);
-  useEffect(()=>setQ(params.get("q")||""),[params]);
   const found = useMemo(() => {
     const n = q.trim().toLowerCase();
     if (!n) return [];
