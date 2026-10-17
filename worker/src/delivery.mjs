@@ -1,0 +1,4 @@
+import {getFirestore} from './firestore.mjs';
+import {MARKETS} from '../../src/i18n/markets.js';
+export function publicDeliveryConfig(markets,code){const c=markets?.[code]||(code==='za'?{enabled:true,checkout:true,shippingFee:70,freeFrom:1000}:{}),amount=v=>v!=null&&v!==''&&Number.isFinite(Number(v))&&Number(v)>=0?Number(v):null;return {enabled:c.enabled!==false,checkout:c.checkout===true,shippingFee:amount(c.shippingFee),freeFrom:amount(c.freeFrom),deliveryEstimate:String(c.deliveryEstimate||'').slice(0,300)}}
+export async function deliveryInformation(req,res){const code=String(req.query.market||'za').toLowerCase();if(!Object.hasOwn(MARKETS,code))return res.status(400).json({message:'Unsupported market.'});const snap=await getFirestore().doc('settings/markets').get();return res.set('Cache-Control','public, max-age=60').json({markets:{[code]:publicDeliveryConfig(snap.data()?.markets,code)}})}

@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Opening Drixel…</title></head>
+<body>
+<p>Opening Drixel… <a href="/">Return to the store</a></p>
+<script>
+// GitHub Pages serves this file for deep links; the React entry restores the URL.
+if (location.pathname !== '/') {
+  const route = location.pathname + location.search + location.hash;
+  location.replace('/?__drixel_route=' + encodeURIComponent(route));
+}
+</script>
+</body>
+</html>

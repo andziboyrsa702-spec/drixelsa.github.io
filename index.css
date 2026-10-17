@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700;900&family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600;700&display=swap');
 
         /* ===== NIKE-INSPIRED THEME ===== */
 
@@ -3061,7 +3061,7 @@
             letter-spacing: -0.5px;
             margin-bottom: 12px;
             color: #111111;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            font-family: var(--font-header);
             text-transform: none;
         }
 
@@ -3182,7 +3182,7 @@
             max-width: 480px !important;
             border-width: 1px !important;
             border-style: solid !important;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+            font-family: var(--font-body) !important;
             box-sizing: border-box !important;
         }
 
@@ -4572,7 +4572,7 @@
     border-top: 1px solid rgba(255, 255, 255, 0.05);
     color: rgba(255, 255, 255, 0.7);
     padding: 80px 0 40px;
-    font-family: 'Outfit', 'Inter', sans-serif;
+    font-family: var(--font-body);
     margin-top: auto;
 }
 
@@ -4832,7 +4832,7 @@
     min-height: 80vh !important;
     background: #ffffff !important;
     color: #111111 !important;
-    font-family: 'Outfit', 'Inter', sans-serif !important;
+    font-family: var(--font-body) !important;
 }
 
 .about-page h1 {
@@ -6886,4 +6886,151 @@ img, svg, video {
     .stat-card {
         padding: 14px;
     }
+}
+
+/* Checkout feedback follows the store's monochrome palette. */
+.checkout-feedback { padding: 14px 0; font-size: 14px; line-height: 1.6; color: #222; }
+.checkout-feedback.error { border-left: 3px solid #111; padding-left: 12px; font-weight: 600; }
+button:disabled { opacity: .55; cursor: not-allowed; }
+#orderPaymentInstructions { margin-top: 24px; line-height: 1.8; }
+#orderPaymentInstructions .tracker-timeline { text-align: left; margin-top: 24px; }
+#checkoutCoupon, #pmVariants { width: 100%; padding: 12px; border: 1px solid #bbb; background: #fff; color: #111; }
+@media (prefers-reduced-motion: reduce) { .hero-video { display: none; } .hero { background: #111; } *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; } }
+
+/* Shared storefront layout. Keep these rules together so page templates use the
+   same spacing and intrinsic grid sizing instead of competing mobile patches. */
+:root {
+    --font-header: 'Space Grotesk', Arial, sans-serif;
+    --font-body: 'Inter', Arial, sans-serif;
+}
+button, input, select, textarea { font-family: var(--font-body); }
+h1, h2, h3, h4 { line-height: 1.25; }
+.container { width: 100%; }
+.checkout-container, .contact-container, .about-container {
+    grid-template-columns: minmax(0, 1fr) minmax(300px, 380px) !important;
+    gap: 32px !important;
+    align-items: start;
+}
+.checkout-container > *, .contact-container > *, .about-container > *,
+.form-row > *, .product-detail > *, .footer-top-grid > *, .cart-item > * {
+    min-width: 0;
+}
+.checkout-form-section, .contact-form-section, .about-narrative-section {
+    padding: 28px !important;
+}
+.form-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 20px !important;
+    margin-bottom: 0 !important;
+}
+.form-group input:not([type='checkbox']):not([type='radio']),
+.form-group select, .form-group textarea {
+    min-width: 0;
+    max-width: 100%;
+    width: 100%;
+    font-family: var(--font-body) !important;
+    font-size: 16px !important;
+    line-height: 1.5;
+}
+.checkout-step-title { line-height: 1.4; }
+.checkout-step-title > span { flex: 0 0 28px; }
+/* Labels containing an entire payment option must not inherit field-label layout. */
+.form-group label.payment-method-card {
+    display: grid !important;
+    grid-template-columns: 18px 32px minmax(0, 1fr);
+    gap: 12px !important;
+    align-items: center !important;
+    margin: 0 !important;
+    padding: 16px !important;
+    text-transform: none !important;
+    letter-spacing: normal !important;
+    line-height: 1.5;
+}
+.payment-method-card .pm-text { min-width: 0; }
+.payment-method-card:has(input:checked) { border-color: #111 !important; background: #f6f6f6 !important; }
+.payment-method-card:has(input:disabled) { cursor: not-allowed !important; }
+.payment-method-card input, .checkbox-group input { flex-shrink: 0; }
+.checkout-summary-item-info { min-width: 0; overflow-wrap: anywhere; }
+.summary-row, .checkout-summary-row { gap: 16px; }
+.summary-row > :last-child, .checkout-summary-row > :last-child { flex-shrink: 0; }
+.cart-summary { position: static !important; }
+.cart-summary .btn { display: flex; justify-content: center; align-items: center; min-height: 48px; height: auto; line-height: 1.4; white-space: normal; }
+.cart-summary .btn + .btn { margin-top: 12px; }
+.cart-item-variants, .cart-item-actions, .utility-links { flex-wrap: wrap; }
+.cart-item-actions { margin-top: 12px; gap: 12px; }
+.cart-item-actions button { width: 36px; height: 36px; border: 1px solid #ddd; border-radius: 4px; background: #fff; color: #111; }
+.cart-item-image img { width: 100%; height: 100%; object-fit: cover; }
+.cart-page h1, #orderConfirmationPage h1 { font-size: clamp(28px, 3.5vw, 40px); margin-bottom: 24px; }
+.contact-info-list li > div, .courier-info > div { min-width: 0; overflow-wrap: anywhere; }
+.contact-info-list i, .courier-info > i, .processing-banner > i { flex-shrink: 0; }
+.experience-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 32px; }
+.experience-grid h3 { font-size: 20px; margin-bottom: 12px; }
+.product-info { min-width: 0; }
+.product-info h1, .product-info p { overflow-wrap: anywhere; }
+.product-actions { flex-wrap: wrap; }
+.product-actions .btn { min-width: 140px; min-height: 48px; height: auto !important; line-height: 1.4; }
+.thumbnails { flex-wrap: wrap; }
+.thumbnail { flex-shrink: 0; }
+.newsletter-form { display: flex; gap: 12px; max-width: 560px; margin: 24px auto 0; }
+.newsletter-form input { min-width: 0; flex: 1; width: 100%; padding: 14px 16px; border: 1px solid #ccc; border-radius: 4px; font-size: 16px; }
+.newsletter-form button { flex-shrink: 0; padding: 14px 24px; border: 1px solid #111; border-radius: 4px; background: #111; color: #fff; font-size: 14px; font-weight: 600; cursor: pointer; }
+.newsletter-message { margin-top: 16px; }
+.site-footer, .about-page { font-family: var(--font-body) !important; }
+.footer-brand-col .footer-logo span { color: #fff; }
+.footer-top-grid { grid-template-columns: minmax(0, 1.5fr) repeat(3, minmax(0, 1fr)); gap: 28px; }
+.footer-top-grid a { overflow-wrap: anywhere; }
+.announcement-slider { min-width: 0; height: 34px; }
+.announcement-slide { width: 100%; white-space: normal; font-size: 10px; line-height: 1.4; letter-spacing: .5px; }
+#orderConfirmationPage .text-center { padding: 20px 0 !important; }
+#orderConfirmationPage .courier-info > div { margin-left: 0 !important; }
+#orderConfirmationPage .mt-40 { display: flex; flex-wrap: wrap; gap: 16px; justify-content: center; }
+#orderConfirmationPage .mt-40 .btn { margin: 0 !important; }
+:focus-visible { outline: 2px solid currentColor; outline-offset: 4px; }
+@media (max-width: 1100px) {
+    .checkout-container, .contact-container, .about-container { grid-template-columns: minmax(0, 1fr) !important; gap: 24px !important; }
+    .contact-details-card { position: static !important; }
+    .experience-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 768px) {
+    .navbar .container { gap: 16px; }
+    .navbar .nav-links { position: absolute; top: 100%; max-height: calc(100dvh - 100px); overflow-y: auto; transform: none; display: none; }
+    .navbar .nav-links.active { display: flex; }
+    .nav-icons { flex-shrink: 0; }
+    .mobile-menu-btn { border: 0; background: transparent; color: #111; padding: 8px; cursor: pointer; }
+    .section, .cart-page, .about-page, .contact-page, .checkout-page { padding: 40px 0 !important; }
+    .checkout-form-section, .contact-form-section, .about-narrative-section, .cart-summary { padding: 20px !important; }
+    .form-row { grid-template-columns: minmax(0, 1fr) !important; gap: 0 !important; }
+    .cart-item { grid-template-columns: 72px minmax(0, 1fr); gap: 16px; padding: 20px; text-align: left; }
+    .cart-item-image { width: 72px; height: 90px; margin: 0; }
+    .cart-item-price { grid-column: 2; }
+    .product-info { text-align: left !important; }
+    .product-info h1, .product-info .product-price, .product-info p { text-align: left !important; }
+    .footer-top-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 32px 20px; }
+    .footer-brand-col, .footer-top-grid > :last-child { grid-column: 1 / -1; }
+    .site-footer { padding: 48px 0 28px; }
+}
+@media (max-width: 480px) {
+    .experience-grid { grid-template-columns: minmax(0, 1fr); }
+    .newsletter-form { flex-direction: column; }
+    .newsletter-form button { min-height: 48px; }
+    .courier-info { padding: 16px !important; gap: 12px !important; }
+    .checkout-summary-item { display: grid !important; grid-template-columns: 48px minmax(0, 1fr) auto; gap: 10px !important; }
+    .checkout-summary-item-img { width: 48px !important; height: 60px !important; }
+    .checkout-summary-item-price { margin-left: auto; }
+    .auth-container { padding: 24px 20px; }
+}
+/* Keep the wordmark on one line beside the complete set of account controls. */
+.navbar .logo { white-space: nowrap; flex-shrink: 0; }
+.site-footer .footer-links-list i, .site-footer .footer-info-list i { color: #aaa !important; }
+.contact-details-card .social-icons { flex-wrap: wrap; gap: 12px; }
+.contact-details-card .social-icons a { background: #f3f3f3; color: #111; border: 1px solid #ddd; }
+@media (max-width: 768px) {
+    .navbar .logo { font-size: 22px; letter-spacing: 1.5px; }
+    .nav-icons { gap: 14px; }
+    .navbar .container { gap: 12px; }
+    .auth-container { margin: 24px auto; }
+}
+@media (max-width: 360px) {
+    .navbar .logo { font-size: 20px; letter-spacing: 1px; }
+    .nav-icons { gap: 10px; }
 }

@@ -1,0 +1,33 @@
+name: Verify storefront and commerce
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - run: npm ci && npm ci --prefix functions
+      - run: npm test && npm run check
+      - run: npm run test:rules
+      - run: npx playwright install chromium --with-deps
+      - name: Isolated browser checkout checks
+        run: |
+          npm run dev -- --host 127.0.0.1 --port 5173 --strictPort >/tmp/drixel-vite.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill "$SERVER_PID"' EXIT
+          node -e 'const wait=async()=>{for(let i=0;i<100;i++){try{const r=await fetch("http://127.0.0.1:5173/");if(r.ok)return}catch{}await new Promise(r=>setTimeout(r,100))}process.exit(1)};wait()'
+          node --test tests/checkout-payments.cjs tests/storefront-resilience.test.js
+          npm run test:browser

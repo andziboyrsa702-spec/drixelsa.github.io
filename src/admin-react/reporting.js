@@ -1,0 +1,2 @@
+export const recordTime=value=>value?.toMillis?value.toMillis():value?.seconds?value.seconds*1000:typeof value==='number'?value:Date.parse(value)||0;
+export function reportingRecords(data,enabled){if(!enabled)return data;const from=Number(data.settings?.find(s=>s.id==='reporting')?.from||0);if(!from)return data;return {...data,...Object.fromEntries(['orders','users','subscribers'].map(name=>[name,(data[name]||[]).filter(r=>recordTime(r.createdAt||r.subscribedAt||r.updatedAt)>=from)]))};}

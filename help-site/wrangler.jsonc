@@ -1,0 +1,13 @@
+{
+  "name": "drixel-help",
+  "account_id": "89605ad9729e5860c860760bc8e3b743",
+  "main": "worker.mjs",
+  "compatibility_date": "2026-10-13",
+  "workers_dev": true,
+  "assets": { "directory": "./dist", "binding": "ASSETS", "run_worker_first": true },
+  "routes": [
+    { "pattern": "help.drixelsa.co.za", "custom_domain": true },
+    { "pattern": "members.drixelsa.co.za", "custom_domain": true },
+    { "pattern": "orders.drixelsa.co.za", "custom_domain": true }
+  ]
+}

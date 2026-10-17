@@ -1,0 +1,4 @@
+import {apiUrl} from './api.js';
+export function analyticsAllowed(){try{return navigator.globalPrivacyControl!==true&&navigator.doNotTrack!=='1'&&localStorage.getItem('drixel_analytics')==='yes'}catch{return false}}
+export function setAnalyticsConsent(allowed){try{localStorage.setItem('drixel_analytics',allowed?'yes':'no');if(!allowed)sessionStorage.removeItem('drixel_analytics_session')}catch{}window.dispatchEvent(new Event('drixel-analytics-choice'))}
+export function trackShopping(event){if(!analyticsAllowed())return;try{let session=sessionStorage.getItem('drixel_analytics_session');if(!session){session=crypto.randomUUID();sessionStorage.setItem('drixel_analytics_session',session)}fetch(apiUrl('/api/analytics/event'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({event,session,consent:'shopping-analytics-v1'}),keepalive:true,credentials:'omit'}).catch(()=>{})}catch{}}
