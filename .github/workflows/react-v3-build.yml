@@ -69,6 +69,7 @@ jobs:
           node tests/shopping-reminders-browser.cjs
           node tests/customer-services-browser.cjs
           node tests/edge-security-browser.mjs
+          node tests/payfast-browser.cjs
           node tests/payments-browser.cjs
           node tests/snapscan-browser.cjs
       - name: Verify Firebase hosting output
