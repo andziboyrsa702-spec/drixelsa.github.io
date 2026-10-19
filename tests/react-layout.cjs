@@ -19,7 +19,7 @@ const paths=['/za','/za/checkout','/za/cart','/za/w/new-featured','/za/t/drixel-
   const u=new URL(route.request().url());
   const firebase=u.pathname.match(/firebase_(app|auth|firestore)\.js$/);
   if(firebase)return route.fulfill({contentType:'application/javascript',body:modules[firebase[1]]});
-  if(u.pathname==='/api/admin/security/authenticator/status')return route.fulfill({json:{available:true,verified:true,enrolled:true,expiresAt:Date.now()+900000}});if(u.pathname.startsWith('/api/'))return route.fulfill({contentType:'application/json',body:JSON.stringify(u.pathname.includes('payments/config')?{bank:{enabled:true,bankName:'Test Bank',bankAccountHolder:'Drixel',bankAccountNumber:'123',bankBranchCode:'456',bankAccountType:'Business'},yoco:{enabled:false},snapscan:{enabled:false}}:u.pathname.includes('checkout-quote')?quote:u.pathname.includes('exchange-rates')?{rate:1}:{} )});
+  if(u.pathname==='/api/admin/security/authenticator/status')return route.fulfill({json:{available:true,verified:true,enrolled:true,expiresAt:Date.now()+900000}});if(u.pathname.startsWith('/api/'))return route.fulfill({contentType:'application/json',body:JSON.stringify(u.pathname.includes('payments/config')?{bank:{enabled:false},yoco:{enabled:false},snapscan:{enabled:true}}:u.pathname.includes('checkout-quote')?quote:u.pathname.includes('exchange-rates')?{rate:1}:{} )});
   if(/\.(png|jpg|jpeg)$/i.test(u.pathname))return route.fulfill({contentType:'image/svg+xml',body:'<svg xmlns="http://www.w3.org/2000/svg" width="600" height="600"><rect width="600" height="600" fill="#ddd"/></svg>'});
   if(u.pathname.endsWith('.mp4'))return route.fulfill({body:''});
   if(u.hostname==='127.0.0.1')return route.continue();
@@ -33,7 +33,7 @@ const paths=['/za','/za/checkout','/za/cart','/za/w/new-featured','/za/t/drixel-
  await page.route('**/api/checkout-quote',route=>quoteFailures-- > 0?route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({message:'Quote service unavailable'})}):route.fulfill({contentType:'application/json',body:JSON.stringify(quote)}));
  await page.goto('http://127.0.0.1:5173/za/checkout');
  await page.getByRole('button',{name:'Retry order quote'}).waitFor();
- assert.equal(await page.getByRole('button',{name:'Place bank-transfer order'}).isDisabled(),true);
+ assert.equal(await page.getByRole('button',{name:'Continue to SnapScan'}).isDisabled(),true);assert.equal(await page.getByText('Bank transfer',{exact:true}).count(),0);
  await page.getByRole('button',{name:'Retry order quote'}).click();
  await page.waitForFunction(()=>{const b=document.querySelector('.dx-place');return b&&!b.disabled});
  await page.unroute('**/api/checkout-quote');
@@ -41,9 +41,9 @@ const paths=['/za','/za/checkout','/za/cart','/za/w/new-featured','/za/t/drixel-
  await page.route('**/api/create-order',route=>{submittedOrder=route.request().postDataJSON();return route.fulfill({contentType:'application/json',body:JSON.stringify({success:true,orderNumber:'DRX-123'})})});
  for(const [label,value] of [['First name','Layout'],['Last name','Buyer'],['Phone','0712345678'],['Street address','10 Main Road'],['City','Cape Town'],['Postal / ZIP code','7700']])await page.getByLabel(label,{exact:true}).fill(value);
  await page.locator('select[name="province"]').selectOption({label:'Western Cape'});
- await page.getByRole('button',{name:'Place bank-transfer order'}).click();
+ await page.getByRole('button',{name:'Continue to SnapScan'}).click();
  await page.waitForURL('**/order-confirmation/DRX-123');
- assert.equal(submittedOrder.customer.address,'10 Main Road');
+ assert.equal(submittedOrder.paymentMethod,'snapscan');assert.equal(submittedOrder.customer.address,'10 Main Road');
  assert.equal(submittedOrder.customer.firstName,'Layout');
  assert.equal(submittedOrder.items[0].quantity,2);
  await page.evaluate(p=>localStorage.setItem('drixel_cart',JSON.stringify([{...p,productId:'tee',quantity:2,size:'M',color:'Black'}])),product);
