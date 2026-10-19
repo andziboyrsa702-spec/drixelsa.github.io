@@ -127,8 +127,7 @@ export default function Checkout() {
         window.location.assign(url.href);return;
       }
       if(paymentMethod==="snapscan")sessionStorage.setItem("drixel_pending_snapscan_order",d.orderId);
-      if(paymentMethod!=="snapscan")cart.clear();
-      if(paymentMethod!=="snapscan")sessionStorage.removeItem("drixel_checkout_attempt");
+      // Keep products in the bag until a server-verified payment confirmation arrives.
       nav(path("/za/order-confirmation/" + encodeURIComponent(d.orderNumber)));
     } catch (x) {
       trackShopping("checkout_problem");
