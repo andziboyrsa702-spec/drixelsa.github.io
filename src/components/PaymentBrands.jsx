@@ -5,6 +5,12 @@ const methods=[
  ['payfast','Payfast'],['yoco','Yoco'],['visa','Visa'],['mastercard','Mastercard'],['amex','American Express'],
  ['apple-pay','Apple Pay'],['google-pay','Google Pay'],['snapscan','SnapScan'],['eft','EFT']
 ];
+const labels=Object.fromEntries(methods);
+export function PaymentBrandMarks({brands=[]}){
+ const visible=brands.filter(id=>labels[id]);
+ if(!visible.length)return null;
+ return <span className="dx-payment-choice-brands" aria-label={'Accepted payment methods: '+visible.map(id=>labels[id]).join(', ')}>{visible.map(id=><img key={id} src={'/assets/payments/'+id+'.png'} alt={labels[id]} title={labels[id]} loading="lazy" width="54" height="24"/>)}</span>;
+}
 export default function PaymentBrands({market='za'}){
  const [config,setConfig]=useState(null);
  useEffect(()=>{const controller=new AbortController();fetch(apiUrl('/api/payments/config'),{signal:controller.signal}).then(r=>r.ok?r.json():null).then(setConfig).catch(()=>{});return()=>controller.abort();},[]);
