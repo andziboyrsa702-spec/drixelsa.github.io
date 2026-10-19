@@ -356,8 +356,8 @@ exports.createOrder = functions.https.onRequest(async (req, res) => {
         const required=[["firstName",80],["lastName",80],["phone",30],["address",180],["city",100],["postalCode",20],["province",80]];
         if(!required.every(([key,max])=>validText(customer[key],max))||!isValidEmail(email))return res.status(400).json({success:false,message:"Complete all delivery details."});
         const paymentMethod=String(req.body.paymentMethod||"");
-        if(!["bank","yoco","snapscan","payfast"].includes(paymentMethod))return res.status(400).json({success:false,message:"Unsupported payment method."});
-        if(paymentMethod==="yoco"&&process.env.CARD_PAYMENTS_ENABLED!=="true")return res.status(409).json({message:"Card payments are not connected yet. Choose bank transfer."});
+        if(!["yoco","snapscan","payfast"].includes(paymentMethod))return res.status(400).json({success:false,message:"Unsupported payment method."});
+        if(paymentMethod==="yoco"&&process.env.CARD_PAYMENTS_ENABLED!=="true")return res.status(409).json({message:"Card payments are currently unavailable. Choose another available payment method."});
         const market=String(req.body.market||"za").toLowerCase();if(!MARKET_CONFIG[market])return res.status(400).json({success:false,message:"Unsupported market."});
         if(["yoco","snapscan","payfast"].includes(paymentMethod)&&market!=="za")return res.status(409).json({message:"QR and card payments are available for South African ZAR orders only."});
         if(paymentMethod==="payfast"&&!req.payfastAccount)return res.status(409).json({message:"Payfast requires the configured backend."});

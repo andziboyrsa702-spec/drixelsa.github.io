@@ -3,7 +3,7 @@ import {apiUrl} from '../utils/api.js';
 import './PaymentBrands.css';
 const methods=[
  ['payfast','Payfast'],['yoco','Yoco'],['visa','Visa'],['mastercard','Mastercard'],['amex','American Express'],
- ['apple-pay','Apple Pay'],['google-pay','Google Pay'],['snapscan','SnapScan'],['eft','EFT']
+ ['apple-pay','Apple Pay'],['google-pay','Google Pay'],['snapscan','SnapScan']
 ];
 const labels=Object.fromEntries(methods);
 export function PaymentBrandMarks({brands=[]}){
@@ -21,7 +21,6 @@ export default function PaymentBrands({market='za'}){
    if(id==='yoco')return config.yoco?.enabled&&config.yoco.mode==='live';
    if(['visa','mastercard','amex','apple-pay','google-pay'].includes(id))return cardWallets;
    if(id==='snapscan')return config.snapscan?.enabled;
-   if(id==='eft')return config.bank?.enabled||(config.payfast?.enabled&&config.payfast.mode==='live');
    return false;
  });
  if(!enabled.length)return null;
