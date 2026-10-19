@@ -48,6 +48,13 @@ if(require.main===module)(async()=>{
  await page.getByLabel('Description style',{exact:true}).selectOption({index:1});
  await page.getByLabel('Fit suggestions',{exact:true}).selectOption({index:2});
  assert.ok((await page.getByLabel('Description',{exact:true}).inputValue()).includes('Hoodie'));
+ assert.equal(await page.getByLabel('Name suggestions (60 per category)').inputValue(),await page.getByLabel('Name',{exact:true}).inputValue());
+ assert.equal(await page.getByLabel('Description style').inputValue(),await page.getByLabel('Description',{exact:true}).inputValue());
+ assert.equal(await page.getByLabel('Fit suggestions').inputValue(),await page.getByLabel('Fit',{exact:true}).inputValue());
+ await page.getByLabel('Fabric & composition suggestions').selectOption({index:2});
+ assert.equal(await page.getByLabel('Fabric & composition suggestions').inputValue(),await page.getByLabel('Fabric & composition',{exact:true}).inputValue());
+ await page.getByLabel('Care suggestions').selectOption({index:2});
+ assert.equal(await page.getByLabel('Care suggestions').inputValue(),await page.getByLabel('Care instructions',{exact:true}).inputValue());
  await page.getByLabel('New colour',{exact:true}).fill('Black');
  await page.getByRole('button',{name:'Add colour',exact:true}).click();
  assert.equal(await page.getByLabel('Size',{exact:true}).count(),6);
