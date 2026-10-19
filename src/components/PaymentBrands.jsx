@@ -1,12 +1,23 @@
 import React,{useEffect,useState} from 'react';
 import {apiUrl} from '../utils/api.js';
 import './PaymentBrands.css';
-const providers=[['payfast','Payfast'],['yoco','Yoco'],['snapscan','SnapScan']];
-export default function PaymentBrands({config,market='za',includeTest=false}){
- const [publicConfig,setPublicConfig]=useState(null);
- useEffect(()=>{if(config!==undefined)return;const controller=new AbortController();fetch(apiUrl('/api/payments/config'),{signal:controller.signal}).then(r=>r.ok?r.json():null).then(setPublicConfig).catch(()=>{});return()=>controller.abort();},[config]);
- const available=config===undefined?publicConfig:config;
- const brands=market==='za'?providers.filter(([key])=>available?.[key]?.enabled&&(includeTest||!['test','sandbox'].includes(available[key].mode))):[];
- if(!brands.length&&!available?.bank?.enabled)return null;
- return <div className="dx-payment-brands" aria-label="Accepted payment providers"><p>Payment options</p><div className="dx-payment-brand-list">{brands.map(([key,label])=><span className="dx-payment-brand" key={key}><img src={'/assets/payments/'+key+'.png'} alt={label} width="120" height="40"/>{['test','sandbox'].includes(available[key].mode)&&<small>Test mode</small>}</span>)}{available?.bank?.enabled&&<span className="dx-payment-brand dx-payment-eft">Bank transfer · EFT</span>}</div></div>;
+const methods=[
+ ['payfast','Payfast'],['yoco','Yoco'],['visa','Visa'],['mastercard','Mastercard'],['amex','American Express'],
+ ['apple-pay','Apple Pay'],['google-pay','Google Pay'],['snapscan','SnapScan'],['eft','EFT']
+];
+export default function PaymentBrands({market='za'}){
+ const [config,setConfig]=useState(null);
+ useEffect(()=>{const controller=new AbortController();fetch(apiUrl('/api/payments/config'),{signal:controller.signal}).then(r=>r.ok?r.json():null).then(setConfig).catch(()=>{});return()=>controller.abort();},[]);
+ if(!config||market!=='za')return null;
+ const cardWallets=(config.payfast?.enabled&&config.payfast.mode==='live')||(config.yoco?.enabled&&config.yoco.mode==='live');
+ const enabled=methods.filter(([id])=>{
+   if(id==='payfast')return config.payfast?.enabled&&config.payfast.mode==='live';
+   if(id==='yoco')return config.yoco?.enabled&&config.yoco.mode==='live';
+   if(['visa','mastercard','amex','apple-pay','google-pay'].includes(id))return cardWallets;
+   if(id==='snapscan')return config.snapscan?.enabled;
+   if(id==='eft')return config.bank?.enabled||(config.payfast?.enabled&&config.payfast.mode==='live');
+   return false;
+ });
+ if(!enabled.length)return null;
+ return <div className="dx-payment-brands" aria-label={'Accepted payment methods: '+enabled.map(([,label])=>label).join(', ')}><div className="dx-payment-brand-list">{enabled.map(([id,label])=><img key={id} src={'/assets/payments/'+id+'.png'} alt={label} title={label} loading="lazy" width="72" height="32"/>)}</div></div>;
 }

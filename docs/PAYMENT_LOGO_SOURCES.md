@@ -1,7 +1,5 @@
 # Payment logo sources
 
-Payfast: official full-colour PNG from https://payfast.io/logos-and-images/ (Payfast by Network logo pack).
-Yoco: official navigation SVG from https://www.yoco.com/za/, rasterized to PNG.
-SnapScan: official navigation SVG from https://www.snapscan.co.za/, rasterized to PNG.
+The payment methods displayed in the compact footer strip are sourced from Payfast's official Payment Methods Logo Pack: https://payfast.io/logos-and-images/ (Visa, Mastercard, American Express, Apple Pay, Google Pay, SnapScan and Instant EFT). Payfast gateway artwork comes from the official Payfast by Network logo pack. Yoco artwork comes from https://www.yoco.com/za/.
 
-Brand artwork is preserved. Logos are locally served and displayed only for enabled providers; public footer excludes test modes. EFT is a text label, not a fabricated bank logo. No card-network acceptance is inferred from a gateway being enabled.
+The Payfast and Yoco provider marks appear only when their respective live gateway is enabled. Card and wallet marks appear when a live Payfast or Yoco gateway is enabled. SnapScan and EFT marks appear when the corresponding store option is available. Sandbox/test credentials are not advertised in the public footer. Logos are locally served.
