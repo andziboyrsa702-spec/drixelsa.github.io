@@ -47,6 +47,8 @@ jobs:
           VITE_FIREBASE_AUTH_DOMAIN: ${{ vars.VITE_FIREBASE_AUTH_DOMAIN || 'drixel-sa.firebaseapp.com' }}
           VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL || 'https://drixel-api.drixelsa.workers.dev' }}
       - run: npx playwright install chromium --with-deps
+      - name: Generate DRIXEL browser and mobile icons
+        run: node scripts/generate-favicons.mjs
       - name: Verify React storefront alignment
         run: |
           npm run dev -- --host 127.0.0.1 >/tmp/drixel-vite.log 2>&1 &
