@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="192" height="192" viewBox="0 0 192 192" role="img" aria-label="DRIXEL">
+<rect width="192" height="192" rx="30" fill="#171717"/>
+<path d="M40 54h48c32 0 54 18 54 42s-22 42-54 42H40V54zm29 24v36h18c16 0 25-6 25-18s-9-18-25-18H69z" fill="#fff"/>
+<path d="M140 54h12v84h-12z" fill="#fff"/>
+</svg>
