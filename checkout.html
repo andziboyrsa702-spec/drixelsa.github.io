@@ -273,6 +273,17 @@
 </div>
 
 
+<script>
+(() => {
+    const method = document.getElementById('payYoco');
+    const logos = document.querySelector('[data-checkout-yoco-brands]');
+    if (!method || !logos) return;
+    const syncLogos = () => { logos.hidden = method.disabled; };
+    syncLogos();
+    new MutationObserver(syncLogos).observe(method, { attributes: true, attributeFilter: ['disabled'] });
+})();
+</script>
+
                             <div id="bankTransferInfo">
                                 <p>Pay via bank transfer using these details:</p>
                                 <div style="background: rgba(0,0,0, 0.05); padding: 20px; border-radius: var(--border-radius); margin-top: 20px; border: 2px dashed var(--accent-orange);">

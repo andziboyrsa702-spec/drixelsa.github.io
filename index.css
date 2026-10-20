@@ -7034,3 +7034,31 @@ h1, h2, h3, h4 { line-height: 1.25; }
     .navbar .logo { font-size: 20px; letter-spacing: 1px; }
     .nav-icons { gap: 10px; }
 }
+
+/* Real payment marks on the live static checkout and footer */
+.payment-method-card .payment-brand-strip {
+    display:flex; flex:0 0 auto; align-items:center; justify-content:center;
+    flex-wrap:wrap; gap:4px; margin-left:auto; padding:5px 7px;
+    border-radius:8px; background:#fff;
+}
+.payment-brand-strip[hidden] { display:none !important; }
+.payment-brand-strip img {
+    display:block; width:auto; height:18px; max-width:42px; object-fit:contain;
+}
+.payment-brand-strip img.payment-brand-snapscan { height:22px; max-width:86px; }
+.badge-icons {
+    width:min(440px,100%); height:34px; padding:5px 7px; box-sizing:border-box;
+    border-radius:9px; background:#fff; font-size:0; overflow:hidden;
+}
+.badge-icons > * { display:none !important; }
+.badge-icons::after {
+    content:""; display:block; width:100%; height:100%;
+    background:url('/assets/payments/payment-strip.svg') center / contain no-repeat;
+}
+@media (max-width:575px) {
+    .payment-method-card { flex-wrap:wrap; }
+    .payment-method-card .payment-brand-strip { margin-left:auto; max-width:100%; }
+    .checkout-yoco-brands { gap:3px; }
+    .checkout-yoco-brands img { height:16px; max-width:36px; }
+    .badge-icons { max-width:320px; height:29px; }
+}
