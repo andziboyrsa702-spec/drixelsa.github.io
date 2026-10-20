@@ -60,7 +60,7 @@ await writeFile('dist/robots.txt','User-agent: *\nAllow: /\nDisallow: /api/\nSit
 // Unavailable routes must never be indexed with a stale checkout/error snippet.
 // Serve the full React application for direct links that were not pre-rendered.
 // Preserve the requested path so private/admin pages can mount without a redirect loop.
-await writeFile('dist/404.html',html.replace(/<meta name="robots"[^>]*>/g,'').replace('</head>','<meta name="robots" content="noindex,nofollow"><meta name="googlebot" content="noindex,nofollow"></head>').replace('<div id="root"></div>','<div id="root"><main class="dx-loading" role="status" style="padding:70px 24px;max-width:600px;margin:auto"><img src="/favicon-32x32.png" alt="" width="32" height="32"><h1>Opening DRIXEL</h1><p>Preparing your page. If it does not open, <a href="/za/member/login/">continue to sign in</a> or <a href="/za">return to the store</a>.</p></main></div>'));
+await writeFile('dist/404.html',html.replace(/<meta name="robots"[^>]*>/g,'').replace('</head>','<meta name="robots" content="noindex,nofollow"><meta name="googlebot" content="noindex,nofollow"></head>').replace('<div id="root"></div>','<div id="root"></div>'));
 await writeFile('dist/index.html',render('/za',pages.get('/za')));
 console.log(`Built ${pages.size} route entries, ${mapFiles.length} sitemaps and a readable directory covering ${catalogue.length} active products.`);
 
