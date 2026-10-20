@@ -12,7 +12,7 @@ export function ozowReadiness(env=process.env){
 }
 export function validOzowRedirect(value){
  let url;try{url=new URL(value)}catch{return false}
- return url.protocol==='https:'&&!url.username&&!url.password&&/(^|\\.)ozow\\.com$/i.test(url.hostname);
+ return url.protocol==='https:'&&!url.username&&!url.password&&(url.hostname==='ozow.com'||url.hostname.endsWith('.ozow.com'));
 }
 export function ozowPaymentRequest(order,siteCode,origin){
  if(!order||order.paymentStatus!=='pending'||order.paymentMethod!=='ozow'||order.currency!=='ZAR')throw Error('Order is not eligible for Ozow.');
