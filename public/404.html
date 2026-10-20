@@ -1,14 +1,13 @@
 <!doctype html>
-<html lang="en">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Page unavailable | Drixel SA</title><meta name="robots" content="noindex,nofollow"><link rel="icon" type="image/svg+xml" sizes="any" href="/favicon.svg"><link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png"><link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png"><link rel="shortcut icon" href="/favicon.ico"><link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png"><link rel="manifest" href="/site.webmanifest"><meta name="msapplication-TileImage" content="/mstile-150x150.png"></head>
-<body>
-<p>Opening Drixel… <a href="/">Return to the store</a></p>
-<script>
-// GitHub Pages serves this file for deep links; the React entry restores the URL.
-if (location.pathname !== '/') {
-  const route = location.pathname + location.search + location.hash;
-  location.replace('/?__drixel_route=' + encodeURIComponent(route));
-}
-</script>
-</body>
-</html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><meta name="theme-color" content="#111111"><title>Opening DRIXEL</title><link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png"><style>
+*{box-sizing:border-box}body{margin:0;background:#f8f8f6;color:#111;font:14px/1.6 Arial,Helvetica,sans-serif}main{min-height:100dvh;display:grid;place-items:center;padding:24px}.dx-recovery{width:min(100%,460px);padding:clamp(28px,6vw,48px);background:#fff;border:1px solid #e5e5e2;border-radius:18px;box-shadow:0 18px 60px rgba(0,0,0,.045)}.dx-logo{display:flex;align-items:center;gap:12px;letter-spacing:.22em;font-size:17px;font-weight:900}.dx-logo img{width:34px;height:34px}.dx-eyebrow{margin-top:38px;color:#777;font-size:10px;letter-spacing:.2em;font-weight:800}.dx-recovery h1{font-size:clamp(26px,5vw,36px);line-height:1.15;letter-spacing:-.055em;margin:10px 0 14px}.dx-recovery p{color:#5d5d5d;margin:0 0 22px}.dx-actions{display:grid;gap:10px}.dx-actions a{display:block;text-align:center;text-decoration:none;font-weight:800;font-size:12px;border-radius:8px;padding:13px 18px;background:#111;color:#fff}.dx-actions a+ a{background:#fff;border:1px solid #ddd;color:#111}.dx-recovery small{display:block;color:#888;margin-top:22px}
+</style></head><body><main><section class="dx-recovery" aria-label="DRIXEL page loading"><div class="dx-logo"><img src="/favicon-32x32.png" alt="">DRIXEL</div><div class="dx-eyebrow">SECURE ACCOUNT ACCESS</div><h1>Taking you to DRIXEL.</h1><p>We're opening your requested page. If it doesn't open automatically, use the button below to continue safely.</p><div class="dx-actions"><a id="continue" href="/za/member/login/">Continue to sign in</a><a href="/za">Return to the store</a></div><small>Your shopping bag and payment status are not changed.</small></section></main><script>
+(function(){
+ const path=location.pathname+location.search+location.hash;
+ const target='/?__drixel_route='+encodeURIComponent(path);
+ const link=document.getElementById('continue');
+ link.href=target;
+ // GitHub Pages returns this fallback for ungenerated routes. Restore the exact route in the SPA.
+ if(location.pathname!=='/'&& !new URLSearchParams(location.search).has('__drixel_route'))location.replace(target);
+})();
+</script></body></html>
