@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {ozowReadiness,ozowBase,validOzowRedirect,ozowPaymentRequest,ozowAccessToken,ozowCreatePayment} from '../src/ozow.mjs';
+import {ozowReadiness,ozowBase,validOzowRedirect,ozowPaymentRequest,ozowAccessToken,ozowCreatePayment,ozowGetPayment,ozowPaymentMatchesOrder} from '../src/ozow.mjs';
 test('Ozow is never advertised as enabled before payment verification is implemented',()=>{assert.equal(ozowReadiness({OZOW_MODE:'live',OZOW_CLIENT_ID:'a',OZOW_CLIENT_SECRET:'b',OZOW_SITE_CODE:'c',OZOW_WEBHOOK_SECRET:'d',OZOW_ENABLED:'true'}).enabled,false)});
 test('Ozow URLs cannot redirect a customer to unrelated providers',()=>{assert.equal(validOzowRedirect('https://pay.ozow.com/secure'),true);assert.equal(validOzowRedirect('https://ozow.com.evil.test'),false);assert.equal(validOzowRedirect('http://pay.ozow.com'),false)});
 test('payment request uses ZAR, server-owned reference and safe return URL',()=>{const p=ozowPaymentRequest({id:'order1',orderNumber:'DRX-123',paymentStatus:'pending',paymentMethod:'ozow',currency:'ZAR',total:320},'SITE','https://drixelsa.co.za');assert.equal(p.amount.currency,'ZAR');assert.equal(p.merchantReference,'order1');assert.ok(p.returnUrl.startsWith('https://drixelsa.co.za/'))});
@@ -23,4 +23,18 @@ test('Ozow validates redirect destination and never accepts a payment result as 
  assert.equal(calls[1].opts.headers['Idempotency-Key'],'drixel-ozow-id1');
  const requestBad=async(url)=>url.endsWith('/token')?{ok:true,json:async()=>({access_token:'token'})}:{ok:true,json:async()=>({id:'payment2',redirectUrl:'https://ozow.com.evil.test'})};
  await assert.rejects(ozowCreatePayment(order,{env,request:requestBad}),/untrusted/);
+});
+
+test('provider lookup verifies the exact Ozow payment id and does not trust redirects',async()=>{
+ const env={OZOW_MODE:'live',OZOW_CLIENT_ID:'client',OZOW_CLIENT_SECRET:'secret'};
+ const request=async(url)=>url.endsWith('/token')?{ok:true,json:async()=>({access_token:'token'})}:{ok:true,json:async()=>({id:'payment_123',merchantReference:'ord-1',siteCode:'SITE',amount:{currency:'ZAR',value:99.99},status:'created'})};
+ const detail=await ozowGetPayment('payment_123',{env,request});
+ assert.equal(detail.status,'created');
+ const order={id:'ord-1',ozowPaymentId:'payment_123',ozowSiteCode:'SITE',total:99.99};
+ assert.equal(ozowPaymentMatchesOrder(detail,order),true);
+ assert.equal(ozowPaymentMatchesOrder({...detail,amount:{currency:'ZAR',value:100}},order),false);
+ assert.equal(ozowPaymentMatchesOrder({...detail,merchantReference:'someone-else'},order),false);
+ assert.equal(ozowPaymentMatchesOrder({...detail,siteCode:'OTHER'},order),false);
+ await assert.rejects(ozowGetPayment('../bad',{env,request}),/Invalid/);
+ await assert.rejects(ozowGetPayment('other',{env,request}),/different payment reference/);
 });
