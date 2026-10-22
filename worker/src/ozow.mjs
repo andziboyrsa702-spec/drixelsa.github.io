@@ -1,3 +1,4 @@
+import {createHmac,timingSafeEqual} from 'node:crypto';
 /**
  * Ozow One API rollout preparation.
  * The checkout MUST remain disabled until authenticated transaction verification
@@ -74,4 +75,20 @@ export function ozowPaymentMatchesOrder(detail,order){
  if(!detail||!order||detail.id!==order.ozowPaymentId||detail.merchantReference!==order.id)return false;
  if(detail.siteCode!==order.ozowSiteCode||detail.amount?.currency!=='ZAR')return false;
  return Number.isFinite(Number(detail.amount.value))&&Math.round(Number(detail.amount.value)*100)===Math.round(Number(order.total)*100);
+}
+
+export function verifyOzowWebhook(headers,raw,secret,now=Date.now()){
+ const id=headers['svix-id'],stamp=headers['svix-timestamp'],signature=headers['svix-signature'];
+ if(!id||!/^\\d{10}$/.test(String(stamp||''))||Math.abs(now/1000-Number(stamp))>300||!/^whsec_[a-zA-Z0-9+/=_-]+$/.test(secret||''))return false;
+ if(typeof signature!=='string'||!signature)return false;
+ const key=Buffer.from(secret.slice(6),'base64');
+ if(key.length<16)return false;
+ const value=Buffer.isBuffer(raw)?raw:Buffer.from(raw);
+ const digest=createHmac('sha256',key).update(id+'.'+stamp+'.').update(value).digest();
+ return signature.split(' ').some(item=>{
+  const [version,encoded]=item.split(',');
+  if(version!=='v1'||!encoded)return false;
+  const received=Buffer.from(encoded,'base64');
+  return received.length===digest.length&&timingSafeEqual(received,digest);
+ });
 }
