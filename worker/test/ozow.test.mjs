@@ -1,6 +1,7 @@
+import {createHmac} from 'node:crypto';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {ozowReadiness,ozowBase,validOzowRedirect,ozowPaymentRequest,ozowAccessToken,ozowCreatePayment,ozowGetPayment,ozowPaymentMatchesOrder} from '../src/ozow.mjs';
+import {ozowReadiness,ozowBase,validOzowRedirect,ozowPaymentRequest,ozowAccessToken,ozowCreatePayment,ozowGetPayment,ozowPaymentMatchesOrder,verifyOzowWebhook} from '../src/ozow.mjs';
 test('Ozow is never advertised as enabled before payment verification is implemented',()=>{assert.equal(ozowReadiness({OZOW_MODE:'live',OZOW_CLIENT_ID:'a',OZOW_CLIENT_SECRET:'b',OZOW_SITE_CODE:'c',OZOW_WEBHOOK_SECRET:'d',OZOW_ENABLED:'true'}).enabled,false)});
 test('Ozow URLs cannot redirect a customer to unrelated providers',()=>{assert.equal(validOzowRedirect('https://pay.ozow.com/secure'),true);assert.equal(validOzowRedirect('https://ozow.com.evil.test'),false);assert.equal(validOzowRedirect('http://pay.ozow.com'),false)});
 test('payment request uses ZAR, server-owned reference and safe return URL',()=>{const p=ozowPaymentRequest({id:'order1',orderNumber:'DRX-123',paymentStatus:'pending',paymentMethod:'ozow',currency:'ZAR',total:320},'SITE','https://drixelsa.co.za');assert.equal(p.amount.currency,'ZAR');assert.equal(p.merchantReference,'order1');assert.ok(p.returnUrl.startsWith('https://drixelsa.co.za/'))});
@@ -37,4 +38,15 @@ test('provider lookup verifies the exact Ozow payment id and does not trust redi
  assert.equal(ozowPaymentMatchesOrder({...detail,siteCode:'OTHER'},order),false);
  await assert.rejects(ozowGetPayment('../bad',{env,request}),/Invalid/);
  await assert.rejects(ozowGetPayment('other',{env,request}),/different payment reference/);
+});
+
+test('Ozow Svix signature is raw-body authenticated and replay window limited',()=>{
+ const now=1761170000000,stamp=String(Math.floor(now/1000)),id='msg_012345',raw=Buffer.from('{"type":"transaction.complete","data":{"id":"t1","status":"Successful"}}'),key=Buffer.alloc(32,3);
+ const secret='whsec_'+key.toString('base64');
+ const signature=createHmac('sha256',key).update(id+'.'+stamp+'.').update(raw).digest('base64');
+ const headers={'svix-id':id,'svix-timestamp':stamp,'svix-signature':'v1,'+signature};
+ assert.equal(verifyOzowWebhook(headers,raw,secret,now),true);
+ assert.equal(verifyOzowWebhook(headers,Buffer.from(raw.toString().replace('Successful','Error')),secret,now),false);
+ assert.equal(verifyOzowWebhook(headers,raw,secret,now+301000),false);
+ assert.equal(verifyOzowWebhook({...headers,'svix-id':'another'},raw,secret,now),false);
 });
