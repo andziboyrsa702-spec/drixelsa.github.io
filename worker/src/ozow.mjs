@@ -57,3 +57,21 @@ export async function ozowCreatePayment(order,{env=process.env,request=fetch}={}
  if(typeof payment.id!=='string'||!payment.id)error('Ozow payment reference missing.',502);
  return {paymentId:payment.id,redirectUrl:href,paymentStatus:'pending'};
 }
+
+export async function ozowGetPayment(paymentId,{env=process.env,request=fetch}={}){
+ if(!/^[a-zA-Z0-9_-]{1,150}$/.test(paymentId||''))error('Invalid Ozow payment reference.',400);
+ const token=await ozowAccessToken(env,request);
+ const response=await request(ozowBase(env.OZOW_MODE)+'/payments/'+encodeURIComponent(paymentId),{
+  method:'GET',headers:{Authorization:'Bearer '+token},signal:AbortSignal.timeout(15000)
+ });
+ if(!response.ok)error('Ozow payment status could not be verified.',503);
+ const detail=await response.json();
+ if(detail?.id!==paymentId)error('Ozow returned a different payment reference.',502);
+ // Verification is an independent provider lookup, not the browser return URL.
+ return detail;
+}
+export function ozowPaymentMatchesOrder(detail,order){
+ if(!detail||!order||detail.id!==order.ozowPaymentId||detail.merchantReference!==order.id)return false;
+ if(detail.siteCode!==order.ozowSiteCode||detail.amount?.currency!=='ZAR')return false;
+ return Number.isFinite(Number(detail.amount.value))&&Math.round(Number(detail.amount.value)*100)===Math.round(Number(order.total)*100);
+}
