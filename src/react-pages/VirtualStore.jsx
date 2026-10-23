@@ -11,7 +11,7 @@ import { productOptions, selectedVariant, optionStock } from '../utils/productOp
 import { productPath } from '../utils/urls.js';
 import { imageAtWidth } from '../utils/responsiveImage.js';
 
-const SPACING = 2.45;
+const SPACING = 1.82;
 const categoryLabel = value => String(value || 'Collection').replace(/[-_]+/g, ' ').replace(/\b\w/g, letter => letter.toUpperCase());
 const productName = product => product?.name || product?.title || 'Drixel original';
 
@@ -42,6 +42,7 @@ function ShowroomScene({ products, activeIndex, imageFor, onSelect, onWebglError
   const sceneRef = useRef(null);
   const renderRef = useRef(null);
   const targetXRef = useRef(0);
+  const cameraTargetRef=useRef(0);
   const onSelectRef = useRef(onSelect);
   const animateRef = useRef(null);
   onSelectRef.current = onSelect;
@@ -59,15 +60,15 @@ function ShowroomScene({ products, activeIndex, imageFor, onSelect, onWebglError
     onWebglError(false);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
     renderer.outputColorSpace = THREE.SRGBColorSpace;
-    renderer.setClearColor(0xf2f0e9, 1);
+    renderer.setClearColor(0xf9f8f5, 1);
     renderer.domElement.className = 'dx-virtual-canvas';
     renderer.domElement.setAttribute('aria-hidden', 'true');
     renderer.domElement.style.touchAction = 'pan-y';
     mount.appendChild(renderer.domElement);
 
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0xf2f0e9);
-    scene.fog = new THREE.Fog(0xf2f0e9, 18, 46);
+    scene.background = new THREE.Color(0xf9f8f5);
+    scene.fog = new THREE.Fog(0xf9f8f5, 18, 46);
     const camera = new THREE.PerspectiveCamera(36, 1, 0.1, 80);
     camera.position.set(0, 2.5, 11.8);
     camera.lookAt(0, 1.76, 0);
@@ -79,13 +80,16 @@ function ShowroomScene({ products, activeIndex, imageFor, onSelect, onWebglError
     const fill = new THREE.DirectionalLight(0xf6f2e9, 1.35);
     fill.position.set(5, 4, 1);
     scene.add(fill);
-    const wall = new THREE.Mesh(new THREE.PlaneGeometry(100, 30), new THREE.MeshStandardMaterial({ color: 0xf4f2ec, roughness: 0.99 }));
+    const wall = new THREE.Mesh(new THREE.PlaneGeometry(100, 30), new THREE.MeshStandardMaterial({ color: 0xf8f7f3, roughness: 0.99 }));
     wall.position.set(0, 5, -2.5);
     scene.add(wall);
-    const floor = new THREE.Mesh(new THREE.PlaneGeometry(100, 100), new THREE.MeshStandardMaterial({ color: 0xe5e1d9, roughness: 0.91, metalness: 0 }));
+    const floor = new THREE.Mesh(new THREE.PlaneGeometry(100, 100), new THREE.MeshStandardMaterial({ color: 0xeceae5, roughness: 0.91, metalness: 0 }));
     floor.rotation.x = -Math.PI / 2;
     floor.position.y = -0.06;
     scene.add(floor);
+    const sideWall=new THREE.Mesh(new THREE.PlaneGeometry(30,30),new THREE.MeshStandardMaterial({color:0xeeece7,roughness:1}));
+    sideWall.rotation.y=-Math.PI/2;sideWall.position.set(13,5,3);scene.add(sideWall);
+    makeRule(scene, [[-30,0,-2.46],[30,0,-2.46]],0xbbb9b3,0.45);
     // Fine floor lines and the brushed-metal Drixel clothing rail define the room without borrowing another brand's set.
     makeRule(scene, [[-32, 0.012, -2.15], [32, 0.012, -2.15]], 0xbdb9b0, 0.35);
     makeRule(scene, [[-32, 3.2, -2.48], [32, 3.2, -2.48]], 0xe4e0d7, 0.5);
@@ -99,7 +103,7 @@ function ShowroomScene({ products, activeIndex, imageFor, onSelect, onWebglError
       railGroup.add(mesh);
       return mesh;
     };
-    addCylinder(0.028, 34, 0, 3.32, -0.18, [0, 0, Math.PI / 2]);
+    addCylinder(0.022, 34, 0, 3.32, -0.18, [0, 0, Math.PI / 2]);
     // Wall-mounted rail stays open and unobtrusive.
     
     
@@ -127,7 +131,10 @@ function ShowroomScene({ products, activeIndex, imageFor, onSelect, onWebglError
     let frame = 0;
     const animate = () => {
       const delta = targetXRef.current - items.position.x;
-      if (Math.abs(delta) > 0.003) {
+      const cameraDelta=cameraTargetRef.current-camera.position.x;
+      camera.position.x+=cameraDelta*0.06;
+      camera.lookAt(camera.position.x,1.8,0);
+      if (Math.abs(delta) > 0.003 || Math.abs(cameraDelta)>0.004) {
         items.position.x += delta * 0.075;
         render();
         frame = window.requestAnimationFrame(animate);
@@ -202,40 +209,47 @@ function ShowroomScene({ products, activeIndex, imageFor, onSelect, onWebglError
     state.textureGeneration = (state.textureGeneration || 0) + 1;
     const textureGeneration = state.textureGeneration;
     disposeGroup(items);
-    const start = Math.max(0, activeIndex - 3);
-    const end = Math.min(products.length - 1, activeIndex + 3);
+    const start = Math.max(0, activeIndex - 5);
+    const end = Math.min(products.length - 1, activeIndex + 5);
     const loader = new THREE.TextureLoader();
     for (let index = start; index <= end; index += 1) {
       const product = products[index];
       const entry = new THREE.Group();
       entry.position.set(index * SPACING, 0, index === activeIndex ? 0.38 : 0);
-      entry.scale.setScalar(index === activeIndex ? 1.14 : 0.87);
+      entry.scale.setScalar(index === activeIndex ? 1.12 : 1);
       entry.userData.productIndex = index;
-      // Each panel is a real product photograph from the live catalogue, mounted on a subtle studio frame.
-      const frame = new THREE.Mesh(new THREE.BoxGeometry(1.46, 1.86, 0.025), new THREE.MeshStandardMaterial({ color: 0xf3f0e9, roughness: 0.95 }));
-      frame.position.set(0, 1.58, 0.18);
-      frame.userData.productIndex = index;
-      entry.add(frame);
-      const board = new THREE.Mesh(new THREE.PlaneGeometry(1.32, 1.72), new THREE.MeshBasicMaterial({ color: 0xf3f0e9, transparent:true, opacity:0.12 }));
-      board.position.set(0, 1.58, 0.228);
-      board.userData.productIndex = index;
-      entry.add(board);
+      // The garment hangs freely in the room. Source photographs are cut out on the GPU
+      // (white/light studio backgrounds become transparent), not placed inside picture frames.
       const url = imageFor(product, index === activeIndex);
       if (url) {
-        loader.load(imageAtWidth(url, 640), texture => {
+        loader.load(imageAtWidth(url, 900), texture => {
           if (sceneRef.current !== state || state.textureGeneration !== textureGeneration) { texture.dispose(); return; }
           texture.colorSpace = THREE.SRGBColorSpace;
           texture.anisotropy = Math.min(state.renderer.capabilities.getMaxAnisotropy(), 4);
-          const imageMaterial = new THREE.MeshBasicMaterial({ map: texture, toneMapped: false });
           const source = texture.image;
-          const ratio = source?.naturalWidth && source?.naturalHeight ? source.naturalWidth / source.naturalHeight : 0.77;
-          const frameRatio = 1.32 / 1.72;
-          const imageWidth = ratio > frameRatio ? 1.32 : 1.72 * ratio;
-          const imageHeight = ratio > frameRatio ? 1.32 / ratio : 1.72;
-          const image = new THREE.Mesh(new THREE.PlaneGeometry(imageWidth, imageHeight), imageMaterial);
-          image.position.set(0, 1.58, 0.24);
-          image.userData.productIndex = index;
-          entry.add(image);
+          const ratio = source?.naturalWidth && source?.naturalHeight ? source.naturalWidth/source.naturalHeight : 0.77;
+          const imageHeight = 2.40, imageWidth = Math.min(2.25, imageHeight*ratio);
+          const garmentMaterial = new THREE.ShaderMaterial({
+            uniforms:{map:{value:texture},opacity:{value:1}},
+            vertexShader:`varying vec2 vUv; void main(){vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}`,
+            fragmentShader:`uniform sampler2D map; uniform float opacity; varying vec2 vUv;
+              void main(){
+                vec4 tex=texture2D(map,vUv);
+                float lightest=min(tex.r,min(tex.g,tex.b));
+                float maxc=max(tex.r,max(tex.g,tex.b));
+                float lowc=min(tex.r,min(tex.g,tex.b));
+                float nearWhite=smoothstep(0.83,0.985,lightest)*smoothstep(0.0,0.075,0.085-(maxc-lowc));
+                float edge = smoothstep(0.018,0.065,vUv.x)*smoothstep(0.018,0.065,1.0-vUv.x)*smoothstep(0.018,0.065,vUv.y)*smoothstep(0.018,0.065,1.0-vUv.y);
+                float alpha=(1.0-nearWhite)*tex.a*edge*opacity;
+                if(alpha<0.025)discard;
+                gl_FragColor=vec4(tex.rgb,alpha);
+              }`,
+            transparent:true,depthWrite:false,side:THREE.DoubleSide
+          });
+          const garment = new THREE.Mesh(new THREE.PlaneGeometry(imageWidth,imageHeight,12,12),garmentMaterial);
+          garment.position.set(0,1.63,0.10);
+          garment.userData.productIndex=index;
+          entry.add(garment);
           renderRef.current?.();
         }, undefined, () => renderRef.current?.());
       }
@@ -248,6 +262,7 @@ function ShowroomScene({ products, activeIndex, imageFor, onSelect, onWebglError
       items.add(entry);
     }
     targetXRef.current = -activeIndex * SPACING;
+    cameraTargetRef.current = Math.sin(activeIndex*0.35)*0.22;
     const mount = mountRef.current;
     if (mount) mount.dataset.activeIndex = String(activeIndex);
     animateRef.current?.();
