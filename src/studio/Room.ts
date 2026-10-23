@@ -10,7 +10,7 @@ export const STATIONS={
   caps:{position:[4.8,1.6,2.2],look:[6.55,1.8,-0.5],fov:36}
 } as const;
 const mat=(color:number,roughness=0.9,metalness=0)=>new THREE.MeshStandardMaterial({color,roughness,metalness});
-const cream=mat(0xf3efe7,0.97),side=mat(0xf5f1eb,0.96),concrete=mat(0xdad8d4,0.74),
+const cream=mat(0xf3efe7,0.94),side=mat(0xfcfaf6,0.94),concrete=mat(0xdfded9,0.57,0.07),
  wood=mat(0xc0a98d,0.73),woodDark=mat(0xa58c72,0.81),steel=mat(0x77746f,0.33,0.75);
 const addBox=(g:THREE.Group,w:number,h:number,d:number,x:number,y:number,z:number,m:THREE.Material,shadow=true)=>{
  const mesh=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m);
@@ -27,6 +27,19 @@ export function buildDrixelRoom(){
  const group=new THREE.Group();group.name='DRIXEL_STUDIO_ROOM';
  const {width:w,depth:d,height:h}=ROOM;
  addBox(group,w,0.16,d,0,-0.08,0,concrete,false);
+ // Soft architectural contact darkening from premultiplied radial texture.
+ // This is a runtime approximation until actual Blender lightmaps are baked.
+ const shadowCanvas=document.createElement('canvas');shadowCanvas.width=256;shadowCanvas.height=256;
+ const shadowCtx=shadowCanvas.getContext('2d');
+ const grad=shadowCtx.createRadialGradient(128,128,4,128,128,125);
+ grad.addColorStop(0,'rgba(75,66,56,0.17)');grad.addColorStop(1,'rgba(75,66,56,0)');
+ shadowCtx.fillStyle=grad;shadowCtx.fillRect(0,0,256,256);
+ const shadowTexture=new THREE.CanvasTexture(shadowCanvas);
+ const shadowMaterial=new THREE.MeshBasicMaterial({map:shadowTexture,transparent:true,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-1});
+ for(const [x,z,sx,sz] of [[0,-4.75,15,.7],[-7.7,0,.7,9],[7.7,0,.7,9],[1.05,.45,2.4,1.6],[-4.5,-1.4,3.2,1.45]]){
+  const shade=new THREE.Mesh(new THREE.PlaneGeometry(sx,sz),shadowMaterial.clone());
+  shade.rotation.x=-Math.PI/2;shade.position.set(x,0.009,z);group.add(shade);
+ }
  addBox(group,w,0.12,0.14,0,h-0.06,-d/2,cream,false); // ceiling cove
  addBox(group,w,0.16,d,0,h+0.08,0,side,false);
  addBox(group,w,h,0.16,0,h/2,-d/2,cream,false);
@@ -59,8 +72,7 @@ export function buildDrixelRoom(){
  for(let i=0;i<=3;i++)addBox(group,3.6,0.07,0.80,bx,0.58+i*0.85,bz,wood);
  for(const x of [4.45,5.45,6.45])rod(group,0.2,0.02,x,3.55,-4.54,'z');
  addBox(group,1.85,0.13,0.60,5.35,0.55,1.6,wood);
- // Feature badge and back-wall display plinth.
- addBox(group,3.2,0.5,0.95,0,0.28,-3.75,wood);
+ // Feature badge is above the central collection, no purposeless plinth block.
  // Cash-wrap with subtle brand-bag staging near entrance.
  addBox(group,1.8,1.0,0.92,5.7,0.5,3.45,woodDark);
  // Entrance mirror; shallow framed glass on side wall.
@@ -68,28 +80,30 @@ export function buildDrixelRoom(){
   color:0xf0f0ee,metalness:0.82,roughness:0.11
  }));
  mirror.rotation.y=Math.PI/2;mirror.position.set(-w/2+0.16,1.4,3.25);group.add(mirror);
- // Soft track fixtures attached to ceiling.
+ // Soft track fixtures attached to ceiling, moved in front of the brand wall.
  for(const x of [-5,0,5]){
-  rod(group,2.3,0.03,x,h-0.17,-1.6);
-  for(const z of [-2.5,-1.6,-0.7]){
+  rod(group,2.3,0.03,x,h-0.17,0.5);
+  for(const z of [-0.4,0.5,1.4]){
    const fixture=new THREE.Mesh(new THREE.CylinderGeometry(0.08,0.1,0.17,12),steel);
    fixture.position.set(x,h-0.31,z);group.add(fixture);
   }
  }
- // DRIXEL wordmark and department names are independently authored surfaces.
+ // DRIXEL wordmark and department signs sit on physical mounting plates.
  const canvas=document.createElement('canvas');canvas.width=1024;canvas.height=256;
  const ctx=canvas.getContext('2d');
  ctx.fillStyle='#161616';ctx.textAlign='center';ctx.font='800 155px Arial';
  ctx.fillText('DRIXEL',512,168);ctx.font='30px Arial';ctx.fillText('F O R M   F O L L O W S   F E E L I N G',512,225);
  const logo=new THREE.CanvasTexture(canvas);logo.colorSpace=THREE.SRGBColorSpace;
  const logoSign=new THREE.Mesh(new THREE.PlaneGeometry(3.05,.77),new THREE.MeshBasicMaterial({map:logo,transparent:true,depthWrite:false}));
- logoSign.position.set(0,3.20,-4.88);group.add(logoSign);
+ addBox(group,3.28,.86,.055,0,3.20,-4.87,cream);
+ logoSign.position.set(0,3.20,-4.83);group.add(logoSign);
  for(const [name,x] of [['HOODIES',-4.7],['T-SHIRTS',1.25],['SWEATERS',5.5]]){
   const c=document.createElement('canvas');c.width=512;c.height=128;
   const q=c.getContext('2d');q.fillStyle='#24211f';q.font='700 53px Arial';q.textAlign='center';q.fillText(name,256,76);
   const tex=new THREE.CanvasTexture(c);tex.colorSpace=THREE.SRGBColorSpace;
   const sign=new THREE.Mesh(new THREE.PlaneGeometry(2.0,.5),new THREE.MeshBasicMaterial({map:tex,transparent:true,depthWrite:false}));
-  sign.position.set(x,3.75,-4.88);group.add(sign);
+  addBox(group,2.13,.55,.075,x,3.75,-4.84,woodDark);
+  sign.position.set(x,3.75,-4.78);group.add(sign);
  }
  const hemi=new THREE.HemisphereLight(0xffffff,0xcac2b5,2.0);group.add(hemi);
  const sunlight=new THREE.DirectionalLight(0xfff7eb,2.1);sunlight.position.set(-2,3.95,3.5);
