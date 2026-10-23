@@ -1,9 +1,9 @@
 import * as THREE from 'three';
 
 /** DRIXEL studio shell. All dimensions are metres. Independent of React UI. */
-export const ROOM={width:14,depth:8,height:4.2};
+export const ROOM={width:16,depth:10,height:4.4};
 export const STATIONS={
-  store:{position:[0,1.7,6.5],look:[0,1.65,-2],fov:38},
+  store:{position:[0,1.65,3.85],look:[0,1.8,-4.6],fov:64},
   clothing:{position:[0,1.6,2.5],look:[0,1.6,-3.72],fov:36},
   shoes:{position:[-4.8,1.55,1.5],look:[-6.7,1.5,-1.8],fov:36},
   bags:{position:[4.3,1.55,1.7],look:[5.5,1.45,-2],fov:36},
@@ -34,29 +34,63 @@ export function buildDrixelRoom(){
  addBox(group,0.16,h,d,w/2,h/2,0,side,false);
  addBox(group,w,0.12,0.09,0,0.06,-d/2+0.12,woodDark,false);
  for(const x of [-w/2+0.12,w/2-0.12])addBox(group,0.1,0.12,d,x,0.06,0,woodDark,false);
- // Clothing: one real long metal rail with shallow wall brackets.
- const railY=2.53,backZ=-3.22;
- rod(group,6.2,0.022,0,railY,backZ);
- for(const x of [-2.88,0,2.88]){
-   rod(group,0.55,0.024,x,railY,backZ-0.28,'z');
-   addBox(group,0.18,0.2,0.04,x,railY,-d/2+0.19,steel,false);
+ // Three separate departments surround a walkable central island.
+ // HOODIES at left: wall rail, gondola and neatly folded stock on a table.
+ for(const y of [2.38]){
+  rod(group,5.1,0.023,-4.7,y,-4.36);
+  for(const x of [-6.9,-2.5])rod(group,0.55,0.025,x,y,-4.64,'z');
  }
- // Shoe shelving, 3 x 3 alcove ledges.
- for(let row=0;row<3;row++)for(let column=0;column<3;column++)
-   addBox(group,0.9,0.075,0.67,-5.5+column*1.13,0.85+row*0.92,-3.24,wood);
- // Bags: 3x2 cubbies, complete with side walls and back panel.
- const bx=4.75,bz=-3.42,unitW=3.25,unitH=2.48;
- addBox(group,unitW,unitH,0.08,bx,1.6,-3.78,woodDark);
- for(const x of [bx-unitW/2,bx-unitW/6,bx+unitW/6,bx+unitW/2])
-   addBox(group,0.075,unitH,0.85,x,1.6,bz,wood);
- for(const y of [0.36,1.58,2.8])addBox(group,unitW,0.075,0.85,bx,y,bz,wood);
- // Caps: real perforated pegboard and wall pegs.
- addBox(group,1.9,2.15,0.09,6.02,2.1,-1.05,wood);
- for(let y=0;y<6;y++)for(let x=0;x<5;x++){
-   const hole=new THREE.Mesh(new THREE.CylinderGeometry(0.016,0.016,0.014,8),woodDark);
-   hole.rotation.x=Math.PI/2;hole.position.set(5.30+x*0.35,1.32+y*0.3,-0.98);group.add(hole);
+ const boxMat=wood;
+ addBox(group,2.7,0.095,1.05,-4.5,0.98,-1.45,boxMat);
+ for(const x of [-5.65,-3.35])addBox(group,0.10,0.95,0.1,x,0.49,-1.45,steel);
+ rod(group,2.0,0.022,-4.5,1.65,-1.45);
+ for(const x of [-5.4,-3.6]){
+  rod(group,1.6,0.025,x,0.9,-1.45,'y');
  }
- for(const x of [5.4,6.05,6.65])for(const y of [1.6,2.55])rod(group,0.21,0.02,x,y,-0.86,'z');
+ // T-SHIRTS at center-right: wall shelves and garment rail plus central island.
+ for(const y of [1.1,1.75,2.4])addBox(group,4.2,0.075,0.60,1.2,y,-4.55,wood);
+ rod(group,4.3,0.022,1.1,3.03,-4.33);
+ addBox(group,2.0,0.11,1.3,1.05,0.9,0.45,wood);
+ for(const x of [0.2,1.9])for(const z of [-0.03,0.95])addBox(group,0.09,0.9,0.09,x,0.45,z,steel);
+ // SWEATERS at right: 4 columns x 3 rows physical cubby grid.
+ const bx=5.45,bz=-4.47;
+ addBox(group,3.6,2.6,0.085,bx,1.85,-4.88,woodDark);
+ for(let i=0;i<=4;i++)addBox(group,0.07,2.55,0.80,bx-1.8+i*0.9,1.85,bz,wood);
+ for(let i=0;i<=3;i++)addBox(group,3.6,0.07,0.80,bx,0.58+i*0.85,bz,wood);
+ for(const x of [4.45,5.45,6.45])rod(group,0.2,0.02,x,3.55,-4.54,'z');
+ addBox(group,1.85,0.13,0.60,5.35,0.55,1.6,wood);
+ // Feature badge and back-wall display plinth.
+ addBox(group,3.2,0.5,0.95,0,0.28,-3.75,wood);
+ // Cash-wrap with subtle brand-bag staging near entrance.
+ addBox(group,1.8,1.0,0.92,5.7,0.5,3.45,woodDark);
+ // Entrance mirror; shallow framed glass on side wall.
+ const mirror=new THREE.Mesh(new THREE.PlaneGeometry(0.9,2.0),new THREE.MeshStandardMaterial({
+  color:0xf0f0ee,metalness:0.82,roughness:0.11
+ }));
+ mirror.rotation.y=Math.PI/2;mirror.position.set(-w/2+0.16,1.4,3.25);group.add(mirror);
+ // Soft track fixtures attached to ceiling.
+ for(const x of [-5,0,5]){
+  rod(group,2.3,0.03,x,h-0.17,-1.6);
+  for(const z of [-2.5,-1.6,-0.7]){
+   const fixture=new THREE.Mesh(new THREE.CylinderGeometry(0.08,0.1,0.17,12),steel);
+   fixture.position.set(x,h-0.31,z);group.add(fixture);
+  }
+ }
+ // DRIXEL wordmark and department names are independently authored surfaces.
+ const canvas=document.createElement('canvas');canvas.width=1024;canvas.height=256;
+ const ctx=canvas.getContext('2d');
+ ctx.fillStyle='#161616';ctx.textAlign='center';ctx.font='800 155px Arial';
+ ctx.fillText('DRIXEL',512,168);ctx.font='30px Arial';ctx.fillText('F O R M   F O L L O W S   F E E L I N G',512,225);
+ const logo=new THREE.CanvasTexture(canvas);logo.colorSpace=THREE.SRGBColorSpace;
+ const logoSign=new THREE.Mesh(new THREE.PlaneGeometry(3.05,.77),new THREE.MeshBasicMaterial({map:logo,transparent:true,depthWrite:false}));
+ logoSign.position.set(0,3.20,-4.88);group.add(logoSign);
+ for(const [name,x] of [['HOODIES',-4.7],['T-SHIRTS',1.25],['SWEATERS',5.5]]){
+  const c=document.createElement('canvas');c.width=512;c.height=128;
+  const q=c.getContext('2d');q.fillStyle='#24211f';q.font='700 53px Arial';q.textAlign='center';q.fillText(name,256,76);
+  const tex=new THREE.CanvasTexture(c);tex.colorSpace=THREE.SRGBColorSpace;
+  const sign=new THREE.Mesh(new THREE.PlaneGeometry(2.0,.5),new THREE.MeshBasicMaterial({map:tex,transparent:true,depthWrite:false}));
+  sign.position.set(x,3.75,-4.88);group.add(sign);
+ }
  const hemi=new THREE.HemisphereLight(0xffffff,0xcac2b5,2.0);group.add(hemi);
  const sunlight=new THREE.DirectionalLight(0xfff7eb,2.1);sunlight.position.set(-2,3.95,3.5);
  sunlight.castShadow=true;sunlight.shadow.mapSize.set(1024,1024);
