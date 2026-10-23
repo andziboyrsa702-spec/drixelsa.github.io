@@ -1,0 +1,6 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {CATEGORIES,productNames,descriptions,newProductDefaults,variantsForColours,standardGuideRows} from '../src/admin-react/productPresets.js';
+test('catalogue has distinct names and descriptions for each category',()=>{for(const c of CATEGORIES){assert.equal(new Set(productNames(c)).size,60);assert.equal(descriptions(c).length,20)}});
+test('new products get independent standard sizes; adding colours keeps real inventory',()=>{const p=newProductDefaults();assert.equal(p.fabric,'100% cotton.');assert.equal(p.variants.length,6);assert.notEqual(p.urlCode,newProductDefaults().urlCode);const rows=variantsForColours(p,[{color:'Black'}]);assert.equal(rows.length,6);assert.ok(rows.every(v=>v.color==='Black'&&v.stock===0));p.variants[0].stock=2;const next=variantsForColours(p,[{color:'White'}]);assert.equal(next.length,7);assert.equal(next[0].stock,2);assert.equal(p.variants.length,6);});
+test('standard measurement rows preserve measured values without inventing dimensions',()=>{const r={size:'M',chest:'55'};const rows=standardGuideRows([r]);assert.equal(rows.length,6);assert.deepEqual(rows[0],r);assert.ok(rows.slice(1).every(r=>r.chest===''));assert.deepEqual(standardGuideRows(rows),rows)});

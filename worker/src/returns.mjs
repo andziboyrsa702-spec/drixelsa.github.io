@@ -1,0 +1,33 @@
+import {randomUUID} from 'node:crypto';
+import {getFirestore,FieldValue} from './firestore.mjs';
+import {adminUser,verifyIdToken} from './auth.mjs';
+import {reminderId} from './shopping-reminders.mjs';
+import {apiError,consumeRateLimit} from './security.mjs';
+import {escapeHtml as esc,productEmailRows} from './product-email.mjs';
+
+export async function returnCustomer(req){const token=req.get('Authorization')?.match(/^Bearer (.+)$/)?.[1];if(!token)throw apiError('Sign in to view your returns.',401);try{return await verifyIdToken(token)}catch{throw apiError('Sign in again to view your returns.',401)}}
+export const returnTransitions={requested:['approved','rejected'],approved:['received','rejected'],received:['refunded','exchanged'],refunded:[],exchanged:[],rejected:[]};
+const key=value=>{const id=String(value||'');if(!/^[A-Za-z0-9_-]{1,128}$/.test(id))throw apiError('Invalid order or case reference.',400);return id};
+const clean=(x,n=2000)=>String(x||'').trim().slice(0,n);
+const publicCase=(id,c)=>({id,orderId:c.orderId,type:c.type||'return',status:c.status||'requested',reason:c.reason,requestedExchange:c.requestedExchange||'',items:c.items||[],history:c.history||[],createdAt:c.createdAt,updatedAt:c.updatedAt});
+export function createReturnsService({db=getFirestore(),customer=returnCustomer,admin=adminUser,now=Date.now,rateLimit=consumeRateLimit}={}){
+ function mail(tx,c,id,order){if(!order.customer?.email)return;const event=c.history.at(-1),url='https://drixelsa.co.za/'+(order.market||'za')+'/member/orders/'+encodeURIComponent(c.orderId);tx.set(db.doc('mail_jobs/'+reminderId('return/'+id+'/'+c.history.length)),{to:[order.customer.email],subject:'Drixel SA — return '+c.status,html:`<html><body style="font:16px/1.7 Arial;color:#111"><h1>DRIXEL</h1><h2>Return request: ${esc(c.status)}</h2><p>Order ${esc(order.orderNumber||c.orderId)}</p><p>${esc(event.message)}</p>${productEmailRows(c.items||[])}<p><a href="${esc(url)}">View your request</a></p><p>Approval does not itself issue a refund. Contact customer care for help.</p></body></html>`,status:'queued',createdAt:FieldValue.serverTimestamp()});}
+ async function api(req,res,isAdmin=false){const user=await(isAdmin?admin:customer)(req);await rateLimit(db,{identity:user.uid,bucket:'returns',limit:40,windowMs:3600000});const b=req.body||{};
+  if(isAdmin&&b.action==='list'){const rows=await db.collection('returns').orderBy('createdAt','desc').limit(200).get();return res.json({success:true,cases:rows.docs.map(s=>({id:s.id,...s.data()})),limited:rows.docs.length===200})}
+  if(b.action==='update'&&isAdmin){const id=key(b.id),ref=db.doc('returns/'+id);await db.runTransaction(async tx=>{const current=(await tx.get(ref)).data();if(!current)throw apiError('Return case not found.',404);const order=(await tx.get(db.doc('orders/'+key(current.orderId)))).data();if(!order)throw apiError('Order unavailable.',404);const next=clean(b.status,30);if(!returnTransitions[current.status||'requested']?.includes(next))throw apiError('This return status change is not allowed.',409);
+   const message=clean(b.message);if(!message)throw apiError('Add an update for the customer.',400);let settlement={};if(['refunded','exchanged'].includes(next)){if(b.confirmed!==true||!clean(b.reference,200))throw apiError('Confirm completion and enter the refund or replacement reference.',400);settlement={reference:clean(b.reference,200),confirmedBy:user.uid,confirmedAt:now()};if(next==='refunded'){const amount=Number(b.amount);if(!Number.isFinite(amount)||amount<=0||amount>Number(order.total))throw apiError('Enter a valid completed refund amount in ZAR.',400);settlement.amount=amount}}
+   const updated={...current,status:next,updatedAt:now(),...(Object.keys(settlement).length?{settlement}:{}),history:[...(current.history||[]),{status:next,message,at:now()}]};tx.set(ref,updated);tx.set(db.doc('audit_logs/'+randomUUID()),{action:'return_'+next,resource:'returns/'+id,actor:user.uid,createdAt:FieldValue.serverTimestamp()});mail(tx,updated,id,order);
+  });return res.json({success:true})}
+  if(!['list','create'].includes(b.action))throw apiError('Invalid return action.',400);
+  const orderId=key(b.orderId),order=(await db.doc('orders/'+orderId).get()).data();if(!order||!isAdmin&&order.customer?.uid!==user.uid)throw apiError('Order not found.',404);
+  if(b.action==='list'){const cases=await db.collection('returns').where('orderId','==',orderId).limit(100).get();return res.json({success:true,cases:cases.docs.map(s=>publicCase(s.id,s.data()))})}
+  const id=reminderId('return/'+orderId),ref=db.doc('returns/'+id);let created=false;
+  await db.runTransaction(async tx=>{const fresh=(await tx.get(db.doc('orders/'+orderId))).data(),existing=await tx.get(ref),legacy=await tx.get(db.collection('returns').where('orderId','==',orderId).limit(1));if(!fresh||!isAdmin&&fresh.customer?.uid!==user.uid)throw apiError('Order not found.',404);if(existing.exists||legacy.docs.length)throw apiError('This order already has a return case. Contact customer care to add items or reopen it.',409);if(fresh.paymentStatus!=='paid')throw apiError('Contact customer care to cancel or resolve this unpaid order.',409);
+   const type=clean(b.type,30);if(!['refund','exchange'].includes(type))throw apiError('Choose refund or exchange.',400);if(!Array.isArray(b.items)||!b.items.length||b.items.length>50)throw apiError('Select the items to return.',400);const seen=new Set(),items=b.items.map(x=>{const original=fresh.items?.[x.index];if(!Number.isInteger(x.index)||!original||seen.has(x.index)||!Number.isInteger(x.quantity)||x.quantity<1||x.quantity>Number(original.quantity))throw apiError('Check the selected items and quantities.',400);seen.add(x.index);return {...original,quantity:x.quantity,lineTotal:Number(original.unitPrice??original.price??0)*x.quantity,index:x.index}});
+   const c={orderId,orderNumber:fresh.orderNumber||orderId,customer:{uid:fresh.customer?.uid||'',email:fresh.customer?.email||''},type,reason:clean(b.reason),requestedExchange:clean(b.requestedExchange,200),items,status:'requested',createdAt:FieldValue.serverTimestamp(),updatedAt:now(),history:[{status:'requested',message:'Your request has been received. Customer care will review it and provide instructions. Please keep the items until return arrangements are confirmed.',at:now()}]};tx.set(ref,c);mail(tx,c,id,fresh);created=true;
+  });return res.json({success:true,id,created});
+ }
+ return {customer:(req,res)=>api(req,res),admin:(req,res)=>api(req,res,true)};
+}
+export const customerReturns=(req,res)=>createReturnsService().customer(req,res);
+export const adminReturns=(req,res)=>createReturnsService().admin(req,res);

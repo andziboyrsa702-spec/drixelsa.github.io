@@ -1,13 +1,18 @@
 {
   "hosting": {
-    "public": ".",
+    "public": "dist",
     "ignore": [
       "firebase.json",
       "**/.*",
       "**/node_modules/**",
+      "functions/**",
       "docs/**",
-      "START_WEBSITE.bat",
-      "**/*.md"
+      "scripts/**",
+      "tests/**",
+      "package*.json",
+      "firestore*",
+      "README.md",
+      "START_WEBSITE.bat"
     ],
     "cleanUrls": true,
     "trailingSlash": false,
@@ -40,9 +45,26 @@
             "value": "same-origin-allow-popups"
           }
         ]
+      },
+      {
+        "source": "/api/**",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-store"
+          }
+        ]
       }
     ],
     "rewrites": [
+      {
+        "source": "/api/market",
+        "function": "market"
+      },
+      {
+        "source": "/api/exchange-rates",
+        "function": "exchangeRates"
+      },
       {
         "source": "/api/admin/inventory-adjust",
         "function": "adminInventoryAdjust"
@@ -60,12 +82,20 @@
         "function": "createOrder"
       },
       {
+        "source": "/api/payments/yoco/verify",
+        "function": "verifyYocoPayment"
+      },
+      {
         "source": "/api/subscribe",
         "function": "subscribeNewsletter"
       },
       {
         "source": "/api/unsubscribe",
         "function": "unsubscribeNewsletter"
+      },
+      {
+        "source": "/api/newsletter",
+        "function": "newsletterPreferences"
       },
       {
         "source": "/api/send-campaign",
@@ -76,20 +106,53 @@
         "function": "sendEmail"
       },
       {
-        "source": "/products/tees/**",
-        "destination": "/product.html"
+        "source": "/api/queue-campaign",
+        "function": "enqueueCampaign"
       },
       {
-        "source": "/products/outerwear/**",
-        "destination": "/product.html"
+        "source": "/api/cancel-campaign",
+        "function": "cancelCampaign"
       },
       {
-        "source": "/products/accessories/**",
-        "destination": "/product.html"
+        "source": "/api/reconcile-campaign",
+        "function": "reconcileCampaign"
+      },
+      {
+        "source": "/api/email-events",
+        "function": "emailProviderWebhook"
+      },
+      {
+        "source": "**",
+        "destination": "/index.html"
       }
     ]
   },
   "functions": {
     "source": "functions"
+  },
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  },
+  "emulators": {
+    "firestore": {
+      "port": 8080
+    },
+    "auth": {
+      "port": 9099
+    },
+    "functions": {
+      "port": 5001
+    },
+    "hosting": {
+      "port": 5000
+    },
+    "singleProjectMode": true,
+    "storage": {
+      "port": 9199
+    }
+  },
+  "storage": {
+    "rules": "storage.rules"
   }
 }
