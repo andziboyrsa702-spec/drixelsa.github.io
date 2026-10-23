@@ -129,24 +129,31 @@ function ShowroomScene({ products, activeIndex, imageFor, onSelect, onWebglError
     const render = () => renderer.render(scene, camera);
     renderRef.current = render;
     sceneRef.current = { scene, items, camera, renderer };
-    let frame = 0;
-    const animate = () => {
-      const target=focusRef.current;
-      const delta=target.x-camera.position.x;
-      camera.position.x+=delta*0.055;
-      camera.position.z+=(target.z-camera.position.z)*0.055;
-      camera.position.y=1.7;
-      camera.lookAt(target.x,1.6,-3.6);
-      const cameraDelta=target.z-camera.position.z;
-      if (Math.abs(delta) > 0.003 || Math.abs(cameraDelta)>0.004) {
-        render();
-        frame = window.requestAnimationFrame(animate);
-      } else {
-        render();
-        frame = 0;
-      }
+    let frame=0;
+    let tweenStart=0;
+    const from=new THREE.Vector3(),to=new THREE.Vector3();
+    const lookFrom=new THREE.Vector3(),lookTo=new THREE.Vector3();
+    const currentLook=new THREE.Vector3(...STATIONS.store.look);
+    const animate=(now)=>{
+      const progress=Math.min(1,(now-tweenStart)/1350);
+      const eased=progress<0.5?4*progress*progress*progress:1-Math.pow(-2*progress+2,3)/2;
+      camera.position.lerpVectors(from,to,eased);
+      currentLook.lerpVectors(lookFrom,lookTo,eased);
+      camera.lookAt(currentLook);
+      render();
+      if(progress<1)frame=window.requestAnimationFrame(animate);
+      else frame=0;
     };
-    animateRef.current = () => { if (!frame) frame = window.requestAnimationFrame(animate); };
+    animateRef.current=()=>{
+      if(frame)window.cancelAnimationFrame(frame);
+      from.copy(camera.position);
+      lookFrom.copy(currentLook);
+      const target=focusRef.current;
+      to.set(target.x,1.70,target.z);
+      lookTo.set(target.x,1.60,-3.6);
+      tweenStart=performance.now();
+      frame=window.requestAnimationFrame(animate);
+    };
     const resize = () => {
       const width = Math.max(1, mount.clientWidth);
       const height = Math.max(1, mount.clientHeight);
