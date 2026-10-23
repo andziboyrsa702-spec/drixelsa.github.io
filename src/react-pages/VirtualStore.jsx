@@ -47,14 +47,21 @@ function cleanGarmentTexture(texture){
  }catch{return texture} // Cross-origin images may not allow pixel access.
 }
 
-const fixtureKind=p=>/cap|hat|beanie/i.test([p?.category,p?.name].join(' '))?'caps':/bag|tote|backpack/i.test([p?.category,p?.name].join(' '))?'bags':/shoe|sneaker/i.test([p?.category,p?.name].join(' '))?'shoes':'clothing';
+const fixtureKind=p=>{
+ const c=String(p?.category||'').toLowerCase(),n=String(p?.name||p?.title||'').toLowerCase();
+ if(/hoodie/.test(c))return 'hoodies';
+ if(/sweater|sweatshirt/.test(c))return 'sweaters';
+ if(/tee|t-shirt|shirt/.test(c))return 'tees';
+ if(/hoodie/.test(n))return 'hoodies';
+ if(/sweater|sweatshirt/.test(n))return 'sweaters';
+ return 'tees';
+};
 const fixturePosition=(p,index,products=[])=>{
- const kind=fixtureKind(p),base={clothing:0,caps:5.8,bags:4.75,shoes:-5.5}[kind];
- // Display index counts only this department, so unrelated categories never
- // displace garments or stack items on top of one another.
+ const kind=fixtureKind(p),base={hoodies:-4.7,tees:1.1,sweaters:5.45}[kind];
  const local=products.slice(0,index).filter(item=>fixtureKind(item)===kind).length;
- const capacity=kind==='clothing'?8:6,slot=local%capacity;
- return {kind,x:base+(slot-(capacity-1)/2)*(kind==='clothing'?0.78:0.36),z:kind==='caps'?-0.85:-3.12};
+ const capacity=kind==='hoodies'?8:kind==='tees'?6:3,slot=local%capacity;
+ return {kind,x:base+(slot-(capacity-1)/2)*(kind==='sweaters'?0.87:0.67),z:kind==='sweaters'?-4.38:-4.22,
+ hangerY:kind==='tees'?3.03:2.38};
 };
 const categoryLabel = value => String(value || 'Collection').replace(/[-_]+/g, ' ').replace(/\b\w/g, letter => letter.toUpperCase());
 const productName = product => product?.name || product?.title || 'Drixel original';
@@ -253,13 +260,13 @@ function ShowroomScene({ products, activeIndex, imageFor, onSelect, onWebglError
     disposeGroup(items);
     const focusedKind=fixtureKind(products[activeIndex]||products[0]);
     const focusedRank=products.slice(0,activeIndex).filter(p=>fixtureKind(p)===focusedKind).length;
-    const activePage=Math.floor(focusedRank/(focusedKind==='clothing'?8:6));
+    const activePage=Math.floor(focusedRank/(focusedKind==='hoodies'?8:focusedKind==='tees'?6:3));
     const loader=new THREE.TextureLoader();
-    const departmentSeen={clothing:0,caps:0,bags:0,shoes:0};
+    const departmentSeen={hoodies:0,tees:0,sweaters:0};
     for(let index=0;index<products.length;index+=1){
       const product=products[index],kind=fixtureKind(product);
       const rank=departmentSeen[kind]++;
-      const capacity=kind==='clothing'?8:6;
+      const capacity=kind==='hoodies'?8:kind==='tees'?6:3;
       const page=Math.floor(rank/capacity);
       // Never stack successive pages of catalogue items in the same rail slots.
       if(page!==(kind===focusedKind?activePage:0))continue;
@@ -280,7 +287,7 @@ function ShowroomScene({ products, activeIndex, imageFor, onSelect, onWebglError
           texture.anisotropy = Math.min(state.renderer.capabilities.getMaxAnisotropy(), 4);
           const source = texture.image;
           const ratio = source?.naturalWidth && source?.naturalHeight ? source.naturalWidth/source.naturalHeight : 0.77;
-          const imageHeight=placement.kind==='clothing'?DISPLAY_HEIGHT:placement.kind==='bags'?1.15:0.70, imageWidth=Math.min(placement.kind==='clothing'?1.62:1.12,imageHeight*ratio);
+          const imageHeight=placement.kind==='hoodies'?0.85:placement.kind==='sweaters'?0.76:0.72, imageWidth=Math.min(0.88,imageHeight*ratio);
           const garmentMaterial=new THREE.MeshBasicMaterial({
             map:alphaTexture,transparent:true,depthWrite:false,side:THREE.DoubleSide,
             opacity:index===activeIndex?1:0.72,alphaTest:0.015,toneMapped:false
@@ -288,19 +295,19 @@ function ShowroomScene({ products, activeIndex, imageFor, onSelect, onWebglError
           const plane=new THREE.PlaneGeometry(imageWidth,imageHeight);
           plane.translate(0,-imageHeight/2,0); // Top-center pivot: no vertical mismatch.
           const garment=new THREE.Mesh(plane,garmentMaterial);
-          garment.position.set(0,placement.kind==='clothing'?RAIL_Y-0.27:placement.kind==='bags'?2.75:3.08,0.10);
+          garment.position.set(0,placement.kind==='sweaters'?3.55:placement.hangerY-0.17,0.10);
           garment.userData.productIndex=index;
           entry.add(garment);
           renderRef.current?.();
         }, undefined, () => renderRef.current?.());
       }
-      if(placement.kind==='clothing'){
+      if(placement.kind!=='sweaters'){
         // Exactly one joined hanger silhouette, one integrated hook.
         // The triangle's lower bar touches the top edge of the garment.
         makeRule(entry,[
-          [0,RAIL_Y-0.01,0.01],[0.07,RAIL_Y-0.12,0.01],
-          [0.02,RAIL_Y-0.23,0.01],[-0.43,RAIL_Y-0.27,0.01],
-          [0.43,RAIL_Y-0.27,0.01],[0.02,RAIL_Y-0.23,0.01]
+          [0,placement.hangerY-0.01,0.01],[0.04,placement.hangerY-0.07,0.01],
+          [0,placement.hangerY-0.13,0.01],[-0.27,placement.hangerY-0.17,0.01],
+          [0.27,placement.hangerY-0.17,0.01],[0,placement.hangerY-0.13,0.01]
         ],0x817b70,0.75);
       }
       // A soft contact shadow, separated from the alpha garment photo.
@@ -317,7 +324,7 @@ function ShowroomScene({ products, activeIndex, imageFor, onSelect, onWebglError
       items.add(entry);
     }
     const place=fixturePosition(products[activeIndex]||products[0],activeIndex,products);
-    focusRef.current={x:place.x,z:activeIndex===0?6.5:3.2,lookZ:place.kind==='caps'?-0.9:-3.6};
+    focusRef.current={x:place.x,z:activeIndex===0?3.85:1.4,lookZ:-4.5};
     const mount = mountRef.current;
     if (mount) mount.dataset.activeIndex = String(activeIndex);
     animateRef.current?.();
@@ -399,8 +406,8 @@ export default function VirtualStore() {
     const onKey=event=>{
       if(event.target?.closest?.('input,textarea,select'))return;
       if(event.key==='Escape')setDetailOpen(false);
-      else if(event.key==='ArrowLeft'){event.preventDefault();move(-1)}
-      else if(event.key==='ArrowRight'){event.preventDefault();move(1)}
+      else if(detailOpen&&event.key==='ArrowLeft'){event.preventDefault();move(-1)}
+      else if(detailOpen&&event.key==='ArrowRight'){event.preventDefault();move(1)}
       else if(event.key==='Enter'&&!detailOpen){event.preventDefault();setDetailOpen(true)}
     };
     window.addEventListener('keydown',onKey);
