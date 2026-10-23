@@ -52,8 +52,8 @@ const fixturePosition=(p,index,products=[])=>{
  // Display index counts only this department, so unrelated categories never
  // displace garments or stack items on top of one another.
  const local=products.slice(0,index).filter(item=>fixtureKind(item)===kind).length;
- const slot=local%5,section=Math.floor(local/5);
- return {kind,x:base+(slot-2)*(kind==='clothing'?1.13:0.46),z:kind==='caps'?-0.85:-3.12+section*0.04};
+ const capacity=kind==='clothing'?8:6,slot=local%capacity;
+ return {kind,x:base+(slot-(capacity-1)/2)*(kind==='clothing'?0.78:0.36),z:kind==='caps'?-0.85:-3.12};
 };
 const categoryLabel = value => String(value || 'Collection').replace(/[-_]+/g, ' ').replace(/\b\w/g, letter => letter.toUpperCase());
 const productName = product => product?.name || product?.title || 'Drixel original';
@@ -165,7 +165,7 @@ function ShowroomScene({ products, activeIndex, imageFor, onSelect, onWebglError
       lookFrom.copy(currentLook);
       const target=focusRef.current;
       to.set(target.x,1.70,target.z);
-      lookTo.set(target.x,1.60,-3.6);
+      lookTo.set(target.x,1.60,target.lookZ??-3.6);
       tweenStart=performance.now();
       frame=window.requestAnimationFrame(animate);
     };
@@ -237,11 +237,18 @@ function ShowroomScene({ products, activeIndex, imageFor, onSelect, onWebglError
     state.textureGeneration = (state.textureGeneration || 0) + 1;
     const textureGeneration = state.textureGeneration;
     disposeGroup(items);
-    const start = 0;
-    const end = products.length-1;
-    const loader = new THREE.TextureLoader();
-    for (let index = start; index <= end; index += 1) {
-      const product = products[index];
+    const focusedKind=fixtureKind(products[activeIndex]||products[0]);
+    const focusedRank=products.slice(0,activeIndex).filter(p=>fixtureKind(p)===focusedKind).length;
+    const activePage=Math.floor(focusedRank/(focusedKind==='clothing'?8:6));
+    const loader=new THREE.TextureLoader();
+    const departmentSeen={clothing:0,caps:0,bags:0,shoes:0};
+    for(let index=0;index<products.length;index+=1){
+      const product=products[index],kind=fixtureKind(product);
+      const rank=departmentSeen[kind]++;
+      const capacity=kind==='clothing'?8:6;
+      const page=Math.floor(rank/capacity);
+      // Never stack successive pages of catalogue items in the same rail slots.
+      if(page!==(kind===focusedKind?activePage:0))continue;
       const entry = new THREE.Group();
       const placement=fixturePosition(product,index,products);
       entry.position.set(placement.x,0,placement.z+(index===activeIndex?0.25:0));
@@ -296,7 +303,7 @@ function ShowroomScene({ products, activeIndex, imageFor, onSelect, onWebglError
       items.add(entry);
     }
     const place=fixturePosition(products[activeIndex]||products[0],activeIndex,products);
-    focusRef.current={x:place.x,z:activeIndex===0?6.5:3.2};
+    focusRef.current={x:place.x,z:activeIndex===0?6.5:3.2,lookZ:place.kind==='caps'?-0.9:-3.6};
     const mount = mountRef.current;
     if (mount) mount.dataset.activeIndex = String(activeIndex);
     animateRef.current?.();
