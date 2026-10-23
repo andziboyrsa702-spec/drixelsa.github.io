@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom';
 import * as THREE from 'three';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
+import {WalkController} from '../studio/WalkController.ts';
 import {buildDrixelRoom,disposeDrixelRoom,STATIONS} from '../studio/Room.ts';
 import Layout from '../components/Layout.jsx';
 import Seo from '../components/Seo.jsx';
@@ -80,7 +81,7 @@ function disposeGroup(group) {
   }
 }
 
-function ShowroomScene({ products, activeIndex, imageFor, onSelect, onWebglError }) {
+function ShowroomScene({ products, activeIndex, imageFor, onSelect, onWebglError, department, joystick, detailOpen }) {
   const mountRef = useRef(null);
   const sceneRef = useRef(null);
   const renderRef = useRef(null);
@@ -89,6 +90,7 @@ function ShowroomScene({ products, activeIndex, imageFor, onSelect, onWebglError
   const focusRef=useRef({x:0,z:6.5});
   const onSelectRef = useRef(onSelect);
   const animateRef = useRef(null);
+  const controllerRef=useRef(null);
   onSelectRef.current = onSelect;
 
   useEffect(() => {
@@ -130,6 +132,8 @@ function ShowroomScene({ products, activeIndex, imageFor, onSelect, onWebglError
     const render = () => renderer.render(scene, camera);
     renderRef.current = render;
     sceneRef.current = { scene, items, camera, renderer };
+    const walker=new WalkController(camera);
+    controllerRef.current=walker;
     // Debug-only orbit lets designers inspect the entire volumetric interior.
     const orbitDebug=new URLSearchParams(location.search).get('studioDebug')==='1';
     let orbit=null,orbitFrame=0;
@@ -143,32 +147,41 @@ function ShowroomScene({ products, activeIndex, imageFor, onSelect, onWebglError
       const inspect=()=>{orbit.update();render();orbitFrame=requestAnimationFrame(inspect)};
       orbitFrame=requestAnimationFrame(inspect);
     }
-    let frame=0;
-    let tweenStart=0;
-    const from=new THREE.Vector3(),to=new THREE.Vector3();
-    const lookFrom=new THREE.Vector3(),lookTo=new THREE.Vector3();
-    const currentLook=new THREE.Vector3(...STATIONS.store.look);
-    const animate=(now)=>{
-      const progress=Math.min(1,(now-tweenStart)/1350);
-      const eased=progress<0.5?4*progress*progress*progress:1-Math.pow(-2*progress+2,3)/2;
-      camera.position.lerpVectors(from,to,eased);
-      currentLook.lerpVectors(lookFrom,lookTo,eased);
-      camera.lookAt(currentLook);
+    // Continuous render is necessary for natural walking, joystick motion
+    // and subtle product movement; the room itself stays fixed in world space.
+    let frame=0,last=performance.now();
+    let active=true;
+    const tick=(now)=>{
+      if(!active)return;
+      const dt=Math.min((now-last)/1000,0.05);last=now;
+      if(!orbitDebug){
+        walker.joystick=joystickRef.current;
+        walker.enabled=!detailRef.current;
+        walker.update(dt,now);
+      }
       render();
-      if(progress<1)frame=window.requestAnimationFrame(animate);
-      else frame=0;
+      frame=requestAnimationFrame(tick);
     };
-    animateRef.current=()=>{
-      if(orbitDebug)return;
-      if(frame)window.cancelAnimationFrame(frame);
-      from.copy(camera.position);
-      lookFrom.copy(currentLook);
-      const target=focusRef.current;
-      to.set(target.x,1.70,target.z);
-      lookTo.set(target.x,1.60,target.lookZ??-3.6);
-      tweenStart=performance.now();
-      frame=window.requestAnimationFrame(animate);
+    const joystickRef={current:{x:0,y:0}};
+    const detailRef={current:false};
+    sceneRef.current.joystickRef=joystickRef;
+    sceneRef.current.detailRef=detailRef;
+    const onKeyDown=event=>{
+      if(event.target?.closest?.('input,textarea,select,button,[role="dialog"]'))return;
+      const code=event.code.toLowerCase();
+      if(['keyw','keya','keys','keyd','arrowup','arrowdown','arrowleft','arrowright'].includes(code)){
+        event.preventDefault();walker.key(code,true);
+      }
     };
+    const onKeyUp=event=>walker.key(event.code.toLowerCase(),false);
+    const onBlur=()=>walker.keys.clear();
+    const onWheel=event=>{if(orbitDebug||detailRef.current)return;event.preventDefault();walker.wheel(event.deltaY)};
+    window.addEventListener('keydown',onKeyDown);
+    window.addEventListener('keyup',onKeyUp);
+    window.addEventListener('blur',onBlur);
+    mount.addEventListener('wheel',onWheel,{passive:false});
+    frame=requestAnimationFrame(tick);
+    animateRef.current=()=>{}; // The camera is driven by the walker.
     const resize = () => {
       const width = Math.max(1, mount.clientWidth);
       const height = Math.max(1, mount.clientHeight);
@@ -181,18 +194,11 @@ function ShowroomScene({ products, activeIndex, imageFor, onSelect, onWebglError
     const observer = new ResizeObserver(resize);
     observer.observe(mount);
     resize();
-    const pointerDown = event => { if(orbitDebug)return; mount.setPointerCapture?.(event.pointerId); mount.dataset.startX = String(event.clientX); mount.dataset.startY = String(event.clientY); };
+    const pointerDown = event => { if(orbitDebug||detailRef.current)return; walker.pointerDown(event.clientX,event.clientY);mount.setPointerCapture?.(event.pointerId);};
+    const pointerMove=event=>{if(!orbitDebug&&!detailRef.current)walker.pointerMove(event.clientX,event.clientY)};
     const pointerUp = event => {
       if(orbitDebug)return;
-      const startX = Number(mount.dataset.startX || event.clientX);
-      const startY = Number(mount.dataset.startY || event.clientY);
-      const dx = event.clientX - startX;
-      const dy = event.clientY - startY;
-      if (Math.abs(dx) > 42 && Math.abs(dx) > Math.abs(dy)) {
-        const current = Number(mount.dataset.activeIndex || 0);
-        onSelectRef.current(Math.max(0, Math.min(products.length - 1, current + (dx < 0 ? 1 : -1))));
-        return;
-      }
+      if(!walker.pointerUp())return;
       const rect = renderer.domElement.getBoundingClientRect();
       pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
       pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
@@ -201,16 +207,23 @@ function ShowroomScene({ products, activeIndex, imageFor, onSelect, onWebglError
       if (hit) onSelectRef.current(hit.object.userData.productIndex);
     };
     mount.addEventListener('pointerdown', pointerDown);
+    mount.addEventListener('pointermove',pointerMove);
     mount.addEventListener('pointerup', pointerUp);
 
     const onVisibility = () => { if (document.visibilityState === 'visible') render(); };
     document.addEventListener('visibilitychange', onVisibility);
     return () => {
+      active=false;
       window.cancelAnimationFrame(frame);
       window.cancelAnimationFrame(orbitFrame);
+      window.removeEventListener('keydown',onKeyDown);
+      window.removeEventListener('keyup',onKeyUp);
+      window.removeEventListener('blur',onBlur);
+      mount.removeEventListener('wheel',onWheel);
       orbit?.dispose();
       observer.disconnect();
       mount.removeEventListener('pointerdown', pointerDown);
+      mount.removeEventListener('pointermove',pointerMove);
       mount.removeEventListener('pointerup', pointerUp);
       document.removeEventListener('visibilitychange', onVisibility);
       disposeGroup(items);
@@ -227,6 +240,7 @@ function ShowroomScene({ products, activeIndex, imageFor, onSelect, onWebglError
       sceneRef.current = null;
       renderRef.current = null;
       animateRef.current = null;
+      controllerRef.current=null;
     };
   }, [onWebglError, products.length]);
 
@@ -310,7 +324,14 @@ function ShowroomScene({ products, activeIndex, imageFor, onSelect, onWebglError
     renderRef.current?.();
   }, [products, activeIndex, imageFor]);
 
-  return <div className="dx-virtual-stage" ref={mountRef} aria-hidden="true" />;
+  useEffect(()=>{
+    if(!controllerRef.current)return;
+    const key=department==='all'?'store':department.toLowerCase().includes('hood')?'hoodies':department.toLowerCase().includes('sweat')?'sweaters':'tees';
+    controllerRef.current.goTo(key);
+  },[department]);
+  useEffect(()=>{if(sceneRef.current?.joystickRef)sceneRef.current.joystickRef.current=joystick},[joystick]);
+  useEffect(()=>{if(sceneRef.current?.detailRef)sceneRef.current.detailRef.current=detailOpen},[detailOpen]);
+  return <div className="dx-virtual-stage" ref={mountRef} role="application" aria-label="Walkable DRIXEL boutique. Drag to look and use W A S D to walk." tabIndex={0}/>;
 }
 
 export default function VirtualStore() {
@@ -324,6 +345,7 @@ export default function VirtualStore() {
   const [size, setSize] = useState('');
   const [backView, setBackView] = useState(false);
   const [webglError, setWebglError] = useState(false);
+  const [joystick,setJoystick]=useState({x:0,y:0});
   const [notice, setNotice] = useState('');
   const [detailOpen,setDetailOpen]=useState(false);
   const [added,setAdded]=useState(false);
@@ -411,9 +433,16 @@ export default function VirtualStore() {
     {product && <>
       <section className="dx-virtual-gallery" aria-label="Interactive Drixel product showroom">
         <div className="dx-virtual-scene-top"><span><i/> LIVE COLLECTION</span><span>{String(safeIndex + 1).padStart(2, '0')} — {String(visibleProducts.length).padStart(2, '0')}</span></div>
-        {!webglError ? <ShowroomScene products={visibleProducts} activeIndex={safeIndex} imageFor={imageFor} onSelect={chooseProduct} onWebglError={setWebglError}/> : <div className="dx-virtual-fallback"><img src={shownImage} alt={`${productName(product)} in the Drixel studio`} /></div>}
+        {!webglError ? <ShowroomScene products={visibleProducts} activeIndex={safeIndex} imageFor={imageFor} onSelect={chooseProduct} onWebglError={setWebglError} department={category} joystick={joystick} detailOpen={detailOpen}/> : <div className="dx-virtual-fallback"><img src={shownImage} alt={`${productName(product)} in the Drixel studio`} /></div>}
         <div className="dx-virtual-cart-badge"><Link to={`/${market}/cart`} aria-label={`Shopping bag, ${cart.count} items`}>Bag <strong>{cart.count}</strong></Link></div>
         <button className="dx-virtual-focus" type="button" onClick={()=>setDetailOpen(true)} aria-label={`View ${productName(product)} details`}>{productName(product)} <span>{money(productPrice(product,variant))} · View details ↗</span></button>
+        <div className="dx-walk-hint" aria-hidden="true">Drag to look · WASD / arrows to walk · Scroll to move</div>
+        <div className="dx-walk-joystick" aria-label="Move around showroom">
+          <button type="button" aria-label="Walk forward" onPointerDown={()=>setJoystick({x:0,y:-1})} onPointerUp={()=>setJoystick({x:0,y:0})} onPointerCancel={()=>setJoystick({x:0,y:0})}>↑</button>
+          <div><button type="button" aria-label="Walk left" onPointerDown={()=>setJoystick({x:-1,y:0})} onPointerUp={()=>setJoystick({x:0,y:0})} onPointerCancel={()=>setJoystick({x:0,y:0})}>←</button>
+          <button type="button" aria-label="Walk backward" onPointerDown={()=>setJoystick({x:0,y:1})} onPointerUp={()=>setJoystick({x:0,y:0})} onPointerCancel={()=>setJoystick({x:0,y:0})}>↓</button>
+          <button type="button" aria-label="Walk right" onPointerDown={()=>setJoystick({x:1,y:0})} onPointerUp={()=>setJoystick({x:0,y:0})} onPointerCancel={()=>setJoystick({x:0,y:0})}>→</button></div>
+        </div>
         <div className="dx-virtual-brand" aria-hidden="true"><span>DRIXEL</span><small>FORM FOLLOWS FEELING</small></div>
         <nav className="dx-virtual-floating-nav" aria-label="Showroom collections">
           <button type="button" aria-pressed={category==='all'} onClick={()=>setCategory('all')}>Store</button>
