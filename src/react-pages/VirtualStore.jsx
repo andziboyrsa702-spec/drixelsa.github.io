@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import * as THREE from 'three';
+import {buildDrixelRoom,disposeDrixelRoom,STATIONS} from '../studio/Room.ts';
 import Layout from '../components/Layout.jsx';
 import Seo from '../components/Seo.jsx';
 import useCatalogue from '../hooks/useCatalogue.js';
@@ -12,7 +13,7 @@ import { productPath } from '../utils/urls.js';
 import { imageAtWidth } from '../utils/responsiveImage.js';
 
 const SPACING = 1.82;
-const RAIL_Y=3.05;
+const RAIL_Y=2.53;
 const DISPLAY_HEIGHT=1.97;
 // Edge-connected matte removal only. Interior whites (including white fabric
 // and DRIXEL printing) are never flood-filled.
@@ -46,12 +47,12 @@ function cleanGarmentTexture(texture){
 
 const fixtureKind=p=>/cap|hat|beanie/i.test([p?.category,p?.name].join(' '))?'caps':/bag|tote|backpack/i.test([p?.category,p?.name].join(' '))?'bags':/shoe|sneaker/i.test([p?.category,p?.name].join(' '))?'shoes':'clothing';
 const fixturePosition=(p,index,products=[])=>{
- const kind=fixtureKind(p),base={clothing:-5.5,caps:0,bags:5.3,shoes:10.2}[kind];
+ const kind=fixtureKind(p),base={clothing:0,caps:5.8,bags:4.75,shoes:-5.5}[kind];
  // Display index counts only this department, so unrelated categories never
  // displace garments or stack items on top of one another.
  const local=products.slice(0,index).filter(item=>fixtureKind(item)===kind).length;
  const slot=local%5,section=Math.floor(local/5);
- return {kind,x:base+(slot-2)*1.18,z:-1.45+section*0.08};
+ return {kind,x:base+(slot-2)*(kind==='clothing'?1.13:0.46),z:kind==='caps'?-0.85:-3.12+section*0.04};
 };
 const categoryLabel = value => String(value || 'Collection').replace(/[-_]+/g, ' ').replace(/\b\w/g, letter => letter.toUpperCase());
 const productName = product => product?.name || product?.title || 'Drixel original';
@@ -84,7 +85,7 @@ function ShowroomScene({ products, activeIndex, imageFor, onSelect, onWebglError
   const renderRef = useRef(null);
   const targetXRef = useRef(0);
   const cameraTargetRef=useRef(0);
-  const focusRef=useRef({x:-5.5,z:4.7});
+  const focusRef=useRef({x:0,z:6.5});
   const onSelectRef = useRef(onSelect);
   const animateRef = useRef(null);
   onSelectRef.current = onSelect;
@@ -109,73 +110,18 @@ function ShowroomScene({ products, activeIndex, imageFor, onSelect, onWebglError
     mount.appendChild(renderer.domElement);
 
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0xf9f8f5);
-    scene.fog = new THREE.Fog(0xf9f8f5, 18, 46);
+    scene.background = new THREE.Color(0xf3efe7);
+    scene.fog = new THREE.Fog(0xf3efe7, 14, 30);
     const camera = new THREE.PerspectiveCamera(36, 1, 0.1, 80);
-    camera.position.set(-5.5, 1.85, 4.7);
-    camera.lookAt(-5.5, 1.9, -1.5);
+    camera.position.set(...STATIONS.store.position);
+    camera.lookAt(...STATIONS.store.look);
 
-    scene.add(new THREE.HemisphereLight(0xffffff, 0xa9a39a, 2.75));
-    const key = new THREE.DirectionalLight(0xffffff, 2.15);
-    key.position.set(-3.5, 7, 5);
-    scene.add(key);
-    const fill = new THREE.DirectionalLight(0xf6f2e9, 1.35);
-    fill.position.set(5, 4, 1);
-    scene.add(fill);
-    renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
-    key.castShadow=true;key.shadow.mapSize.set(1024,1024);
-    key.shadow.camera.left=-16;key.shadow.camera.right=16;key.shadow.camera.top=12;key.shadow.camera.bottom=-12;
-    const ceiling=new THREE.Mesh(new THREE.PlaneGeometry(32,20),new THREE.MeshStandardMaterial({color:0xffffff,roughness:1}));
-    ceiling.rotation.x=Math.PI/2;ceiling.position.set(0,6.6,2);scene.add(ceiling);
-    const galleryLight=new THREE.SpotLight(0xfff5e8,75,24,Math.PI/3,0.6,1);
-    galleryLight.position.set(0,6,4);scene.add(galleryLight);
-    const wall = new THREE.Mesh(new THREE.PlaneGeometry(100, 30), new THREE.MeshStandardMaterial({ color: 0xf8f7f3, roughness: 0.99 }));
-    wall.position.set(0, 5, -2.5);
-    scene.add(wall);
-    const floor = new THREE.Mesh(new THREE.PlaneGeometry(100, 100), new THREE.MeshStandardMaterial({ color: 0xeceae5, roughness: 0.91, metalness: 0 }));
-    floor.rotation.x = -Math.PI / 2;
-    floor.position.y = -0.06;
-    scene.add(floor);floor.receiveShadow=true;
-    const sideWall=new THREE.Mesh(new THREE.PlaneGeometry(30,30),new THREE.MeshStandardMaterial({color:0xeeece7,roughness:1}));
-    sideWall.rotation.y=-Math.PI/2;sideWall.position.set(13,5,3);scene.add(sideWall);
-    
-    // Fine floor lines and the brushed-metal Drixel clothing rail define the room without borrowing another brand's set.
-
-
-    const railGroup = new THREE.Group();
-    scene.add(railGroup);
-    const railMaterial = new THREE.MeshStandardMaterial({ color: 0x77736d, metalness: 0.78, roughness: 0.28 });
-    const addCylinder = (radius, height, x, y, z, rotation = null) => {
-      const mesh = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius, height, 16), railMaterial);
-      mesh.position.set(x, y, z);
-      if (rotation) mesh.rotation.set(...rotation);
-      railGroup.add(mesh);
-      return mesh;
-    };
-    addCylinder(0.022,10.4,-5.5,RAIL_Y,-1.36,[0,0,Math.PI/2]);
-    const shelfMaterial=new THREE.MeshStandardMaterial({color:0xd1c1ab,roughness:0.76});
-    for(const bay of [0,5.3,10.2])for(const height of [1.15,2.35,3.55]){
-      const slab=new THREE.Mesh(new THREE.BoxGeometry(bay===10.2?3.3:4.6,0.10,0.82),shelfMaterial);
-      slab.position.set(bay,height,-1.88);slab.castShadow=true;slab.receiveShadow=true;scene.add(slab);
-    }
-
-    // Wall-mounted rail stays open and unobtrusive.
-    
-    
-    
-    const logoMaterial = new THREE.MeshBasicMaterial({ color: 0x111111, transparent: true, depthWrite: false });
-    const logo = new THREE.Mesh(new THREE.PlaneGeometry(0.62, 0.62), logoMaterial);
-    logo.position.set(-3.55, 4.65, -2.42);
-    scene.add(logo);
-    new THREE.TextureLoader().load('/favicon.svg', texture => {
-      if (sceneRef.current?.scene !== scene) { texture.dispose(); return; }
-      texture.colorSpace = THREE.SRGBColorSpace;
-      logoMaterial.map = texture;
-      logoMaterial.needsUpdate = true;
-      renderRef.current?.();
-    }, undefined, () => renderRef.current?.());
-
-
+    renderer.toneMapping=THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure=1.0;
+    renderer.shadowMap.enabled=true;
+    renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+    const room=buildDrixelRoom();
+    scene.add(room);
     const items = new THREE.Group();
     scene.add(items);
     const raycaster = new THREE.Raycaster();
@@ -189,8 +135,8 @@ function ShowroomScene({ products, activeIndex, imageFor, onSelect, onWebglError
       const delta=target.x-camera.position.x;
       camera.position.x+=delta*0.055;
       camera.position.z+=(target.z-camera.position.z)*0.055;
-      camera.position.y=1.75;
-      camera.lookAt(target.x,1.9,-1.5);
+      camera.position.y=1.7;
+      camera.lookAt(target.x,1.6,-3.6);
       const cameraDelta=target.z-camera.position.z;
       if (Math.abs(delta) > 0.003 || Math.abs(cameraDelta)>0.004) {
         render();
@@ -243,6 +189,7 @@ function ShowroomScene({ products, activeIndex, imageFor, onSelect, onWebglError
       mount.removeEventListener('pointerup', pointerUp);
       document.removeEventListener('visibilitychange', onVisibility);
       disposeGroup(items);
+      disposeDrixelRoom(room);
       scene.traverse(object => {
         if (object.parent !== items) {
           object.geometry?.dispose?.();
@@ -324,7 +271,7 @@ function ShowroomScene({ products, activeIndex, imageFor, onSelect, onWebglError
       items.add(entry);
     }
     const place=fixturePosition(products[activeIndex]||products[0],activeIndex,products);
-    focusRef.current={x:place.x,z:activeIndex===0?4.7:4.0};
+    focusRef.current={x:place.x,z:activeIndex===0?6.5:3.2};
     const mount = mountRef.current;
     if (mount) mount.dataset.activeIndex = String(activeIndex);
     animateRef.current?.();
