@@ -103,10 +103,18 @@ function ShowroomScene({ products, activeIndex, imageFor, onSelect, onWebglError
     addCylinder(0.032, 2.7, 3.55, 2.0, -0.18);
     addCylinder(0.05, 1.6, -3.55, 0.12, -0.18, [0, 0, Math.PI / 2]);
     addCylinder(0.05, 1.6, 3.55, 0.12, -0.18, [0, 0, Math.PI / 2]);
-    const logo = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.72, 0.08), new THREE.MeshStandardMaterial({ color: 0xd8ff4a, roughness: 0.42 }));
-    logo.position.set(-4.12, 3.3, -0.12);
+    const logoMaterial = new THREE.MeshBasicMaterial({ color: 0xd8ff4a, transparent: true, depthWrite: false });
+    const logo = new THREE.Mesh(new THREE.PlaneGeometry(0.62, 0.62), logoMaterial);
+    logo.position.set(-3.55, 4.65, -2.42);
     scene.add(logo);
-    makeRule(scene, [[-3.85, 3.32, -0.1], [-3.55, 3.32, -0.1]], 0xd8ff4a, 1);
+    new THREE.TextureLoader().load('/favicon.svg', texture => {
+      if (sceneRef.current?.scene !== scene) { texture.dispose(); return; }
+      texture.colorSpace = THREE.SRGBColorSpace;
+      logoMaterial.map = texture;
+      logoMaterial.needsUpdate = true;
+      renderRef.current?.();
+    }, undefined, () => renderRef.current?.());
+    makeRule(scene, [[-3.42, 4.22, -2.4], [-2.86, 4.22, -2.4]], 0xd8ff4a, 0.85);
 
     const items = new THREE.Group();
     scene.add(items);
@@ -141,7 +149,7 @@ function ShowroomScene({ products, activeIndex, imageFor, onSelect, onWebglError
     const observer = new ResizeObserver(resize);
     observer.observe(mount);
     resize();
-    const pointerDown = event => { mount.dataset.startX = String(event.clientX); mount.dataset.startY = String(event.clientY); };
+    const pointerDown = event => { mount.setPointerCapture?.(event.pointerId); mount.dataset.startX = String(event.clientX); mount.dataset.startY = String(event.clientY); };
     const pointerUp = event => {
       const startX = Number(mount.dataset.startX || event.clientX);
       const startY = Number(mount.dataset.startY || event.clientY);
@@ -175,7 +183,7 @@ function ShowroomScene({ products, activeIndex, imageFor, onSelect, onWebglError
         if (object.parent !== items) {
           object.geometry?.dispose?.();
           const mats = Array.isArray(object.material) ? object.material : [object.material];
-          mats.filter(Boolean).forEach(material => material.dispose?.());
+          mats.filter(Boolean).forEach(material => { material.map?.dispose?.(); material.dispose?.(); });
         }
       });
       renderer.dispose();
@@ -312,7 +320,7 @@ export default function VirtualStore() {
     {!loading && !error && visibleProducts.length === 0 && <div className="dx-virtual-empty"><span>01 / 00</span><h2>No pieces here yet.</h2><p>Try another category or search.</p><button type="button" onClick={() => {setCategory('all');setQuery('');}}>View all pieces</button></div>}
     {product && <>
       <section className="dx-virtual-gallery" aria-label="Interactive Drixel product showroom">
-        <div className="dx-virtual-scene-top"><span><i/> LIVE COLLECTION</span><span>01 — {String(visibleProducts.length).padStart(2, '0')}</span></div>
+        <div className="dx-virtual-scene-top"><span><i/> LIVE COLLECTION</span><span>{String(safeIndex + 1).padStart(2, '0')} — {String(visibleProducts.length).padStart(2, '0')}</span></div>
         {!webglError ? <ShowroomScene products={visibleProducts} activeIndex={safeIndex} imageFor={imageFor} onSelect={chooseProduct} onWebglError={setWebglError}/> : <div className="dx-virtual-fallback"><img src={shownImage} alt={`${productName(product)} in the Drixel studio`} /></div>}
         <div className="dx-virtual-brand" aria-hidden="true"><span>DRIXEL</span><small>FORM FOLLOWS FEELING</small></div>
         <div className="dx-virtual-controls"><span>DRAG TO MOVE</span><div><button type="button" aria-label="Previous product" disabled={safeIndex === 0} onClick={() => move(-1)}>←</button><button type="button" aria-label="Next product" disabled={safeIndex >= visibleProducts.length - 1} onClick={() => move(1)}>→</button></div><span>{String(safeIndex + 1).padStart(2, '0')} / {String(visibleProducts.length).padStart(2, '0')}</span></div>
