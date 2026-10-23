@@ -12,6 +12,11 @@ import { productPath } from '../utils/urls.js';
 import { imageAtWidth } from '../utils/responsiveImage.js';
 
 const SPACING = 1.82;
+const fixtureKind=p=>/cap|hat|beanie/i.test([p?.category,p?.name].join(' '))?'caps':/bag|tote|backpack/i.test([p?.category,p?.name].join(' '))?'bags':/shoe|sneaker/i.test([p?.category,p?.name].join(' '))?'shoes':'clothing';
+const fixturePosition=(p,index)=>{
+ const kind=fixtureKind(p),base={clothing:-5.5,caps:0,bags:5.3,shoes:10.2}[kind];
+ return {kind,x:base+((index%5)-2)*0.94,z:-1.5};
+};
 const categoryLabel = value => String(value || 'Collection').replace(/[-_]+/g, ' ').replace(/\b\w/g, letter => letter.toUpperCase());
 const productName = product => product?.name || product?.title || 'Drixel original';
 
@@ -43,6 +48,7 @@ function ShowroomScene({ products, activeIndex, imageFor, onSelect, onWebglError
   const renderRef = useRef(null);
   const targetXRef = useRef(0);
   const cameraTargetRef=useRef(0);
+  const focusRef=useRef({x:-5.5,z:8.5});
   const onSelectRef = useRef(onSelect);
   const animateRef = useRef(null);
   onSelectRef.current = onSelect;
@@ -70,8 +76,8 @@ function ShowroomScene({ products, activeIndex, imageFor, onSelect, onWebglError
     scene.background = new THREE.Color(0xf9f8f5);
     scene.fog = new THREE.Fog(0xf9f8f5, 18, 46);
     const camera = new THREE.PerspectiveCamera(36, 1, 0.1, 80);
-    camera.position.set(0, 2.5, 11.8);
-    camera.lookAt(0, 1.76, 0);
+    camera.position.set(-5.5, 1.75, 8.5);
+    camera.lookAt(-5.5, 1.9, -1.5);
 
     scene.add(new THREE.HemisphereLight(0xffffff, 0xa9a39a, 2.75));
     const key = new THREE.DirectionalLight(0xffffff, 2.15);
@@ -80,13 +86,20 @@ function ShowroomScene({ products, activeIndex, imageFor, onSelect, onWebglError
     const fill = new THREE.DirectionalLight(0xf6f2e9, 1.35);
     fill.position.set(5, 4, 1);
     scene.add(fill);
+    renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+    key.castShadow=true;key.shadow.mapSize.set(1024,1024);
+    key.shadow.camera.left=-16;key.shadow.camera.right=16;key.shadow.camera.top=12;key.shadow.camera.bottom=-12;
+    const ceiling=new THREE.Mesh(new THREE.PlaneGeometry(32,20),new THREE.MeshStandardMaterial({color:0xffffff,roughness:1}));
+    ceiling.rotation.x=Math.PI/2;ceiling.position.set(0,6.6,2);scene.add(ceiling);
+    const galleryLight=new THREE.SpotLight(0xfff5e8,75,24,Math.PI/3,0.6,1);
+    galleryLight.position.set(0,6,4);scene.add(galleryLight);
     const wall = new THREE.Mesh(new THREE.PlaneGeometry(100, 30), new THREE.MeshStandardMaterial({ color: 0xf8f7f3, roughness: 0.99 }));
     wall.position.set(0, 5, -2.5);
     scene.add(wall);
     const floor = new THREE.Mesh(new THREE.PlaneGeometry(100, 100), new THREE.MeshStandardMaterial({ color: 0xeceae5, roughness: 0.91, metalness: 0 }));
     floor.rotation.x = -Math.PI / 2;
     floor.position.y = -0.06;
-    scene.add(floor);
+    scene.add(floor);floor.receiveShadow=true;
     const sideWall=new THREE.Mesh(new THREE.PlaneGeometry(30,30),new THREE.MeshStandardMaterial({color:0xeeece7,roughness:1}));
     sideWall.rotation.y=-Math.PI/2;sideWall.position.set(13,5,3);scene.add(sideWall);
     makeRule(scene, [[-30,0,-2.46],[30,0,-2.46]],0xbbb9b3,0.45);
@@ -103,7 +116,14 @@ function ShowroomScene({ products, activeIndex, imageFor, onSelect, onWebglError
       railGroup.add(mesh);
       return mesh;
     };
-    addCylinder(0.022, 34, 0, 3.32, -0.18, [0, 0, Math.PI / 2]);
+    addCylinder(0.025,7.5,-5.5,3.25,-1.36,[0,0,Math.PI/2]);
+    const shelfMaterial=new THREE.MeshStandardMaterial({color:0xd1c1ab,roughness:0.76});
+    for(const bay of [0,5.3,10.2])for(const height of [1.15,2.35,3.55]){
+      const slab=new THREE.Mesh(new THREE.BoxGeometry(bay===10.2?3.3:4.6,0.10,0.82),shelfMaterial);
+      slab.position.set(bay,height,-1.88);slab.castShadow=true;slab.receiveShadow=true;scene.add(slab);
+    }
+    const trim=new THREE.Mesh(new THREE.BoxGeometry(27,0.13,0.1),new THREE.MeshStandardMaterial({color:0xcac5bd}));
+    trim.position.set(0,0.08,-2.39);scene.add(trim);
     // Wall-mounted rail stays open and unobtrusive.
     
     
@@ -130,16 +150,17 @@ function ShowroomScene({ products, activeIndex, imageFor, onSelect, onWebglError
     sceneRef.current = { scene, items, camera, renderer };
     let frame = 0;
     const animate = () => {
-      const delta = targetXRef.current - items.position.x;
-      const cameraDelta=cameraTargetRef.current-camera.position.x;
-      camera.position.x+=cameraDelta*0.06;
-      camera.lookAt(camera.position.x,1.8,0);
+      const target=focusRef.current;
+      const delta=target.x-camera.position.x;
+      camera.position.x+=delta*0.055;
+      camera.position.z+=(target.z-camera.position.z)*0.055;
+      camera.position.y=1.75;
+      camera.lookAt(target.x,1.9,-1.5);
+      const cameraDelta=target.z-camera.position.z;
       if (Math.abs(delta) > 0.003 || Math.abs(cameraDelta)>0.004) {
-        items.position.x += delta * 0.075;
         render();
         frame = window.requestAnimationFrame(animate);
       } else {
-        items.position.x = targetXRef.current;
         render();
         frame = 0;
       }
@@ -150,7 +171,7 @@ function ShowroomScene({ products, activeIndex, imageFor, onSelect, onWebglError
       const height = Math.max(1, mount.clientHeight);
       renderer.setSize(width, height, false);
       camera.aspect = width / height;
-      camera.position.z = width < 600 ? 13.2 : 11.8;
+      camera.fov=width<600?56:42;
       camera.updateProjectionMatrix();
       render();
     };
@@ -209,14 +230,15 @@ function ShowroomScene({ products, activeIndex, imageFor, onSelect, onWebglError
     state.textureGeneration = (state.textureGeneration || 0) + 1;
     const textureGeneration = state.textureGeneration;
     disposeGroup(items);
-    const start = Math.max(0, activeIndex - 5);
-    const end = Math.min(products.length - 1, activeIndex + 5);
+    const start = 0;
+    const end = Math.min(products.length - 1, 39);
     const loader = new THREE.TextureLoader();
     for (let index = start; index <= end; index += 1) {
       const product = products[index];
       const entry = new THREE.Group();
-      entry.position.set(index * SPACING, 0, index === activeIndex ? 0.38 : 0);
-      entry.scale.setScalar(index === activeIndex ? 1.12 : 1);
+      const placement=fixturePosition(product,index);
+      entry.position.set(placement.x,0,placement.z+(index===activeIndex?0.25:0));
+      entry.scale.setScalar(index === activeIndex ? 1.08 : 0.88);
       entry.userData.productIndex = index;
       // The garment hangs freely in the room. Source photographs are cut out on the GPU
       // (white/light studio backgrounds become transparent), not placed inside picture frames.
@@ -228,7 +250,7 @@ function ShowroomScene({ products, activeIndex, imageFor, onSelect, onWebglError
           texture.anisotropy = Math.min(state.renderer.capabilities.getMaxAnisotropy(), 4);
           const source = texture.image;
           const ratio = source?.naturalWidth && source?.naturalHeight ? source.naturalWidth/source.naturalHeight : 0.77;
-          const imageHeight = 2.40, imageWidth = Math.min(2.25, imageHeight*ratio);
+          const imageHeight=placement.kind==='clothing'?2.18:placement.kind==='bags'?1.15:0.70, imageWidth=Math.min(placement.kind==='clothing'?1.75:1.12,imageHeight*ratio);
           const garmentMaterial = new THREE.ShaderMaterial({
             uniforms:{map:{value:texture},opacity:{value:1}},
             vertexShader:`varying vec2 vUv; void main(){vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}`,
@@ -247,22 +269,22 @@ function ShowroomScene({ products, activeIndex, imageFor, onSelect, onWebglError
             transparent:true,depthWrite:false,side:THREE.DoubleSide
           });
           const garment = new THREE.Mesh(new THREE.PlaneGeometry(imageWidth,imageHeight,12,12),garmentMaterial);
-          garment.position.set(0,1.63,0.10);
+          garment.position.set(0,placement.kind==='clothing'?1.61:placement.kind==='bags'?2.15:2.68,0.10);
           garment.userData.productIndex=index;
           entry.add(garment);
           renderRef.current?.();
         }, undefined, () => renderRef.current?.());
       }
-      makeRule(entry, [[0, 3.3, -0.05], [0, 3.13, -0.05], [-0.65, 2.77, -0.05], [0.65, 2.77, -0.05], [0, 3.13, -0.05]], 0x77736d, 0.8);
+      if(placement.kind==='clothing')makeRule(entry, [[0, 3.3, -0.05], [0, 3.13, -0.05], [-0.65, 2.77, -0.05], [0.65, 2.77, -0.05], [0, 3.13, -0.05]], 0x77736d, 0.8);
       const hook = new THREE.Mesh(new THREE.TorusGeometry(0.09, 0.018, 8, 18, Math.PI * 1.5), new THREE.MeshStandardMaterial({ color: 0x827e76, metalness: 0.68, roughness: 0.32 }));
       hook.position.set(0, 3.32, -0.05);
       hook.rotation.z = Math.PI * 0.8;
-      entry.add(hook);
-      makeRule(entry, [[0, 2.88, -0.04], [0, 2.55, -0.04]], 0xbcb5aa, 0.7);
+      if(placement.kind==='clothing')entry.add(hook);
+      if(placement.kind==='clothing')makeRule(entry, [[0, 2.88, -0.04], [0, 2.55, -0.04]], 0xbcb5aa, 0.7);
       items.add(entry);
     }
-    targetXRef.current = -activeIndex * SPACING;
-    cameraTargetRef.current = Math.sin(activeIndex*0.35)*0.22;
+    const place=fixturePosition(products[activeIndex]||products[0],activeIndex);
+    focusRef.current={x:place.x,z:activeIndex===0?8.5:5.7};
     const mount = mountRef.current;
     if (mount) mount.dataset.activeIndex = String(activeIndex);
     animateRef.current?.();
