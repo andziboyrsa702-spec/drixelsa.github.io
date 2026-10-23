@@ -1,3 +1,22 @@
+# DRIXEL Studio implementation status — M1 foundation (23 October 2026)
+
+The new `src/studio/Room.ts` module creates a **physical metre-scale room** in WebGL and is mounted from `VirtualStore.jsx`. It includes a joined floor, walls, ceiling, skirting, wall-mounted clothing rail, shoe shelves, bag cubbies, cap pegboard and soft dynamic lights. The camera waypoint moves now finish in about 1.35 seconds using a deterministic eased interpolation. This is the **M1 structural foundation**, not the final visual target.
+
+`scripts/blender/create_drixel_studio.py` is the editable Blender authoring source. Use Blender 4.x:
+```sh
+blender -b --python scripts/blender/create_drixel_studio.py
+```
+It writes `build/studio/drixel_room.blend` and `build/studio/drixel_room.glb` locally. **Those binary assets have not been generated or shipped in this repository yet.** Rendering currently uses the TypeScript geometry, not a loaded lightmapped GLB.
+
+### Required next production gates
+1. Open the Blender scene, adjust fixture spacing and camera compositions to the reference, bake Cycle AO/lightmaps and export compressed geometry/textures. WebGL runtime needs to consume the GLB.
+2. Replace white-matte product photographs with reviewed RGBA cutout WebP. Avoid automatic removal of white lettering/white garment fabric. Generate catalogue-to-asset manifest and audit duplicate product identities.
+3. Implement one correct hanger model per item, alpha silhouettes, wall shadow maps and pre-recorded 4–8 angle turns where genuine assets exist.
+4. Migrate renderer into R3F/drei and use GSAP for station camera poses with tested 1.2–1.5s transitions. This is not yet done.
+5. Verify Chrome, Firefox, Safari, iOS, Android; test cart variant round-trip and mobile Lighthouse ≥70; capture desktop/mobile screenshots and screen recording.
+6. Release **only after** CI, visual acceptance and shopping checks are green. Do not claim photorealism based on the geometry-only foundation.
+
+---
 # DRIXEL Virtual Store — implementation and asset contract
 
 ## Architecture / current scope
