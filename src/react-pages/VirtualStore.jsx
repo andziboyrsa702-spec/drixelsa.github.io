@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import * as THREE from 'three';
+import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {buildDrixelRoom,disposeDrixelRoom,STATIONS} from '../studio/Room.ts';
 import Layout from '../components/Layout.jsx';
 import Seo from '../components/Seo.jsx';
@@ -129,6 +130,19 @@ function ShowroomScene({ products, activeIndex, imageFor, onSelect, onWebglError
     const render = () => renderer.render(scene, camera);
     renderRef.current = render;
     sceneRef.current = { scene, items, camera, renderer };
+    // Debug-only orbit lets designers inspect the entire volumetric interior.
+    const orbitDebug=new URLSearchParams(location.search).get('studioDebug')==='1';
+    let orbit=null,orbitFrame=0;
+    if(orbitDebug){
+      orbit=new OrbitControls(camera,renderer.domElement);
+      camera.position.set(0,2.4,4.2);
+      orbit.target.set(0,1.8,-1.5);
+      orbit.enableDamping=true;orbit.dampingFactor=0.08;
+      orbit.minDistance=1.2;orbit.maxDistance=12;
+      orbit.update();
+      const inspect=()=>{orbit.update();render();orbitFrame=requestAnimationFrame(inspect)};
+      orbitFrame=requestAnimationFrame(inspect);
+    }
     let frame=0;
     let tweenStart=0;
     const from=new THREE.Vector3(),to=new THREE.Vector3();
@@ -145,6 +159,7 @@ function ShowroomScene({ products, activeIndex, imageFor, onSelect, onWebglError
       else frame=0;
     };
     animateRef.current=()=>{
+      if(orbitDebug)return;
       if(frame)window.cancelAnimationFrame(frame);
       from.copy(camera.position);
       lookFrom.copy(currentLook);
@@ -166,8 +181,9 @@ function ShowroomScene({ products, activeIndex, imageFor, onSelect, onWebglError
     const observer = new ResizeObserver(resize);
     observer.observe(mount);
     resize();
-    const pointerDown = event => { mount.setPointerCapture?.(event.pointerId); mount.dataset.startX = String(event.clientX); mount.dataset.startY = String(event.clientY); };
+    const pointerDown = event => { if(orbitDebug)return; mount.setPointerCapture?.(event.pointerId); mount.dataset.startX = String(event.clientX); mount.dataset.startY = String(event.clientY); };
     const pointerUp = event => {
+      if(orbitDebug)return;
       const startX = Number(mount.dataset.startX || event.clientX);
       const startY = Number(mount.dataset.startY || event.clientY);
       const dx = event.clientX - startX;
@@ -191,6 +207,8 @@ function ShowroomScene({ products, activeIndex, imageFor, onSelect, onWebglError
     document.addEventListener('visibilitychange', onVisibility);
     return () => {
       window.cancelAnimationFrame(frame);
+      window.cancelAnimationFrame(orbitFrame);
+      orbit?.dispose();
       observer.disconnect();
       mount.removeEventListener('pointerdown', pointerDown);
       mount.removeEventListener('pointerup', pointerUp);
