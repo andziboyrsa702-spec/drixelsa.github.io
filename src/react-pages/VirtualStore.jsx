@@ -310,6 +310,10 @@ export default function VirtualStore() {
   const [backView, setBackView] = useState(false);
   const [webglError, setWebglError] = useState(false);
   const [notice, setNotice] = useState('');
+  const [detailOpen,setDetailOpen]=useState(false);
+  const [added,setAdded]=useState(false);
+  const detailRef=useRef(null);
+  const deepLinkApplied=useRef(false);
   const noticeTimer = useRef(null);
   const categories = useMemo(() => [...new Map(list.map(product => String(product.category || '').trim()).filter(Boolean).map(name=>[name.toLowerCase(),name])).values()].sort((a, b) => a.localeCompare(b)), [list]);
   const visibleProducts = useMemo(() => list.filter(product => {
@@ -337,13 +341,40 @@ export default function VirtualStore() {
     return isSelected && backView && hasBackView(item || {}, color) ? imgs[1] || imgs[0] : imgs[0];
   }, [color, backView]);
 
-  useEffect(() => { setActiveIndex(0); setColor(''); setSize(''); setBackView(false); }, [category, query, market]);
+  useEffect(() => { setActiveIndex(0); setColor(''); setSize(''); setBackView(false);setDetailOpen(false); }, [category, query, market]);
+  useEffect(()=>{
+    if(deepLinkApplied.current||loading||!list.length)return;
+    deepLinkApplied.current=true;
+    const params=new URLSearchParams(window.location.search);
+    const station=params.get('station'),handle=params.get('product');
+    const match=categories.find(x=>x.toLowerCase()===String(station||'').toLowerCase());
+    if(match)setCategory(match);
+    const chosen=list.findIndex(x=>[x.id,x.sku,x.slug,x.urlCode].some(v=>String(v||'')===handle));
+    if(chosen>=0){
+      const selected=list[chosen];setCategory(selected.category||'all');
+      const same=list.filter(x=>String(x.category||'').toLowerCase()===String(selected.category||'').toLowerCase());
+      setActiveIndex(Math.max(0,same.findIndex(x=>x.id===selected.id)));
+      setDetailOpen(true);
+    }
+  },[list,loading,categories]);
+  useEffect(()=>{if(detailOpen)detailRef.current?.focus()},[detailOpen,product?.id]);
+  useEffect(()=>{
+    const onKey=event=>{
+      if(event.target?.closest?.('input,textarea,select'))return;
+      if(event.key==='Escape')setDetailOpen(false);
+      else if(event.key==='ArrowLeft'){event.preventDefault();move(-1)}
+      else if(event.key==='ArrowRight'){event.preventDefault();move(1)}
+      else if(event.key==='Enter'&&!detailOpen){event.preventDefault();setDetailOpen(true)}
+    };
+    window.addEventListener('keydown',onKey);
+    return()=>window.removeEventListener('keydown',onKey);
+  });
   useEffect(() => { setSize(''); setBackView(false); }, [color]);
   useEffect(() => () => window.clearTimeout(noticeTimer.current), []);
 
   const chooseProduct = useCallback(index => {
     setActiveIndex(Math.max(0, Math.min(visibleProducts.length - 1, index)));
-    setColor(''); setSize(''); setBackView(false); setNotice('');
+    setColor(''); setSize(''); setBackView(false); setNotice('');setAdded(false);
   }, [visibleProducts.length]);
   const move = direction => chooseProduct(safeIndex + direction);
   const addToBag = () => {
@@ -351,6 +382,8 @@ export default function VirtualStore() {
     const ok = cart.add({ productId: product.id, name: productName(product), image: shownImage, price: productPrice(product, variant), sku, size: variant?.size || size, color: variant?.color || color });
     if (!ok) { setNotice('This item could not be added. Open the product page and check its options.'); return; }
     setNotice(`${productName(product)} added to your bag`);
+    setAdded(true);
+    window.setTimeout(()=>setAdded(false),2000);
     window.clearTimeout(noticeTimer.current);
     noticeTimer.current = window.setTimeout(() => setNotice(''), 3600);
   };
@@ -364,11 +397,27 @@ export default function VirtualStore() {
       <section className="dx-virtual-gallery" aria-label="Interactive Drixel product showroom">
         <div className="dx-virtual-scene-top"><span><i/> LIVE COLLECTION</span><span>{String(safeIndex + 1).padStart(2, '0')} — {String(visibleProducts.length).padStart(2, '0')}</span></div>
         {!webglError ? <ShowroomScene products={visibleProducts} activeIndex={safeIndex} imageFor={imageFor} onSelect={chooseProduct} onWebglError={setWebglError}/> : <div className="dx-virtual-fallback"><img src={shownImage} alt={`${productName(product)} in the Drixel studio`} /></div>}
+        <div className="dx-virtual-cart-badge"><Link to={`/${market}/cart`} aria-label={`Shopping bag, ${cart.count} items`}>Bag <strong>{cart.count}</strong></Link></div>
+        <button className="dx-virtual-focus" type="button" onClick={()=>setDetailOpen(true)} aria-label={`View ${productName(product)} details`}>{productName(product)} <span>{money(productPrice(product,variant))} · View details ↗</span></button>
         <div className="dx-virtual-brand" aria-hidden="true"><span>DRIXEL</span><small>FORM FOLLOWS FEELING</small></div>
         <nav className="dx-virtual-floating-nav" aria-label="Showroom collections">
           <button type="button" aria-pressed={category==='all'} onClick={()=>setCategory('all')}>Store</button>
           {categories.map(item=><button type="button" key={item} aria-pressed={category===item} onClick={()=>setCategory(item)}>{categoryLabel(item)}</button>)}
         </nav>
+        {detailOpen&&<div className="dx-studio-detail-scrim" onClick={()=>setDetailOpen(false)} />}
+        {detailOpen&&<aside className="dx-studio-detail-card" role="dialog" aria-modal="true" aria-label={`Shop ${productName(product)}`} tabIndex={-1} ref={detailRef}>
+          <button className="dx-studio-detail-close" type="button" onClick={()=>setDetailOpen(false)} aria-label="Close product details">×</button>
+          <p>{categoryLabel(product.category)} · DRIXEL</p>
+          {shownImage&&<img src={shownImage} alt={productName(product)} />}
+          <h2>{productName(product)}</h2><strong>{money(productPrice(product,variant))}</strong>
+          {canShowBack&&<div className="dx-studio-views"><button type="button" onClick={()=>setBackView(false)} aria-pressed={!backView}>Front</button><button type="button" onClick={()=>setBackView(true)} aria-pressed={backView}>Back</button></div>}
+          {colorOptions.length>0&&<fieldset><legend>Colour</legend><div>{colorOptions.map(value=><button type="button" key={value} aria-pressed={color===value} onClick={()=>setColor(value)}>{value}</button>)}</div></fieldset>}
+          {allSizes.length>0&&<fieldset><legend>Size</legend><div>{options.sizes.map(value=><button type="button" key={value} aria-pressed={size===value} disabled={options.variants.length>0&&!options.variants.some(v=>(!color||v.color===color)&&v.size===value&&optionStock(product,v)>0)} onClick={()=>setSize(value)}>{value}</button>)}</div></fieldset>}
+          <button className="dx-studio-cart-action" type="button" disabled={missingOptions||unavailable||deliveryUnavailable} onClick={addToBag}>{added?'Added to cart ✓':missingOptions?'Choose your options':unavailable?'Out of stock':'Add to cart'}</button>
+          {added&&<Link to={`/${market}/cart`}>View cart →</Link>}
+          <p>{safeIndex+1} of {visibleProducts.length} · drag or pick a view to turn</p>
+          <Link to={productPath(product,market)}>View full product page →</Link>
+        </aside>}
         <div className="dx-virtual-controls"><span>DRAG TO MOVE</span><div><button type="button" aria-label="Previous product" disabled={safeIndex === 0} onClick={() => move(-1)}>←</button><button type="button" aria-label="Next product" disabled={safeIndex >= visibleProducts.length - 1} onClick={() => move(1)}>→</button></div><span>{String(safeIndex + 1).padStart(2, '0')} / {String(visibleProducts.length).padStart(2, '0')}</span></div>
       </section>
       <section className="dx-virtual-product" aria-live="polite"><div className="dx-virtual-product-image">{shownImage ? <img src={shownImage} alt={`${productName(product)} ${backView ? 'back view' : 'front view'}`} loading="eager" /> : <div className="dx-virtual-no-image" aria-label="No product image available">DRIXEL</div>}{canShowBack && <div className="dx-view-toggle" aria-label="Product view"><button type="button" aria-pressed={!backView} onClick={() => setBackView(false)}>Front</button><button type="button" aria-pressed={backView} onClick={() => setBackView(true)}>Back</button></div>}</div><div className="dx-virtual-product-info"><p className="dx-virtual-product-category">{categoryLabel(product.category)} <span>·</span> {product.sku || product.urlCode || product.id}</p><h2>{productName(product)}</h2><p className="dx-virtual-price">{money(productPrice(product, variant))}</p><p className="dx-virtual-description">{product.description || 'A Drixel original, designed for everyday movement and made to be worn your way.'}</p>
