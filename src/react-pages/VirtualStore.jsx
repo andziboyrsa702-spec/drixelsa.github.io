@@ -59,38 +59,39 @@ function ShowroomScene({ products, activeIndex, imageFor, onSelect, onWebglError
     onWebglError(false);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
     renderer.outputColorSpace = THREE.SRGBColorSpace;
-    renderer.setClearColor(0x151515, 1);
+    renderer.setClearColor(0xf2f0e9, 1);
     renderer.domElement.className = 'dx-virtual-canvas';
     renderer.domElement.setAttribute('aria-hidden', 'true');
     renderer.domElement.style.touchAction = 'pan-y';
     mount.appendChild(renderer.domElement);
 
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x151515);
-    scene.fog = new THREE.Fog(0x151515, 12, 32);
+    scene.background = new THREE.Color(0xf2f0e9);
+    scene.fog = new THREE.Fog(0xf2f0e9, 18, 46);
     const camera = new THREE.PerspectiveCamera(36, 1, 0.1, 80);
-    camera.position.set(0, 2.35, 10.6);
-    camera.lookAt(0, 1.65, 0);
+    camera.position.set(0, 2.5, 11.8);
+    camera.lookAt(0, 1.76, 0);
 
-    scene.add(new THREE.HemisphereLight(0xe8e7e2, 0x343331, 2.1));
-    const key = new THREE.DirectionalLight(0xfff7eb, 3.0);
+    scene.add(new THREE.HemisphereLight(0xffffff, 0xa9a39a, 2.75));
+    const key = new THREE.DirectionalLight(0xffffff, 2.15);
     key.position.set(-3.5, 7, 5);
     scene.add(key);
-    const fill = new THREE.DirectionalLight(0xd9e6dc, 1.15);
+    const fill = new THREE.DirectionalLight(0xf6f2e9, 1.35);
     fill.position.set(5, 4, 1);
     scene.add(fill);
-    const wall = new THREE.Mesh(new THREE.PlaneGeometry(100, 30), new THREE.MeshStandardMaterial({ color: 0x20201f, roughness: 0.95 }));
+    const wall = new THREE.Mesh(new THREE.PlaneGeometry(100, 30), new THREE.MeshStandardMaterial({ color: 0xf4f2ec, roughness: 0.99 }));
     wall.position.set(0, 5, -2.5);
     scene.add(wall);
-    const floor = new THREE.Mesh(new THREE.PlaneGeometry(100, 100), new THREE.MeshStandardMaterial({ color: 0x292826, roughness: 0.72, metalness: 0.08 }));
+    const floor = new THREE.Mesh(new THREE.PlaneGeometry(100, 100), new THREE.MeshStandardMaterial({ color: 0xe5e1d9, roughness: 0.91, metalness: 0 }));
     floor.rotation.x = -Math.PI / 2;
     floor.position.y = -0.06;
     scene.add(floor);
     // Fine floor lines and the brushed-metal Drixel clothing rail define the room without borrowing another brand's set.
-    for (let x = -20; x <= 20; x += 2) makeRule(scene, [[x, 0, 1], [x, 0, -18]], 0x514e49, 0.17);
+    makeRule(scene, [[-32, 0.012, -2.15], [32, 0.012, -2.15]], 0xbdb9b0, 0.35);
+    makeRule(scene, [[-32, 3.2, -2.48], [32, 3.2, -2.48]], 0xe4e0d7, 0.5);
     const railGroup = new THREE.Group();
     scene.add(railGroup);
-    const railMaterial = new THREE.MeshStandardMaterial({ color: 0xb5b0a6, metalness: 0.78, roughness: 0.28 });
+    const railMaterial = new THREE.MeshStandardMaterial({ color: 0x77736d, metalness: 0.78, roughness: 0.28 });
     const addCylinder = (radius, height, x, y, z, rotation = null) => {
       const mesh = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius, height, 16), railMaterial);
       mesh.position.set(x, y, z);
@@ -98,12 +99,12 @@ function ShowroomScene({ products, activeIndex, imageFor, onSelect, onWebglError
       railGroup.add(mesh);
       return mesh;
     };
-    addCylinder(0.035, 8, 0, 3.32, -0.18, [0, 0, Math.PI / 2]);
-    addCylinder(0.032, 2.7, -3.55, 2.0, -0.18);
-    addCylinder(0.032, 2.7, 3.55, 2.0, -0.18);
-    addCylinder(0.05, 1.6, -3.55, 0.12, -0.18, [0, 0, Math.PI / 2]);
-    addCylinder(0.05, 1.6, 3.55, 0.12, -0.18, [0, 0, Math.PI / 2]);
-    const logoMaterial = new THREE.MeshBasicMaterial({ color: 0xd8ff4a, transparent: true, depthWrite: false });
+    addCylinder(0.028, 34, 0, 3.32, -0.18, [0, 0, Math.PI / 2]);
+    // Wall-mounted rail stays open and unobtrusive.
+    
+    
+    
+    const logoMaterial = new THREE.MeshBasicMaterial({ color: 0x111111, transparent: true, depthWrite: false });
     const logo = new THREE.Mesh(new THREE.PlaneGeometry(0.62, 0.62), logoMaterial);
     logo.position.set(-3.55, 4.65, -2.42);
     scene.add(logo);
@@ -114,7 +115,7 @@ function ShowroomScene({ products, activeIndex, imageFor, onSelect, onWebglError
       logoMaterial.needsUpdate = true;
       renderRef.current?.();
     }, undefined, () => renderRef.current?.());
-    makeRule(scene, [[-3.42, 4.22, -2.4], [-2.86, 4.22, -2.4]], 0xd8ff4a, 0.85);
+    makeRule(scene, [[-3.38, 4.22, -2.4], [-2.72, 4.22, -2.4]], 0x67635d, 0.65);
 
     const items = new THREE.Group();
     scene.add(items);
@@ -127,7 +128,7 @@ function ShowroomScene({ products, activeIndex, imageFor, onSelect, onWebglError
     const animate = () => {
       const delta = targetXRef.current - items.position.x;
       if (Math.abs(delta) > 0.003) {
-        items.position.x += delta * 0.12;
+        items.position.x += delta * 0.075;
         render();
         frame = window.requestAnimationFrame(animate);
       } else {
@@ -142,7 +143,7 @@ function ShowroomScene({ products, activeIndex, imageFor, onSelect, onWebglError
       const height = Math.max(1, mount.clientHeight);
       renderer.setSize(width, height, false);
       camera.aspect = width / height;
-      camera.position.z = width < 600 ? 12.6 : 10.6;
+      camera.position.z = width < 600 ? 13.2 : 11.8;
       camera.updateProjectionMatrix();
       render();
     };
@@ -201,21 +202,21 @@ function ShowroomScene({ products, activeIndex, imageFor, onSelect, onWebglError
     state.textureGeneration = (state.textureGeneration || 0) + 1;
     const textureGeneration = state.textureGeneration;
     disposeGroup(items);
-    const start = Math.max(0, activeIndex - 2);
-    const end = Math.min(products.length - 1, activeIndex + 2);
+    const start = Math.max(0, activeIndex - 3);
+    const end = Math.min(products.length - 1, activeIndex + 3);
     const loader = new THREE.TextureLoader();
     for (let index = start; index <= end; index += 1) {
       const product = products[index];
       const entry = new THREE.Group();
-      entry.position.set(index * SPACING, 0, index === activeIndex ? 0.2 : 0);
-      entry.scale.setScalar(index === activeIndex ? 1 : 0.82);
+      entry.position.set(index * SPACING, 0, index === activeIndex ? 0.38 : 0);
+      entry.scale.setScalar(index === activeIndex ? 1.14 : 0.87);
       entry.userData.productIndex = index;
       // Each panel is a real product photograph from the live catalogue, mounted on a subtle studio frame.
-      const frame = new THREE.Mesh(new THREE.BoxGeometry(1.46, 1.86, 0.08), new THREE.MeshStandardMaterial({ color: index === activeIndex ? 0x474740 : 0x333330, roughness: 0.7 }));
+      const frame = new THREE.Mesh(new THREE.BoxGeometry(1.46, 1.86, 0.025), new THREE.MeshStandardMaterial({ color: 0xf3f0e9, roughness: 0.95 }));
       frame.position.set(0, 1.58, 0.18);
       frame.userData.productIndex = index;
       entry.add(frame);
-      const board = new THREE.Mesh(new THREE.PlaneGeometry(1.32, 1.72), new THREE.MeshBasicMaterial({ color: 0xf4f3ef }));
+      const board = new THREE.Mesh(new THREE.PlaneGeometry(1.32, 1.72), new THREE.MeshBasicMaterial({ color: 0xf3f0e9, transparent:true, opacity:0.12 }));
       board.position.set(0, 1.58, 0.228);
       board.userData.productIndex = index;
       entry.add(board);
@@ -238,8 +239,8 @@ function ShowroomScene({ products, activeIndex, imageFor, onSelect, onWebglError
           renderRef.current?.();
         }, undefined, () => renderRef.current?.());
       }
-      makeRule(entry, [[0, 3.25, -0.05], [-0.23, 3.03, -0.05], [0, 2.87, -0.05], [0.23, 3.03, -0.05], [0, 3.25, -0.05]], 0xc9c2b8, 0.9);
-      const hook = new THREE.Mesh(new THREE.TorusGeometry(0.09, 0.018, 8, 18, Math.PI * 1.5), new THREE.MeshStandardMaterial({ color: 0xc8c0b3, metalness: 0.68, roughness: 0.32 }));
+      makeRule(entry, [[0, 3.3, -0.05], [0, 3.13, -0.05], [-0.65, 2.77, -0.05], [0.65, 2.77, -0.05], [0, 3.13, -0.05]], 0x77736d, 0.8);
+      const hook = new THREE.Mesh(new THREE.TorusGeometry(0.09, 0.018, 8, 18, Math.PI * 1.5), new THREE.MeshStandardMaterial({ color: 0x827e76, metalness: 0.68, roughness: 0.32 }));
       hook.position.set(0, 3.32, -0.05);
       hook.rotation.z = Math.PI * 0.8;
       entry.add(hook);
@@ -323,6 +324,10 @@ export default function VirtualStore() {
         <div className="dx-virtual-scene-top"><span><i/> LIVE COLLECTION</span><span>{String(safeIndex + 1).padStart(2, '0')} — {String(visibleProducts.length).padStart(2, '0')}</span></div>
         {!webglError ? <ShowroomScene products={visibleProducts} activeIndex={safeIndex} imageFor={imageFor} onSelect={chooseProduct} onWebglError={setWebglError}/> : <div className="dx-virtual-fallback"><img src={shownImage} alt={`${productName(product)} in the Drixel studio`} /></div>}
         <div className="dx-virtual-brand" aria-hidden="true"><span>DRIXEL</span><small>FORM FOLLOWS FEELING</small></div>
+        <nav className="dx-virtual-floating-nav" aria-label="Showroom collections">
+          <button type="button" aria-pressed={category==='all'} onClick={()=>setCategory('all')}>Store</button>
+          {categories.map(item=><button type="button" key={item} aria-pressed={category===item} onClick={()=>setCategory(item)}>{categoryLabel(item)}</button>)}
+        </nav>
         <div className="dx-virtual-controls"><span>DRAG TO MOVE</span><div><button type="button" aria-label="Previous product" disabled={safeIndex === 0} onClick={() => move(-1)}>←</button><button type="button" aria-label="Next product" disabled={safeIndex >= visibleProducts.length - 1} onClick={() => move(1)}>→</button></div><span>{String(safeIndex + 1).padStart(2, '0')} / {String(visibleProducts.length).padStart(2, '0')}</span></div>
       </section>
       <section className="dx-virtual-product" aria-live="polite"><div className="dx-virtual-product-image">{shownImage ? <img src={shownImage} alt={`${productName(product)} ${backView ? 'back view' : 'front view'}`} loading="eager" /> : <div className="dx-virtual-no-image" aria-label="No product image available">DRIXEL</div>}{canShowBack && <div className="dx-view-toggle" aria-label="Product view"><button type="button" aria-pressed={!backView} onClick={() => setBackView(false)}>Front</button><button type="button" aria-pressed={backView} onClick={() => setBackView(true)}>Back</button></div>}</div><div className="dx-virtual-product-info"><p className="dx-virtual-product-category">{categoryLabel(product.category)} <span>·</span> {product.sku || product.urlCode || product.id}</p><h2>{productName(product)}</h2><p className="dx-virtual-price">{money(productPrice(product, variant))}</p><p className="dx-virtual-description">{product.description || 'A Drixel original, designed for everyday movement and made to be worn your way.'}</p>
