@@ -75,6 +75,64 @@ export function buildDrixelRoom(){
  // Feature badge is above the central collection, no purposeless plinth block.
  // Cash-wrap with subtle brand-bag staging near entrance.
  addBox(group,1.8,1.0,0.92,5.7,0.5,3.45,woodDark);
+ // Retail styling: real world-scale props and an understated staffed counter.
+ const rug=new THREE.Mesh(new THREE.PlaneGeometry(3.15,2.3),new THREE.MeshStandardMaterial({color:0xb7a89b,roughness:1,side:THREE.DoubleSide}));
+ rug.rotation.x=-Math.PI/2;rug.position.set(1.0,0.012,0.45);rug.receiveShadow=true;group.add(rug);
+ // Counter has a separate stone top, recessed toe kick and a real POS terminal.
+ addBox(group,1.94,0.075,1.00,5.7,1.04,3.45,mat(0xe8e5df,0.38));
+ addBox(group,1.6,0.17,0.06,5.7,0.12,3.945,steel,false);
+ addBox(group,0.32,0.065,0.25,5.35,1.13,3.27,mat(0x323638,.5));
+ const terminal=addBox(group,0.24,0.28,0.035,5.35,1.29,3.23,mat(0x1c2428,.28));
+ terminal.rotation.x=-0.35;
+ const signMaterial=new THREE.MeshStandardMaterial({color:0xede8e0,roughness:0.83});
+ addBox(group,0.78,0.32,0.035,6.07,1.29,3.24,signMaterial);
+ // Original freestanding shopping bag, behind the register.
+ const bag=addBox(group,0.28,0.31,0.12,6.32,1.245,3.4,mat(0x292724,.92));
+ const handles=new THREE.Mesh(new THREE.TorusGeometry(.075,.009,6,24,Math.PI),steel);
+ handles.position.set(6.32,1.41,3.46);group.add(handles);
+ // Human mannequin silhouette: placeholder only. Replace with licensed, rigged
+ // realistic 3D staff model before calling this a photorealistic cashier.
+ const staff=new THREE.Group();staff.name='CASHIER_PLACEHOLDER';
+ staff.position.set(5.75,0,2.76);
+ const skin=mat(0x987259,0.92),uniform=mat(0x292724,0.96);
+ const staffPart=(name: string,geometry:THREE.BufferGeometry,material:THREE.Material,x:number,y:number,z:number)=>{
+  const mesh=new THREE.Mesh(geometry,material);mesh.name=name;mesh.position.set(x,y,z);mesh.castShadow=true;staff.add(mesh);return mesh;
+ };
+ staffPart('staff torso',new THREE.CapsuleGeometry(.23,.55,4,12),uniform,0,1.14,0);
+ staffPart('staff head',new THREE.SphereGeometry(.15,16,12),skin,0,1.73,0);
+ staffPart('staff hair',new THREE.SphereGeometry(.153,16,8,0,Math.PI*2,0,1.2),mat(0x1a1715),0,1.78,0);
+ for(const dx of [-.17,.17]){
+  const arm=staffPart('staff arm',new THREE.CapsuleGeometry(.067,.47,4,9),uniform,dx*1.9,1.13,0);
+  arm.rotation.z=dx>0?.16:-.16;
+ }
+ for(const dx of [-.1,.1])staffPart('staff leg',new THREE.CapsuleGeometry(.094,.55,4,9),mat(0x33312f),dx,.44,0);
+ group.add(staff);
+ // A restrained plant and stool, used as believable scale cues.
+ const foliage=mat(0x49634b,1),pot=mat(0xb5a394,.94);
+ const makePlant=(x:number,z:number)=>{
+  const planter=new THREE.Mesh(new THREE.CylinderGeometry(.21,.17,.38,12),pot);
+  planter.position.set(x,.19,z);planter.castShadow=true;group.add(planter);
+  rod(group,.9,.018,x,.76,z,'y');
+  for(let i=0;i<8;i++){
+   const a=i*Math.PI*2/8,y=.53+(i%3)*.16;
+   const leaf=new THREE.Mesh(new THREE.SphereGeometry(.22,10,7),foliage);
+   leaf.scale.set(.47,.88,.33);leaf.position.set(x+Math.cos(a)*.18,y,z+Math.sin(a)*.18);
+   leaf.rotation.z=a;group.add(leaf);
+  }
+ };
+ makePlant(-6.8,3.4);makePlant(6.85,-2.8);
+ addBox(group,.44,.08,.42,-2.55,.5,2.5,wood);
+ for(const x of [-2.72,-2.38])for(const z of [2.34,2.66])addBox(group,.037,.45,.037,x,.23,z,steel);
+ // Folded merchandise stacks: actual low-height cloth-shaped volumes rather
+ // than hanging photographs pasted to furniture.
+ const folded=[mat(0x2a292a,1),mat(0xdbccba,1),mat(0x8c7283,1),mat(0xc49d9b,1)];
+ for(const [x,y,z,count] of [[-4.5,1.06,-1.45,3],[1.0,1.01,.43,4],[5.35,.66,1.6,3]]){
+  for(let i=0;i<count;i++){
+   const fabric=folded[i%folded.length];
+   const layer=addBox(group,.48,.075,.34,x,y+i*.078,z,fabric);
+   layer.geometry.translate(0,0,0);
+  }
+ }
  // Entrance mirror; shallow framed glass on side wall.
  const mirror=new THREE.Mesh(new THREE.PlaneGeometry(0.9,2.0),new THREE.MeshStandardMaterial({
   color:0xf0f0ee,metalness:0.82,roughness:0.11
