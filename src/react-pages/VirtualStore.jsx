@@ -88,7 +88,7 @@ function disposeGroup(group) {
   }
 }
 
-function ShowroomScene({ products, activeIndex, imageFor, onSelect, onOpen, onWebglError, department, joystick, detailOpen }) {
+function ShowroomScene({ products, activeIndex, imageFor, onSelect, onHover, onInteract, onOpen, onWebglError, department, joystick, detailOpen }) {
   const mountRef = useRef(null);
   const sceneRef = useRef(null);
   const renderRef = useRef(null);
@@ -97,10 +97,14 @@ function ShowroomScene({ products, activeIndex, imageFor, onSelect, onOpen, onWe
   const focusRef=useRef({x:0,z:6.5});
   const onSelectRef = useRef(onSelect);
   const onOpenRef=useRef(onOpen);
+  const onHoverRef=useRef(onHover);
+  const onInteractRef=useRef(onInteract);
   const animateRef = useRef(null);
   const controllerRef=useRef(null);
   onSelectRef.current = onSelect;
   onOpenRef.current=onOpen;
+  onHoverRef.current=onHover;
+  onInteractRef.current=onInteract;
 
   useEffect(() => {
     const mount = mountRef.current;
@@ -130,6 +134,7 @@ function ShowroomScene({ products, activeIndex, imageFor, onSelect, onOpen, onWe
 
     renderer.toneMapping=THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure=1.0;
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2));
     renderer.shadowMap.enabled=true;
     renderer.shadowMap.type=THREE.PCFSoftShadowMap;
     const room=buildDrixelRoom();
@@ -147,6 +152,8 @@ function ShowroomScene({ products, activeIndex, imageFor, onSelect, onOpen, onWe
       mesh.userData.walkTarget=name;markers.add(mesh);
     }
     const raycaster = new THREE.Raycaster();
+    const centerRay=new THREE.Vector2(0,0);
+    let lastFacing=-2;
     const pointer = new THREE.Vector2();
     const render = () => renderer.render(scene, camera);
     renderRef.current = render;
@@ -177,6 +184,12 @@ function ShowroomScene({ products, activeIndex, imageFor, onSelect, onOpen, onWe
         walker.joystick=joystickRef.current;
         walker.enabled=!detailRef.current;
         walker.update(dt,now);
+      }
+      if(!detailRef.current&&!orbitDebug&&now%180<35){
+        raycaster.setFromCamera(centerRay,camera);
+        const face=raycaster.intersectObjects(items.children,true).find(hit=>Number.isInteger(hit.object.userData.productIndex));
+        const idx=face?.object.userData.productIndex??-1;
+        if(idx!==lastFacing){lastFacing=idx;onHoverRef.current(idx)}
       }
       render();
       frame=requestAnimationFrame(tick);
@@ -213,8 +226,8 @@ function ShowroomScene({ products, activeIndex, imageFor, onSelect, onOpen, onWe
     const observer = new ResizeObserver(resize);
     observer.observe(mount);
     resize();
-    const pointerDown = event => { if(orbitDebug||detailRef.current)return; walker.pointerDown(event.clientX,event.clientY);mount.setPointerCapture?.(event.pointerId);};
-    const pointerMove=event=>{if(!orbitDebug&&!detailRef.current)walker.pointerMove(event.clientX,event.clientY)};
+    const pointerDown = event => { if(orbitDebug||detailRef.current)return; onInteractRef.current?.();walker.pointerDown(event.clientX,event.clientY);mount.setPointerCapture?.(event.pointerId);};
+    const pointerMove=event=>{if(!orbitDebug&&!detailRef.current){walker.pointerMove(event.clientX,event.clientY);if(!walker.held){const rect=renderer.domElement.getBoundingClientRect();pointer.x=(event.clientX-rect.left)/rect.width*2-1;pointer.y=-(event.clientY-rect.top)/rect.height*2+1;raycaster.setFromCamera(pointer,camera);const hit=raycaster.intersectObjects(items.children,true).find(h=>Number.isInteger(h.object.userData.productIndex));onHoverRef.current(hit?.object.userData.productIndex??-1)}}};
     const pointerUp = event => {
       if(orbitDebug)return;
       if(!walker.pointerUp())return;
@@ -369,6 +382,8 @@ export default function VirtualStore() {
   const [reducedMotion]=useState(()=>typeof window!=='undefined'&&window.matchMedia?.('(prefers-reduced-motion: reduce)').matches);
   const [joystick,setJoystick]=useState({x:0,y:0});
   const [notice, setNotice] = useState('');
+  const [hoveredIndex,setHoveredIndex]=useState(-1);
+  const [showWalkHint,setShowWalkHint]=useState(true);
   const [detailOpen,setDetailOpen]=useState(false);
   const [added,setAdded]=useState(false);
   const detailRef=useRef(null);
@@ -382,6 +397,7 @@ export default function VirtualStore() {
   }), [list, category, query]);
   const safeIndex = Math.min(activeIndex, Math.max(visibleProducts.length - 1, 0));
   const product = visibleProducts[safeIndex];
+  const hoverProduct=visibleProducts[hoveredIndex]||null;
   const options = useMemo(() => productOptions(product || {}, color), [product, color]);
   const variant = useMemo(() => selectedVariant(product || {}, size, color), [product, size, color]);
   const colorOptions = productOptions(product || {}).colors;
@@ -454,8 +470,8 @@ export default function VirtualStore() {
     {!loading && !error && visibleProducts.length === 0 && <div className="dx-virtual-empty"><span>01 / 00</span><h2>No pieces here yet.</h2><p>Try another category or search.</p><button type="button" onClick={() => {setCategory('all');setQuery('');}}>View all pieces</button></div>}
     {product && <>
       <section className="dx-virtual-gallery" aria-label="Interactive Drixel product showroom">
-        <div className="dx-virtual-scene-top"><span><i/> LIVE COLLECTION</span><span>{String(safeIndex + 1).padStart(2, '0')} — {String(visibleProducts.length).padStart(2, '0')}</span></div>
-        {!webglError&&!reducedMotion ? <ShowroomScene products={visibleProducts} activeIndex={safeIndex} imageFor={imageFor} onSelect={chooseProduct} onOpen={()=>setDetailOpen(true)} onWebglError={setWebglError} department={category} joystick={joystick} detailOpen={detailOpen}/> : <div className="dx-walk-product-fallback" role="region" aria-label="DRIXEL clothing catalogue">
+        <div className="dx-virtual-scene-top"><span><i/> LIVE COLLECTION</span><span>EXPLORE THE ROOM</span></div>
+        {!webglError&&!reducedMotion ? <ShowroomScene products={visibleProducts} activeIndex={safeIndex} imageFor={imageFor} onSelect={chooseProduct} onHover={setHoveredIndex} onInteract={()=>setShowWalkHint(false)} onOpen={()=>setDetailOpen(true)} onWebglError={setWebglError} department={category} joystick={joystick} detailOpen={detailOpen}/> : <div className="dx-walk-product-fallback" role="region" aria-label="DRIXEL clothing catalogue">
           {visibleProducts.map(item=><article key={item.id}>
             <Link to={productPath(item,market)}>
               {productImages(item)[0]&&<img src={productImages(item)[0]} alt={productName(item)} loading="lazy"/>}
@@ -464,8 +480,8 @@ export default function VirtualStore() {
           </article>)}
         </div>}
         <div className="dx-virtual-cart-badge"><Link to={`/${market}/cart`} aria-label={`Shopping bag, ${cart.count} items`}>Bag <strong>{cart.count}</strong></Link></div>
-        <button className="dx-virtual-focus" type="button" onClick={()=>setDetailOpen(true)} aria-label={`View ${productName(product)} details`}>{productName(product)} <span>{money(productPrice(product,variant))} · View details ↗</span></button>
-        <div className="dx-walk-hint" aria-hidden="true">Drag to look · WASD / arrows to walk · Scroll to move</div>
+        {hoverProduct&&<button className="dx-virtual-focus" type="button" onClick={()=>{chooseProduct(hoveredIndex);setDetailOpen(true)}} aria-label={`View ${productName(hoverProduct)} details`}>{productName(hoverProduct)} <span>{money(productPrice(hoverProduct))} · View details ↗</span></button>}
+        {showWalkHint&&<div className="dx-walk-hint" aria-hidden="true">Drag to look · WASD / arrows to walk · Scroll to move</div>}
         <div className="dx-walk-joystick" aria-label="Move around showroom">
           <button type="button" aria-label="Walk forward" onPointerDown={()=>setJoystick({x:0,y:-1})} onPointerUp={()=>setJoystick({x:0,y:0})} onPointerCancel={()=>setJoystick({x:0,y:0})}>↑</button>
           <div><button type="button" aria-label="Walk left" onPointerDown={()=>setJoystick({x:-1,y:0})} onPointerUp={()=>setJoystick({x:0,y:0})} onPointerCancel={()=>setJoystick({x:0,y:0})}>←</button>
@@ -491,7 +507,7 @@ export default function VirtualStore() {
           <p>{safeIndex+1} of {visibleProducts.length} · drag or pick a view to turn</p>
           <Link to={productPath(product,market)}>View full product page →</Link>
         </aside>}
-        <div className="dx-virtual-controls"><span>DRAG TO MOVE</span><div><button type="button" aria-label="Previous product" disabled={safeIndex === 0} onClick={() => move(-1)}>←</button><button type="button" aria-label="Next product" disabled={safeIndex >= visibleProducts.length - 1} onClick={() => move(1)}>→</button></div><span>{String(safeIndex + 1).padStart(2, '0')} / {String(visibleProducts.length).padStart(2, '0')}</span></div>
+        <div className="dx-virtual-controls"><span>WALK AROUND</span><div><button type="button" aria-label="Previous product" disabled={safeIndex === 0} onClick={() => move(-1)}>←</button><button type="button" aria-label="Next product" disabled={safeIndex >= visibleProducts.length - 1} onClick={() => move(1)}>→</button></div><span>EXPLORE</span></div>
       </section>
       <section className="dx-virtual-product" aria-live="polite"><div className="dx-virtual-product-image">{shownImage ? <img src={shownImage} alt={`${productName(product)} ${backView ? 'back view' : 'front view'}`} loading="eager" /> : <div className="dx-virtual-no-image" aria-label="No product image available">DRIXEL</div>}{canShowBack && <div className="dx-view-toggle" aria-label="Product view"><button type="button" aria-pressed={!backView} onClick={() => setBackView(false)}>Front</button><button type="button" aria-pressed={backView} onClick={() => setBackView(true)}>Back</button></div>}</div><div className="dx-virtual-product-info"><p className="dx-virtual-product-category">{categoryLabel(product.category)} <span>·</span> {product.sku || product.urlCode || product.id}</p><h2>{productName(product)}</h2><p className="dx-virtual-price">{money(productPrice(product, variant))}</p><p className="dx-virtual-description">{product.description || 'A Drixel original, designed for everyday movement and made to be worn your way.'}</p>
         {colorOptions.length > 0 && <fieldset className="dx-virtual-options"><legend>Colour{color ? `: ${color}` : ''}</legend><div>{colorOptions.map(item => <button key={item} type="button" aria-pressed={color === item} disabled={options.variants.length > 0 && !options.variants.some(v => v.color === item && optionStock(product, v) > 0)} onClick={() => setColor(item)}>{item}</button>)}</div></fieldset>}
