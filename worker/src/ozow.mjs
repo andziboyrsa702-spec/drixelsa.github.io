@@ -79,7 +79,7 @@ export function ozowPaymentMatchesOrder(detail,order){
 
 export function verifyOzowWebhook(headers,raw,secret,now=Date.now()){
  const id=headers['svix-id'],stamp=headers['svix-timestamp'],signature=headers['svix-signature'];
- if(!id||!/^\\d{10}$/.test(String(stamp||''))||Math.abs(now/1000-Number(stamp))>300||!/^whsec_[a-zA-Z0-9+/=_-]+$/.test(secret||''))return false;
+ if(!id||!new RegExp('^[0-9]{10}$').test(String(stamp||''))||Math.abs(now/1000-Number(stamp))>300||!/^whsec_[a-zA-Z0-9+/=_-]+$/.test(secret||''))return false;
  if(typeof signature!=='string'||!signature)return false;
  const key=Buffer.from(secret.slice(6),'base64');
  if(key.length<16)return false;
