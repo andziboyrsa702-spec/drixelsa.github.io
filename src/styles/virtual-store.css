@@ -22,3 +22,19 @@
 .dx-virtual-fallback{background:#f3f0e9}.dx-virtual-heading h1{font-size:clamp(50px,8vw,102px)}
 @media(max-width:760px){.dx-virtual-gallery{height:clamp(520px,119vw,660px);min-height:520px}.dx-virtual-floating-nav{bottom:83px}.dx-virtual-floating-nav button{padding:10px 14px;font-size:11px}.dx-virtual-brand{top:61px}}
 @media(prefers-reduced-motion:reduce){.dx-virtual-floating-nav button{transition:none}}
+
+/* The virtual space is the hero — a shop you enter, not a stack of image cards. */
+.dx-virtual-page{padding-top:0;background:#f9f8f5}
+.dx-virtual-heading{padding-top:30px;padding-bottom:18px}
+.dx-virtual-heading h1{font-size:clamp(28px,4.5vw,56px);line-height:1;letter-spacing:-.055em}
+.dx-virtual-heading h1 br{display:none}
+.dx-virtual-intro{margin-top:12px;font-size:12px}
+.dx-virtual-tools{opacity:.88}
+.dx-virtual-gallery{height:clamp(620px,73vh,910px);min-height:620px;background:#f9f8f5}
+.dx-virtual-brand{top:34px;color:#171717}
+.dx-virtual-brand span{font-size:26px;letter-spacing:.09em}
+.dx-virtual-brand small{font-size:8px;color:#67635e}
+.dx-virtual-floating-nav{bottom:36px}
+.dx-virtual-controls{bottom:103px}
+.dx-virtual-controls>span:first-child{font-size:9px}
+@media(max-width:760px){.dx-virtual-gallery{height:clamp(560px,75svh,780px);min-height:560px}.dx-virtual-brand{top:34px}.dx-virtual-floating-nav{bottom:26px}.dx-virtual-controls{bottom:90px}.dx-virtual-heading{padding-top:18px}}
