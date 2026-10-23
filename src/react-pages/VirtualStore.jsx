@@ -230,8 +230,8 @@ function ShowroomScene({ products, activeIndex, imageFor, onSelect, onWebglError
     state.textureGeneration = (state.textureGeneration || 0) + 1;
     const textureGeneration = state.textureGeneration;
     disposeGroup(items);
-    const start = 0;
-    const end = Math.min(products.length - 1, 39);
+    const start = Math.max(0,activeIndex-4);
+    const end = Math.min(products.length-1,activeIndex+4);
     const loader = new THREE.TextureLoader();
     for (let index = start; index <= end; index += 1) {
       const product = products[index];
