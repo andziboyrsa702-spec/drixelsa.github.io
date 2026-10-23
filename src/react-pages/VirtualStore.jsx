@@ -88,7 +88,7 @@ function disposeGroup(group) {
   }
 }
 
-function ShowroomScene({ products, activeIndex, imageFor, onSelect, onWebglError, department, joystick, detailOpen }) {
+function ShowroomScene({ products, activeIndex, imageFor, onSelect, onOpen, onWebglError, department, joystick, detailOpen }) {
   const mountRef = useRef(null);
   const sceneRef = useRef(null);
   const renderRef = useRef(null);
@@ -96,9 +96,11 @@ function ShowroomScene({ products, activeIndex, imageFor, onSelect, onWebglError
   const cameraTargetRef=useRef(0);
   const focusRef=useRef({x:0,z:6.5});
   const onSelectRef = useRef(onSelect);
+  const onOpenRef=useRef(onOpen);
   const animateRef = useRef(null);
   const controllerRef=useRef(null);
   onSelectRef.current = onSelect;
+  onOpenRef.current=onOpen;
 
   useEffect(() => {
     const mount = mountRef.current;
@@ -116,7 +118,7 @@ function ShowroomScene({ products, activeIndex, imageFor, onSelect, onWebglError
     renderer.setClearColor(0xf9f8f5, 1);
     renderer.domElement.className = 'dx-virtual-canvas';
     renderer.domElement.setAttribute('aria-hidden', 'true');
-    renderer.domElement.style.touchAction = 'pan-y';
+    renderer.domElement.style.touchAction = 'none';
     mount.appendChild(renderer.domElement);
 
     const scene = new THREE.Scene();
@@ -134,6 +136,16 @@ function ShowroomScene({ products, activeIndex, imageFor, onSelect, onWebglError
     scene.add(room);
     const items = new THREE.Group();
     scene.add(items);
+    // Floor waypoint markers are real 3D objects placed on the room floor.
+    const markers=new THREE.Group();scene.add(markers);
+    for(const [name,coordinates] of Object.entries({
+      hoodies:[-4.2,-0.02,1.25],tees:[1.0,-0.02,1.35],sweaters:[4.6,-0.02,1.25]
+    })){
+      const mesh=new THREE.Mesh(new THREE.CircleGeometry(0.18,28),
+        new THREE.MeshBasicMaterial({color:0x24221f,transparent:true,opacity:0.52,depthWrite:false,side:THREE.DoubleSide}));
+      mesh.rotation.x=-Math.PI/2;mesh.position.set(...coordinates);
+      mesh.userData.walkTarget=name;markers.add(mesh);
+    }
     const raycaster = new THREE.Raycaster();
     const pointer = new THREE.Vector2();
     const render = () => renderer.render(scene, camera);
@@ -210,8 +222,10 @@ function ShowroomScene({ products, activeIndex, imageFor, onSelect, onWebglError
       pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
       pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
       raycaster.setFromCamera(pointer, camera);
+      const walkHit=raycaster.intersectObjects(markers.children,true)[0];
+      if(walkHit?.object.userData.walkTarget){walker.goTo(walkHit.object.userData.walkTarget);return}
       const hit = raycaster.intersectObjects(items.children, true).find(intersection => Number.isInteger(intersection.object.userData.productIndex));
-      if (hit) onSelectRef.current(hit.object.userData.productIndex);
+      if (hit){onSelectRef.current(hit.object.userData.productIndex);onOpenRef.current?.()}
     };
     mount.addEventListener('pointerdown', pointerDown);
     mount.addEventListener('pointermove',pointerMove);
@@ -249,7 +263,7 @@ function ShowroomScene({ products, activeIndex, imageFor, onSelect, onWebglError
       animateRef.current = null;
       controllerRef.current=null;
     };
-  }, [onWebglError, products.length]);
+  }, [onWebglError]);
 
   useEffect(() => {
     const state = sceneRef.current;
@@ -440,7 +454,7 @@ export default function VirtualStore() {
     {product && <>
       <section className="dx-virtual-gallery" aria-label="Interactive Drixel product showroom">
         <div className="dx-virtual-scene-top"><span><i/> LIVE COLLECTION</span><span>{String(safeIndex + 1).padStart(2, '0')} — {String(visibleProducts.length).padStart(2, '0')}</span></div>
-        {!webglError ? <ShowroomScene products={visibleProducts} activeIndex={safeIndex} imageFor={imageFor} onSelect={chooseProduct} onWebglError={setWebglError} department={category} joystick={joystick} detailOpen={detailOpen}/> : <div className="dx-virtual-fallback"><img src={shownImage} alt={`${productName(product)} in the Drixel studio`} /></div>}
+        {!webglError ? <ShowroomScene products={visibleProducts} activeIndex={safeIndex} imageFor={imageFor} onSelect={chooseProduct} onOpen={()=>setDetailOpen(true)} onWebglError={setWebglError} department={category} joystick={joystick} detailOpen={detailOpen}/> : <div className="dx-virtual-fallback"><img src={shownImage} alt={`${productName(product)} in the Drixel studio`} /></div>}
         <div className="dx-virtual-cart-badge"><Link to={`/${market}/cart`} aria-label={`Shopping bag, ${cart.count} items`}>Bag <strong>{cart.count}</strong></Link></div>
         <button className="dx-virtual-focus" type="button" onClick={()=>setDetailOpen(true)} aria-label={`View ${productName(product)} details`}>{productName(product)} <span>{money(productPrice(product,variant))} · View details ↗</span></button>
         <div className="dx-walk-hint" aria-hidden="true">Drag to look · WASD / arrows to walk · Scroll to move</div>
