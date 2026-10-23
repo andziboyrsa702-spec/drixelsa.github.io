@@ -366,6 +366,7 @@ export default function VirtualStore() {
   const [size, setSize] = useState('');
   const [backView, setBackView] = useState(false);
   const [webglError, setWebglError] = useState(false);
+  const [reducedMotion]=useState(()=>typeof window!=='undefined'&&window.matchMedia?.('(prefers-reduced-motion: reduce)').matches);
   const [joystick,setJoystick]=useState({x:0,y:0});
   const [notice, setNotice] = useState('');
   const [detailOpen,setDetailOpen]=useState(false);
@@ -454,7 +455,14 @@ export default function VirtualStore() {
     {product && <>
       <section className="dx-virtual-gallery" aria-label="Interactive Drixel product showroom">
         <div className="dx-virtual-scene-top"><span><i/> LIVE COLLECTION</span><span>{String(safeIndex + 1).padStart(2, '0')} — {String(visibleProducts.length).padStart(2, '0')}</span></div>
-        {!webglError ? <ShowroomScene products={visibleProducts} activeIndex={safeIndex} imageFor={imageFor} onSelect={chooseProduct} onOpen={()=>setDetailOpen(true)} onWebglError={setWebglError} department={category} joystick={joystick} detailOpen={detailOpen}/> : <div className="dx-virtual-fallback"><img src={shownImage} alt={`${productName(product)} in the Drixel studio`} /></div>}
+        {!webglError&&!reducedMotion ? <ShowroomScene products={visibleProducts} activeIndex={safeIndex} imageFor={imageFor} onSelect={chooseProduct} onOpen={()=>setDetailOpen(true)} onWebglError={setWebglError} department={category} joystick={joystick} detailOpen={detailOpen}/> : <div className="dx-walk-product-fallback" role="region" aria-label="DRIXEL clothing catalogue">
+          {visibleProducts.map(item=><article key={item.id}>
+            <Link to={productPath(item,market)}>
+              {productImages(item)[0]&&<img src={productImages(item)[0]} alt={productName(item)} loading="lazy"/>}
+              <strong>{productName(item)}</strong><span>{money(productPrice(item))}</span>
+            </Link>
+          </article>)}
+        </div>}
         <div className="dx-virtual-cart-badge"><Link to={`/${market}/cart`} aria-label={`Shopping bag, ${cart.count} items`}>Bag <strong>{cart.count}</strong></Link></div>
         <button className="dx-virtual-focus" type="button" onClick={()=>setDetailOpen(true)} aria-label={`View ${productName(product)} details`}>{productName(product)} <span>{money(productPrice(product,variant))} · View details ↗</span></button>
         <div className="dx-walk-hint" aria-hidden="true">Drag to look · WASD / arrows to walk · Scroll to move</div>
