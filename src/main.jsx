@@ -19,6 +19,7 @@ import "./styles/order-confirmation.css";
 import "./styles/react-v3.css";
 import "./styles/admin-react.css";
 import "./styles/header.css";
+import "./styles/virtual-store.css";
 import "./styles/home-refinement.css";
 const incomingRoute = new URLSearchParams(location.search).get('__drixel_route');
 if (incomingRoute && incomingRoute.startsWith('/') && !incomingRoute.startsWith('//') && !incomingRoute.includes('\\')) history.replaceState(null, '', incomingRoute);
