@@ -35,11 +35,11 @@ jobs:
           VITE_DRIXEL_ID_AUTHORIZATION_ENDPOINT: https://dev-4pc3eomoyq8oy6o4.us.auth0.com/authorize
           VITE_DRIXEL_ID_TOKEN_ENDPOINT: https://dev-4pc3eomoyq8oy6o4.us.auth0.com/oauth/token
           VITE_DRIXEL_ID_AUDIENCE: https://api.drixel-platform
-          VITE_DRIXEL_ID_CLIENT_ID: build-check-client
+          VITE_DRIXEL_ID_CLIENT_ID: tpc_u54E49Xiadjqiui3V9FMwe
       - name: Commit SSO integration
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add src/app/App.jsx src/react-pages/Auth.jsx src/styles/auth.css worker/src/worker.mjs .env.example worker/wrangler.jsonc .github/workflows/react-v3-build.yml
+          git add src/app/App.jsx src/react-pages/Auth.jsx src/react-pages/DrixelIdCallback.jsx src/utils/drixelId.js src/styles/auth.css worker/src/worker.mjs .env.example worker/wrangler.jsonc
           git diff --cached --quiet || git commit -m "Integrate Drixel ID with Drixel SA"
           git push origin HEAD:react-v3-migration
