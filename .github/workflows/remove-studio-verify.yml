@@ -9,6 +9,8 @@ on:
       - 'src/app/App.jsx'
       - 'src/components/AppHeader.jsx'
       - 'src/components/RouteStyles.jsx'
+      - 'src/utils/seoMetadata.js'
+      - 'scripts/build-public-routes.mjs'
       - 'src/react-pages/VirtualStore.jsx'
       - 'src/styles/virtual-store.css'
       - 'src/studio/**'
@@ -28,6 +30,16 @@ jobs:
         with:
           node-version: 22
           cache: npm
+      - name: Remove final static Studio references
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('scripts/build-public-routes.mjs')
+          text = path.read_text()
+          text = text.replace(" · ${link('/'+market+'/studio','Studio')}", "")
+          text = text.replace("page.product?[]:path.endsWith('/studio')?catalogue:category?", "page.product?[]:category?")
+          path.write_text(text)
+          PY
       - name: Regenerate lockfile without Three.js
         run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
       - name: Verify Studio source is gone
@@ -35,7 +47,7 @@ jobs:
           test ! -e src/react-pages/VirtualStore.jsx
           test ! -e src/styles/virtual-store.css
           test ! -d src/studio
-          ! grep -R --line-number --exclude-dir=node_modules --exclude=package-lock.json -E "VirtualStore|/studio|from ['\"]three['\"]|three/addons" src package.json
+          ! grep -R --line-number --exclude-dir=node_modules --exclude=package-lock.json --exclude=remove-studio-verify.yml -E "VirtualStore|/studio|Drixel Studio|from ['\"]three['\"]|three/addons|OrbitControls|WalkController|buildDrixelRoom" src scripts package.json
           ! grep -q '"three"' package.json
       - name: Install clean dependency graph
         run: npm ci --no-audit --no-fund
@@ -52,11 +64,11 @@ jobs:
       - name: Verify production output has no Studio or Three.js chunk
         run: |
           ! find dist -type f -print | grep -Ei 'VirtualStore|studio|three'
-          ! grep -R -l -E 'Drixel Studio|OrbitControls|WalkController|buildDrixelRoom' dist
-      - name: Commit regenerated lockfile
+          ! grep -R -l -E 'Drixel Studio|OrbitControls|WalkController|buildDrixelRoom|/studio' dist
+      - name: Commit final Studio removal
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add package-lock.json
-          git diff --cached --quiet || git commit -m "Remove Three.js from storefront lockfile"
+          git add package-lock.json scripts/build-public-routes.mjs
+          git diff --cached --quiet || git commit -m "Remove final Studio static routes"
           git push origin HEAD:react-v3-migration
