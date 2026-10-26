@@ -8,6 +8,7 @@ on:
       - 'package.json'
       - 'src/app/App.jsx'
       - 'src/components/AppHeader.jsx'
+      - 'src/components/RouteStyles.jsx'
       - 'src/react-pages/VirtualStore.jsx'
       - 'src/styles/virtual-store.css'
       - 'src/studio/**'
