@@ -11,6 +11,7 @@ on:
 permissions:
   contents: write
 
+# One-shot integration workflow. It is removed after the SSO changes land cleanly.
 jobs:
   integrate:
     runs-on: ubuntu-latest
