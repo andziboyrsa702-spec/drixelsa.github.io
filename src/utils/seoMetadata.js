@@ -8,7 +8,6 @@ export const categories={
  accessories:['Streetwear Accessories','Explore Drixel accessories and the details that complete your everyday look.']
 };
 export const information={
- studio:['Drixel Studio — Explore the Collection','Step inside the Drixel Studio to explore original products, view available designs and find product details. Browse the full collection and shop Drixel streetwear.'],
  help:['Help Centre','Step-by-step guides to Drixel accounts, membership, ordering, delivery, returns and privacy.'],
  ...Object.fromEntries(helpArticles.map(a=>['help/guides/'+a.slug,[a.title,a.summary]])),
  about:['About Drixel SA','Discover the story and vision of Drixel SA, a South African streetwear brand founded in 2025.'],
@@ -16,7 +15,7 @@ export const information={
  'size-guide':['Clothing Size Guide','Use the Drixel size guide to compare measurements and choose your clothing fit.'],
  community:['Drixel Community','Explore the Drixel community and membership experience.'],
  feedback:['Feedback & Concerns','Share feedback or report a concern to the Drixel team.'],
- customize:['Custom Apparel — Coming Soon','Find out about the upcoming Drixel custom apparel studio.'],
+ customize:['Custom Apparel — Coming Soon','Find out about the upcoming Drixel custom apparel experience.'],
  'help/terms-of-use':['Terms & Conditions','Read the terms and conditions for shopping with Drixel SA.'],
  'help/returns-policy':['Returns & Refunds','Read Drixel’s returns and refund policy before placing your order.'],
  'help/shipping-policy':['Shipping & Delivery','Read Drixel’s shipping policy for delivery information and order guidance.'],
