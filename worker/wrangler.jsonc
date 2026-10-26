@@ -18,6 +18,7 @@
     "CLOUDINARY_UPLOAD_PRESET": "drixel_signed",
     "MAIL_FROM": "Drixel SA <hello@sales.drixelsa.co.za>",
     "STORE_URL": "https://drixelsa.co.za",
+    "DRIXEL_PLATFORM_API_URL": "https://drixel-platform-api-staging.onrender.com",
     "CAMPAIGN_BATCH_SIZE": "1",
     "CAMPAIGN_TICK_LIMIT": "1",
     "CAMPAIGN_AUDIENCE_LIMIT": "1000"
