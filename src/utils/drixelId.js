@@ -1,3 +1,5 @@
+import{apiUrl}from'./api.js';
+
 const config={
  issuer:import.meta.env.VITE_DRIXEL_ID_ISSUER,
  authorizationEndpoint:import.meta.env.VITE_DRIXEL_ID_AUTHORIZATION_ENDPOINT,
@@ -56,7 +58,7 @@ export async function finishDrixelIdLogin(){
  if(!tokenResponse.ok||!tokens.access_token||!tokens.id_token)throw Error('Drixel ID could not complete the secure token exchange.');
  const claims=decodeJwt(tokens.id_token),audiences=Array.isArray(claims.aud)?claims.aud:[claims.aud],now=Math.floor(Date.now()/1000);
  if(claims.iss!==config.issuer||!audiences.includes(config.clientId)||claims.nonce!==transaction.nonce||!Number.isFinite(claims.exp)||claims.exp<=now)throw Error('Drixel ID returned an identity that could not be verified.');
- const bridgeResponse=await fetch('/api/auth/drixel/exchange',{method:'POST',headers:{Authorization:`Bearer ${tokens.access_token}`,'Content-Type':'application/json'},body:JSON.stringify({id_token:tokens.id_token})});
+ const bridgeResponse=await fetch(apiUrl('/api/auth/drixel/exchange'),{method:'POST',headers:{Authorization:`Bearer ${tokens.access_token}`,'Content-Type':'application/json'},body:JSON.stringify({id_token:tokens.id_token})});
  const bridge=await bridgeResponse.json().catch(()=>({}));
  if(!bridgeResponse.ok||!bridge.firebase_custom_token)throw Error(bridge.message||'Drixel SA could not create your store session.');
  return {bridge,claims,returnTo:safeReturnTo(transaction.returnTo,'/za/member/profile')};
