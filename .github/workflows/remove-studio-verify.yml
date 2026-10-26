@@ -1,0 +1,61 @@
+name: Verify complete Studio removal
+
+on:
+  push:
+    branches: [react-v3-migration]
+    paths:
+      - '.github/workflows/remove-studio-verify.yml'
+      - 'package.json'
+      - 'src/app/App.jsx'
+      - 'src/components/AppHeader.jsx'
+      - 'src/react-pages/VirtualStore.jsx'
+      - 'src/styles/virtual-store.css'
+      - 'src/studio/**'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: react-v3-migration
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Regenerate lockfile without Three.js
+        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+      - name: Verify Studio source is gone
+        run: |
+          test ! -e src/react-pages/VirtualStore.jsx
+          test ! -e src/styles/virtual-store.css
+          test ! -d src/studio
+          ! grep -R --line-number --exclude-dir=node_modules --exclude=package-lock.json -E "VirtualStore|/studio|from ['\"]three['\"]|three/addons" src package.json
+          ! grep -q '"three"' package.json
+      - name: Install clean dependency graph
+        run: npm ci --no-audit --no-fund
+      - name: Production build
+        run: npm run build
+        env:
+          VITE_FIREBASE_AUTH_DOMAIN: drixel-sa.firebaseapp.com
+          VITE_API_BASE_URL: https://drixel-api.drixelsa.workers.dev
+          VITE_DRIXEL_ID_ISSUER: https://dev-4pc3eomoyq8oy6o4.us.auth0.com/
+          VITE_DRIXEL_ID_AUTHORIZATION_ENDPOINT: https://dev-4pc3eomoyq8oy6o4.us.auth0.com/authorize
+          VITE_DRIXEL_ID_TOKEN_ENDPOINT: https://dev-4pc3eomoyq8oy6o4.us.auth0.com/oauth/token
+          VITE_DRIXEL_ID_AUDIENCE: https://api.drixel-platform
+          VITE_DRIXEL_ID_CLIENT_ID: tpc_u54E49Xiadjqiui3V9FMwe
+      - name: Verify production output has no Studio or Three.js chunk
+        run: |
+          ! find dist -type f -print | grep -Ei 'VirtualStore|studio|three'
+          ! grep -R -l -E 'Drixel Studio|OrbitControls|WalkController|buildDrixelRoom' dist
+      - name: Commit regenerated lockfile
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package-lock.json
+          git diff --cached --quiet || git commit -m "Remove Three.js from storefront lockfile"
+          git push origin HEAD:react-v3-migration
