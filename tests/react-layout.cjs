@@ -14,16 +14,18 @@ const paths=['/za','/za/checkout','/za/cart','/za/w/new-featured','/za/t/drixel-
 (async()=>{
  const browser=await chromium.launch({headless:true,...(process.env.CHROME_PATH?{executablePath:process.env.CHROME_PATH,args:['--no-sandbox']}:{})});
  const context=await browser.newContext();
+ let catalogueOffline=false;
  await context.addInitScript(p=>{localStorage.setItem('drixel_cart',JSON.stringify([{...p,productId:'tee',quantity:2,size:'M',color:'Black'}]));localStorage.setItem('drixel_market','za');},product);
  await context.route('**/*',async route=>{
   const u=new URL(route.request().url());
   const firebase=u.pathname.match(/firebase_(app|auth|firestore)\.js$/);
   if(firebase)return route.fulfill({contentType:'application/javascript',body:modules[firebase[1]]});
+  if(u.pathname==='/catalogue.json')return catalogueOffline?route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({error:'offline'})}):route.fulfill({contentType:'application/json',body:JSON.stringify({products:[product]})});
   if(u.pathname==='/api/admin/security/authenticator/status')return route.fulfill({json:{available:true,verified:true,enrolled:true,expiresAt:Date.now()+900000}});if(u.pathname.startsWith('/api/'))return route.fulfill({contentType:'application/json',body:JSON.stringify(u.pathname.includes('payments/config')?{bank:{enabled:false},yoco:{enabled:false},snapscan:{enabled:true}}:u.pathname.includes('checkout-quote')?quote:u.pathname.includes('exchange-rates')?{rate:1}:{} )});
   if(/\.(png|jpg|jpeg)$/i.test(u.pathname))return route.fulfill({contentType:'image/svg+xml',body:'<svg xmlns="http://www.w3.org/2000/svg" width="600" height="600"><rect width="600" height="600" fill="#ddd"/></svg>'});
   if(u.pathname.endsWith('.mp4'))return route.fulfill({body:''});
   if(u.hostname==='127.0.0.1')return route.continue();
-  return route.fulfill({body:''});
+  return route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({error:'offline'})});
  });
  const page=await context.newPage(),errors=[],issues=[];
  page.on('console',m=>{if(m.type()==='error')console.error('BROWSER',m.text())});page.on('requestfailed',r=>console.error('REQUEST FAILED',r.url(),r.failure()));
@@ -50,11 +52,12 @@ const paths=['/za','/za/checkout','/za/cart','/za/w/new-featured','/za/t/drixel-
  await page.unroute('**/api/create-order');
 
  // A transient catalogue failure must show retry rather than a false empty shop.
- await page.route('**/firebase_firestore.js*',route=>route.fulfill({contentType:'application/javascript',body:modules.firestore.replace('export const getDocs=async ref=>result(ref);', 'export const getDocs=async ref=>{const n=Number(sessionStorage.getItem("qa_catalogue_retried")||0);sessionStorage.setItem("qa_catalogue_retried",String(n+1));if(n<2)throw Error("offline");return result(ref)};')}));
+ catalogueOffline=true;
  await page.goto('http://127.0.0.1:5173/za/w/new-featured');
+ await page.getByRole('button',{name:'Try again'}).waitFor();
+ catalogueOffline=false;
  await page.getByRole('button',{name:'Try again'}).click();
  await page.locator('.dx-product-card').first().waitFor();
- await page.unroute('**/firebase_firestore.js*');
  for(const width of [320,390,768,1024,1362,1440]){
   await page.setViewportSize({width,height:900});
   for(const path of paths){
