@@ -22,7 +22,7 @@ const decodeJwt=token=>{
  return JSON.parse(atob(normalized.padEnd(Math.ceil(normalized.length/4)*4,'=')));
 };
 
-export async function beginDrixelIdLogin({market='za',returnTo}){
+export async function beginDrixelIdLogin({market='za',returnTo,mode='login',email=''}){
  if(!drixelIdConfigured())throw Error('Drixel ID sign-in has not been configured for this store.');
  if(!window.isSecureContext)throw Error('Drixel ID requires a secure HTTPS connection.');
  const state=randomToken(),nonce=randomToken(),verifier=randomToken(48);
@@ -41,6 +41,10 @@ export async function beginDrixelIdLogin({market='za',returnTo}){
  authorization.searchParams.set('nonce',nonce);
  authorization.searchParams.set('code_challenge',challenge);
  authorization.searchParams.set('code_challenge_method','S256');
+ if(mode==='register')authorization.searchParams.set('screen_hint','signup');
+ const normalizedEmail=String(email||'').trim();
+ if(normalizedEmail)authorization.searchParams.set('login_hint',normalizedEmail);
+ authorization.searchParams.set('ui_locales','en');
  location.assign(authorization.toString());
 }
 
