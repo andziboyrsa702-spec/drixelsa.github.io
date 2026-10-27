@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build && node scripts/build-public-routes.mjs",
+    "build": "vite build && node scripts/build-catalogue-snapshot.mjs && node scripts/build-public-routes.mjs",
     "preview": "vite preview",
     "test": "node --test functions/test/*.test.js",
     "check": "node scripts/check-site.cjs",
