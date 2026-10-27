@@ -1,5 +1,6 @@
-const CACHE_KEY='drixel_catalogue_cache_v2';
+const CACHE_KEY='drixel_catalogue_cache_v3';
 const TIMEOUT_MS=8000;
+const SNAPSHOT_URL='/catalogue.json';
 const FIRESTORE_PRODUCTS='https://firestore.googleapis.com/v1/projects/drixel-sa/databases/(default)/documents/products';
 const available=p=>p.active!==false;
 
@@ -29,33 +30,71 @@ function writeCache(list){
   try{localStorage.setItem(CACHE_KEY,JSON.stringify({savedAt:Date.now(),products:list}));}catch{}
 }
 
-async function fetchCatalogue(){
+async function fetchJson(url,timeout=TIMEOUT_MS){
+  const response=await fetch(url,{headers:{Accept:'application/json'},signal:AbortSignal.timeout(timeout),cache:'no-store'});
+  if(!response.ok)throw new Error(`Catalogue unavailable (${response.status}).`);
+  return response.json();
+}
+
+async function fetchSnapshot(){
+  const payload=await fetchJson(SNAPSHOT_URL,4000);
+  const list=Array.isArray(payload)?payload:payload?.products;
+  if(!Array.isArray(list))throw new Error('Catalogue snapshot is invalid.');
+  return list.filter(available);
+}
+
+async function fetchLiveCatalogue(){
   const list=[];
   let pageToken='';
   do{
     const url=new URL(FIRESTORE_PRODUCTS);
     url.searchParams.set('pageSize','300');
     if(pageToken)url.searchParams.set('pageToken',pageToken);
-    const response=await fetch(url,{headers:{Accept:'application/json'},signal:AbortSignal.timeout(TIMEOUT_MS)});
-    if(!response.ok)throw new Error('Catalogue unavailable.');
-    const payload=await response.json();
+    const payload=await fetchJson(url);
     for(const document of payload.documents||[]){
       const data=Object.fromEntries(Object.entries(document.fields||{}).map(([key,value])=>[key,decode(value)]));
       list.push({...data,id:document.name.split('/').pop()});
     }
     pageToken=payload.nextPageToken||'';
   }while(pageToken);
-  if(list.length)writeCache(list);
-  return list;
+  return list.filter(available);
 }
 
 let cataloguePromise;
+function refreshInBackground(){
+  fetchLiveCatalogue().then(list=>{
+    if(!list.length)return;
+    writeCache(list);
+    cataloguePromise=Promise.resolve(list);
+  }).catch(()=>{});
+}
+
+async function loadCatalogue(){
+  try{
+    const snapshot=await fetchSnapshot();
+    writeCache(snapshot);
+    refreshInBackground();
+    return snapshot;
+  }catch(snapshotError){
+    const cached=readCache();
+    if(cached.length){
+      refreshInBackground();
+      return cached;
+    }
+    try{
+      const live=await fetchLiveCatalogue();
+      writeCache(live);
+      return live;
+    }catch{
+      throw snapshotError;
+    }
+  }
+}
+
 async function catalogue(){
   if(!cataloguePromise){
-    cataloguePromise=fetchCatalogue().catch(error=>{
+    cataloguePromise=loadCatalogue().catch(error=>{
       cataloguePromise=null;
-      const cached=readCache();
-      if(cached.length)return cached;
       throw error;
     });
   }
