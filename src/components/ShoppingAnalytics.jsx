@@ -1,0 +1,5 @@
+import React,{useEffect,useState} from 'react';
+import {useLocation} from 'react-router-dom';
+import {analyticsAllowed,setAnalyticsConsent,trackShopping} from '../utils/shoppingAnalytics.js';
+export function ShoppingAnalytics(){const {pathname}=useLocation();useEffect(()=>{const track=()=>{if(/^\/[a-z]{2}\/t\//.test(pathname))trackShopping('product_view');if(/^\/[a-z]{2}\/checkout$/.test(pathname))trackShopping('checkout_start')};track();window.addEventListener('drixel-analytics-choice',track);return()=>window.removeEventListener('drixel-analytics-choice',track)},[pathname]);return null}
+export function AnalyticsChoice(){const [allowed,setAllowed]=useState(analyticsAllowed);return <label className="dx-analytics-choice"><input type="checkbox" checked={allowed} onChange={e=>{setAnalyticsConsent(e.target.checked);setAllowed(analyticsAllowed())}}/> Share shopping activity counts to help improve Drixel (optional). No account details or bag contents are included. Your browser privacy signals are respected.</label>}

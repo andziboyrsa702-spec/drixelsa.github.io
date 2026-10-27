@@ -1,0 +1,43 @@
+/* Editorial storefront details; the existing palette and content stay intact. */
+.dx-header .dx-icon-action{width:44px;min-width:44px;height:44px;justify-content:center;border-radius:50%;transition:background .18s ease}
+.dx-header .dx-icon-action:hover{background:#f3f3f3;opacity:1}
+.dx-header .dx-action-label{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+.dx-header .dx-header-actions{gap:10px}
+.dx-header .dx-bag-count{position:absolute;top:0;right:-2px;min-width:17px;height:17px;padding:0 4px;border-radius:20px;background:#111;color:#fff;font-size:10px;line-height:17px;text-align:center;border:2px solid white;box-sizing:content-box}
+.dx-home .react-hero{min-height:clamp(420px,48vw,610px)}
+.dx-home .react-hero-copy h1{font-size:clamp(48px,7vw,100px);letter-spacing:-.055em}
+.dx-home .react-hero .react-hero-copy{padding:72px 0 56px}
+.dx-home .dx-section,.dx-home .dx-campaign,.dx-home .dx-reels{padding-top:64px;padding-bottom:64px}
+.dx-home .dx-section-head h2{font-size:clamp(30px,3.4vw,48px);line-height:1.12;letter-spacing:-.045em}
+.dx-home .dx-section-head p{font-size:12px;line-height:1.7;color:#676767;letter-spacing:0;max-width:300px}
+.dx-home .react-categories{gap:16px}
+.dx-home .react-categories a{position:relative;min-height:190px;padding:26px;background:#f5f5f3;border:1px solid #ececea;transition:background .2s ease}
+.dx-home .react-categories a:hover{background:#eaeae7}
+.dx-home .react-categories strong{font-size:25px;margin-top:8px;font-weight:600}
+.dx-home .react-categories svg{position:absolute;right:24px;bottom:28px}
+.dx-home .dx-campaign-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}
+.dx-home .dx-campaign-grid figure:nth-child(n){grid-column:auto!important;min-height:0;height:clamp(210px,26vw,340px);overflow:hidden}
+.dx-home .dx-campaign-grid img{height:100%;width:100%;object-fit:cover;object-position:center}
+.dx-home .dx-live-campaign{max-width:calc(var(--dx-max) - 2 * var(--dx-gutter));min-height:360px;margin:0 auto 28px;padding:44px;overflow:hidden}
+.dx-home .dx-live-campaign h2{font-size:clamp(36px,5vw,64px);line-height:1.06;letter-spacing:-.045em;overflow-wrap:anywhere}
+.dx-home .dx-live-campaign p{font-size:14px}
+.dx-home .dx-reel-grid{gap:20px}
+.dx-home .dx-reel-grid video{aspect-ratio:4/5;max-height:340px}
+.dx-home .dx-experience h2{font-size:clamp(34px,4.2vw,58px);line-height:1.08}
+.dx-footer{padding:56px var(--dx-gutter) 24px}
+.dx-footer .dx-footer-newsletter{padding-bottom:38px;margin-bottom:38px;border-bottom:1px solid #303030}
+.dx-footer .dx-footer-grid{grid-template-columns:minmax(0,1.6fr) repeat(3,minmax(0,1fr));gap:48px}
+.dx-footer .dx-footer-brand>a{font-size:34px;font-weight:900;letter-spacing:-1.8px;color:#fff}
+.dx-footer h3{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:#fff;margin:0 0 22px;font-weight:600}
+.dx-footer .dx-footer-grid a{font-size:13px;line-height:1.6;color:#b6b6b6;margin-bottom:12px;text-decoration:none;overflow-wrap:anywhere}
+.dx-footer .dx-footer-brand>a{font-size:34px;color:#fff}
+.dx-footer .dx-footer-grid a:hover{color:#fff;text-decoration:underline;text-underline-offset:4px}
+.dx-footer .dx-footer-brand p{max-width:290px;line-height:1.8;color:#999}
+.dx-footer .dx-social{flex-wrap:wrap;gap:14px}
+.dx-footer .dx-social a{font-size:11px;border-bottom:1px solid #454545;padding-bottom:4px}
+.dx-footer .dx-footer-bottom{margin-top:42px;gap:20px;line-height:1.6}
+.dx-footer a:focus-visible{outline:2px solid #fff;outline-offset:4px}
+@media(max-width:900px){.dx-footer .dx-footer-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:36px}.dx-home .dx-live-campaign{margin-left:var(--dx-gutter);margin-right:var(--dx-gutter);padding:32px}}
+@media(max-width:700px){.dx-header .dx-header-actions{justify-items:center;gap:10px 8px}.dx-home .react-hero{min-height:440px}.dx-home .react-hero .react-hero-copy{padding:54px 0 40px}.dx-home .dx-section,.dx-home .dx-campaign,.dx-home .dx-reels{padding-top:40px;padding-bottom:40px}.dx-home .dx-campaign-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.dx-home .dx-campaign-grid figure:nth-child(n){height:clamp(160px,43vw,260px)}.dx-home .react-categories a{min-height:150px;padding:20px}.dx-home .react-categories strong{font-size:21px}.dx-home .react-categories svg{right:16px;bottom:22px;width:18px}.dx-home .dx-live-campaign{min-height:300px;padding:26px}.dx-home .dx-reel-grid{gap:12px}.dx-footer{padding-top:40px}.dx-footer .dx-footer-grid{gap:30px 20px}.dx-footer .dx-footer-brand{grid-column:1/-1}.dx-footer .dx-footer-grid>div:last-child{grid-column:1/-1}.dx-footer .dx-footer-bottom{display:flex;flex-direction:column;gap:4px}.dx-footer .dx-footer-newsletter{padding-bottom:28px;margin-bottom:30px}}
+@media(prefers-reduced-motion:reduce){.dx-header .dx-icon-action,.dx-home .react-categories a{transition:none}}
+@media(max-width:700px){.dx-home .react-categories svg{top:18px;bottom:auto}.dx-home .react-categories strong{font-size:clamp(17px,4.8vw,21px)}.dx-home .dx-home-newsletter{padding-top:48px;padding-bottom:48px}.dx-home .dx-home-newsletter h2{font-size:clamp(32px,7vw,48px)}}

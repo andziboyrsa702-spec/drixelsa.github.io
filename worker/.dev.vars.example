@@ -1,0 +1,10 @@
+# Copy to .dev.vars, never commit the filled file.
+ALLOW_LOCAL_ORIGINS=true
+FUNCTIONS_EMULATOR=true
+PUBLIC_SITE_URL=http://localhost:8787
+# Development uses your real Firebase data unless an isolated project is configured.
+FIREBASE_SERVICE_ACCOUNT={"project_id":"drixel-sa","client_email":"REPLACE","private_key":"REPLACE"}
+RESEND_API_KEY=REPLACE
+RESEND_WEBHOOK_SECRET=REPLACE
+CLOUDINARY_API_KEY=REPLACE
+CLOUDINARY_API_SECRET=REPLACE

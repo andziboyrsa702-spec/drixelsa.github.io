@@ -1,0 +1,2 @@
+import React from 'react';
+export default function AdminPagination({state}){return <div className="ra-filter-bar" aria-label="Record pages"><button type="button" disabled={!state.previous||state.loading} onClick={state.previous}>Previous page</button><span>Page {state.page} · Search and filters apply to this page.</span><button type="button" disabled={!state.more||state.loading} onClick={state.more}>Next page</button></div>}

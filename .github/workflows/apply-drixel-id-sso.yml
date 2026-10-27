@@ -1,0 +1,45 @@
+name: Apply Drixel ID SSO integration
+
+on:
+  push:
+    branches: [react-v3-migration]
+    paths:
+      - 'scripts/apply-drixel-id-sso.mjs'
+      - '.github/workflows/apply-drixel-id-sso.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+# One-shot integration workflow. It is removed after the SSO changes land cleanly.
+jobs:
+  integrate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: react-v3-migration
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: node scripts/apply-drixel-id-sso.mjs
+      - run: npm ci --no-audit --no-fund
+      - run: npm --prefix worker ci --no-audit --no-fund
+      - run: npm --prefix worker run test
+      - run: npm run build
+        env:
+          VITE_FIREBASE_AUTH_DOMAIN: drixel-sa.firebaseapp.com
+          VITE_API_BASE_URL: https://drixel-api.drixelsa.workers.dev
+          VITE_DRIXEL_ID_ISSUER: https://dev-4pc3eomoyq8oy6o4.us.auth0.com/
+          VITE_DRIXEL_ID_AUTHORIZATION_ENDPOINT: https://dev-4pc3eomoyq8oy6o4.us.auth0.com/authorize
+          VITE_DRIXEL_ID_TOKEN_ENDPOINT: https://dev-4pc3eomoyq8oy6o4.us.auth0.com/oauth/token
+          VITE_DRIXEL_ID_AUDIENCE: https://api.drixel-platform
+          VITE_DRIXEL_ID_CLIENT_ID: tpc_u54E49Xiadjqiui3V9FMwe
+      - name: Commit SSO integration
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/app/App.jsx src/react-pages/Auth.jsx src/react-pages/DrixelIdCallback.jsx src/utils/drixelId.js src/styles/auth.css worker/src/worker.mjs .env.example worker/wrangler.jsonc
+          git diff --cached --quiet || git commit -m "Integrate Drixel ID with Drixel SA"
+          git push origin HEAD:react-v3-migration

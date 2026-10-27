@@ -12,11 +12,11 @@
     <link rel="shortcut icon" href="favicon.ico">
 
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
-    <script src="https://www.google.com/recaptcha/api.js" async defer></script>
-    <link rel="stylesheet" href="index.css?v=1783973275">
+
+    <link rel="stylesheet" href="index.css?v=20261005-secure">
 </head>
 <body>
     <!-- Beautiful Toast Notification System -->
@@ -33,7 +33,7 @@
 
             const toast = document.createElement('div');
             toast.className = 'toast toast-' + type;
-            
+
             let iconClass = 'fa-info-circle';
             if (type === 'success') iconClass = 'fa-check-circle';
             else if (type === 'error') iconClass = 'fa-times-circle';
@@ -75,7 +75,7 @@
             if (!message) return;
             let type = 'info';
             const lowerMessage = message.toLowerCase();
-            
+
             if (lowerMessage.includes('success') || lowerMessage.includes('confirmed') || lowerMessage.includes('sent') || lowerMessage.includes('âœ“') || lowerMessage.includes('?') || lowerMessage.includes('thank')) {
                 type = 'success';
             } else if (lowerMessage.includes('error') || lowerMessage.includes('fail') || lowerMessage.includes('invalid') || lowerMessage.includes('âŒ') || lowerMessage.includes('disabled') || lowerMessage.includes('not found')) {
@@ -83,11 +83,11 @@
             } else if (lowerMessage.includes('warning') || lowerMessage.includes('please') || lowerMessage.includes('required') || lowerMessage.includes('empty')) {
                 type = 'warning';
             }
-            
+
             window.showToast(message, type);
         };
     </script>
-    
+
     <!-- Cookie Consent Modal -->
     <div class="cookie-consent" id="cookieConsent">
         <div class="cookie-content">
@@ -109,7 +109,7 @@
             <nav class="navbar">
         <div class="container">
             <a href="/index.html" class="logo">DRIXEL<span style="color: var(--accent-orange);">SA</span></a>
-            
+
             <div class="nav-links" id="navLinks">
                 <a href="/index.html">Home</a>
                 <div class="nav-dropdown">
@@ -126,7 +126,7 @@
                 <a href="/about.html">About</a>
                 <a href="/contact.html">Contact</a>
             </div>
-            
+
             <div class="nav-icons">
                 <a href="/auth.html" id="authLink">
                     <i class="fas fa-user"></i>
@@ -253,9 +253,10 @@
     </footer>
 
     <!-- ===== MAIN JAVASCRIPT ===== -->
-    <script type="module" src="index.js?v=1784368890"></script>
+    <script type="module" src="index.js?v=20261005-secure"></script>
 </body>
 </html>
+
 
 
 
